@@ -39,8 +39,19 @@ python3 tools/platform_capabilities.py --json > capabilities.json
 
 ## Smoke checks
 
+Local:
+
 ```bash
 ./tools/smoke_platform.sh
 ```
 
+CI (Ubuntu x86_64) workflow:
+- `.github/workflows/platform-smoke.yml`
+- uploads `platform_capabilities_ubuntu.json` artifact
+
 This validates core Python components and prints host capability status.
+
+## Known caveats
+
+- Full SDR decode runtime still depends on target host SDR driver stack.
+- MQTT broker binaries may not be installed by default on every platform image.

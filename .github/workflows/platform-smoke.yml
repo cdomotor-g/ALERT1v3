@@ -1,0 +1,39 @@
+name: platform-smoke
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'tools/platform_capabilities.py'
+      - 'tools/smoke_platform.sh'
+      - 'sidecars/**'
+      - 'webui/**'
+      - 'docs/PLATFORMS.md'
+      - '.github/workflows/platform-smoke.yml'
+
+jobs:
+  smoke-ubuntu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run platform smoke
+        run: |
+          chmod +x tools/smoke_platform.sh
+          ./tools/smoke_platform.sh
+
+      - name: Capture capabilities artifact
+        run: |
+          mkdir -p artifacts
+          python3 tools/platform_capabilities.py --json > artifacts/platform_capabilities_ubuntu.json
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: platform-capabilities-ubuntu
+          path: artifacts/platform_capabilities_ubuntu.json
