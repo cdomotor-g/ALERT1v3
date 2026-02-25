@@ -1,6 +1,6 @@
-# ALERT
+# FW-LAB Receiver
 
-ALERT is an RTL-SDR + GNU Radio receiver/decoder flowgraph for legacy ALERT-style transmissions (default center frequency: 173.9 MHz).
+**Flood Warning ALERT Base Station Receiver** (short name: **FW-LAB Receiver**) is an RTL-SDR + GNU Radio receiver/decoder flowgraph for ALERT-style transmissions (default center frequency: 173.9 MHz).
 
 Current goals:
 - Improve decode clarity and reliability

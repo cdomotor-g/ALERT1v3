@@ -2,7 +2,11 @@
 
 ## Product name
 
-Use **ALERT** as the product/project name (no `v3` suffix in user-facing docs).
+Use **Flood Warning ALERT Base Station Receiver** as the formal name.
+
+Use **FW-LAB Receiver** as the short name.
+
+Do not use `v3` suffixes in user-facing naming.
 
 ## Version line
 

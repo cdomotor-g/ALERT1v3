@@ -50,7 +50,14 @@
 - [ ] Performance profiling (CPU/load on Pi)
 - [ ] Packaging/run scripts and operator instructions
 
-## Phase 7 — Next overnight run targets
+## Phase 7 — ALERT2 capability
+
+- [ ] Define ALERT2 scope and compatibility goals
+- [ ] Document protocol/interface differences vs ALERT
+- [ ] Add decoder extension plan (feature flags or parallel decode path)
+- [ ] Add test captures/replay cases for ALERT2
+
+## Phase 8 — Next overnight run targets
 
 - [ ] **Finish Issue #5 (MQTT):**
   - wire MQTT block into `src/ALERT1v3.grc`
