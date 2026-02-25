@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- Raspberry Pi host monitoring sidecar: `tools/host_monitor.py` (JSONL + optional MQTT publish).
+- Host metrics docs: `docs/HOST_MONITORING.md`.
+
+### Changed
+- Web dashboard (`webui/server.py`) now supports optional host metrics input via `--host-metrics-jsonl` and `/api/host_metrics`.
+
+### Added
 - Issue #5: MQTT publisher block wired by default in `src/ALERT1v3.grc`/`src/ALERT1v3.py` with runtime vars (`mqtt_broker_host`, `mqtt_broker_port`, `mqtt_username`, `mqtt_password`, `mqtt_topic_prefix`).
 - Issue #4: Operator-tab decode counters (`decode rate`, `total decodes`, `recent errors`) via `stats_out` + `Decoder counters` widget.
 - Replay fixture/tooling:

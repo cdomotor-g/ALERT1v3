@@ -34,6 +34,7 @@ Current goals:
 - MQTT integration notes: `docs/MQTT.md`
 - Replay/validation fixture: `docs/REPLAY.md`
 - Web UI MVP notes: `docs/WEBUI.md`
+- Host monitoring (Raspberry Pi): `docs/HOST_MONITORING.md`
 - Roadmap and milestones: `docs/ROADMAP.md`
 - Versioning + naming policy: `docs/VERSIONING.md`
 - Change log: `docs/CHANGELOG.md`

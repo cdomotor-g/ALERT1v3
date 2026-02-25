@@ -10,15 +10,33 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 
-HTML = """<!doctype html><html><head><meta charset='utf-8'><title>ALERT1v3 Dashboard</title>
+HTML = """<!doctype html><html><head><meta charset='utf-8'><title>FW-LAB Dashboard</title>
 <style>body{font-family:Arial;margin:1rem;background:#10151c;color:#d7e0ea}table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid #243243;padding:.4rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}.muted{color:#93a6b8}input{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}</style></head>
-<body><h2>ALERT1v3 Live Dashboard</h2><div class='card'>Status: <span id='status'>starting</span> · Events loaded: <span id='count'>0</span> · Filter sensor: <input id='sensor' placeholder='optional'></div>
+<body><h2>FW-LAB Live Dashboard</h2>
+<div class='card'>
+  Status: <span id='status'>starting</span> · Events loaded: <span id='count'>0</span> · Filter sensor: <input id='sensor' placeholder='optional'>
+</div>
+<div class='card'>
+  Host metrics: <span id='hm-status' class='muted'>n/a</span> · CPU <span id='hm-cpu'>-</span>% · RAM <span id='hm-mem'>-</span>% · Disk <span id='hm-disk'>-</span>% · Temp <span id='hm-temp'>-</span>°C · Load/core <span id='hm-load'>-</span> · Breaches <span id='hm-breach'>0</span>
+</div>
 <table><thead><tr><th>Time</th><th>Status</th><th>Sensor</th><th>Format</th><th>Data</th><th>Summary</th></tr></thead><tbody id='rows'></tbody></table>
 <script>
 const rows=document.getElementById('rows'); const status=document.getElementById('status'); const count=document.getElementById('count');
 const sensor=document.getElementById('sensor'); let events=[];
 function render(){const f=sensor.value.trim(); rows.innerHTML=''; let shown=0; for(const ev of events.slice().reverse()){if(f && String(ev.decode?.sensor_id??'')!==f) continue; shown++; const tr=document.createElement('tr'); tr.innerHTML=`<td>${ev.ts||''}</td><td>${ev.status||''}</td><td>${ev.decode?.sensor_id??''}</td><td>${ev.decode?.format_id??''}</td><td>${ev.decode?.data_val??''}</td><td>${ev.summary||''}</td>`; rows.appendChild(tr); if(shown>=100) break;} count.textContent=String(events.length);} sensor.addEventListener('input',render);
+function renderHost(m){
+  document.getElementById('hm-status').textContent = m?.status || 'n/a';
+  const mm = m?.metrics || {};
+  document.getElementById('hm-cpu').textContent = (mm.cpu_percent ?? '-');
+  document.getElementById('hm-mem').textContent = (mm.mem_percent ?? '-');
+  document.getElementById('hm-disk').textContent = (mm.disk_percent ?? '-');
+  document.getElementById('hm-temp').textContent = (mm.temp_c ?? '-');
+  document.getElementById('hm-load').textContent = (mm.load_1m_per_core ?? '-');
+  document.getElementById('hm-breach').textContent = String((m?.breaches || []).length);
+}
 fetch('/api/events?limit=200').then(r=>r.json()).then(d=>{events=d.events||[]; render();});
+fetch('/api/host_metrics').then(r=>r.json()).then(d=>renderHost(d.event||null)).catch(()=>{});
+setInterval(()=>fetch('/api/host_metrics').then(r=>r.json()).then(d=>renderHost(d.event||null)).catch(()=>{}),3000);
 const es=new EventSource('/api/live'); es.onmessage=(m)=>{try{events.push(JSON.parse(m.data)); if(events.length>1000) events=events.slice(-1000); render(); status.textContent='live';}catch{}}; es.onerror=()=>status.textContent='reconnecting';
 </script></body></html>"""
 
@@ -66,6 +84,7 @@ class EventStore:
 
 class Handler(BaseHTTPRequestHandler):
     store: EventStore = None
+    host_metrics_store: EventStore = None
 
     def _json(self, obj, code=200):
         payload = json.dumps(obj, default=str).encode('utf-8')
@@ -93,6 +112,13 @@ class Handler(BaseHTTPRequestHandler):
             events = list(self.store.events)[-limit:]
             return self._json({'events': events, 'count': len(self.store.events)})
 
+        if parsed.path == '/api/host_metrics':
+            if not self.host_metrics_store:
+                return self._json({'event': None, 'enabled': False})
+            self.host_metrics_store.poll_new()
+            ev = list(self.host_metrics_store.events)[-1] if self.host_metrics_store.events else None
+            return self._json({'event': ev, 'enabled': True})
+
         if parsed.path == '/api/live':
             self.send_response(HTTPStatus.OK)
             self.send_header('Content-Type', 'text/event-stream')
@@ -113,8 +139,9 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    p = argparse.ArgumentParser(description='ALERT1v3 web dashboard server')
+    p = argparse.ArgumentParser(description='FW-LAB web dashboard server')
     p.add_argument('--jsonl', required=True, help='Path to rx_events_*.jsonl')
+    p.add_argument('--host-metrics-jsonl', default='', help='Optional path to host_metrics.jsonl')
     p.add_argument('--host', default='127.0.0.1')
     p.add_argument('--port', type=int, default=8088)
     args = p.parse_args()
@@ -122,8 +149,15 @@ def main():
     store = EventStore(Path(args.jsonl))
     Handler.store = store
 
+    if args.host_metrics_jsonl:
+        Handler.host_metrics_store = EventStore(Path(args.host_metrics_jsonl), max_events=200)
+    else:
+        Handler.host_metrics_store = None
+
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     print(f'Listening on http://{args.host}:{args.port} using {args.jsonl}')
+    if args.host_metrics_jsonl:
+        print(f'Host metrics source: {args.host_metrics_jsonl}')
     server.serve_forever()
 
 
