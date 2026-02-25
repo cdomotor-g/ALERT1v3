@@ -109,9 +109,19 @@ def maybe_mqtt_client(args):
 def publish_mqtt(client, args, payload):
     if not client:
         return
-    topic = f"{args.mqtt_topic_prefix.strip('/')}/rx/host_metrics"
+    prefix = args.mqtt_topic_prefix.strip('/')
+    topic = f"{prefix}/rx/host_metrics"
     try:
         client.publish(topic, json.dumps(payload, default=str), qos=0, retain=False)
+        if payload.get('status') == 'warn':
+            status_payload = {
+                'schema': 'alert.host.status.v1',
+                'ts': payload.get('ts'),
+                'status': 'warn',
+                'source': 'host_monitor',
+                'breaches': payload.get('breaches', []),
+            }
+            client.publish(f"{prefix}/rx/status", json.dumps(status_payload, default=str), qos=0, retain=False)
     except Exception as exc:
         print(f'[host-monitor] MQTT publish failed: {exc}')
 

@@ -8,6 +8,7 @@ Script:
 Outputs:
 - JSONL file (default): `rf_log/host_metrics.jsonl`
 - Optional MQTT topic: `<prefix>/rx/host_metrics`
+- Warning surfacing topic on threshold breach: `<prefix>/rx/status`
 
 Collected metrics:
 - CPU usage %
@@ -40,6 +41,32 @@ python3 tools/host_monitor.py \
   --mqtt-host 127.0.0.1 \
   --mqtt-port 1883 \
   --mqtt-topic-prefix alert
+```
+
+## Helper runner (monitor + web)
+
+Use the helper script to launch monitor and web dashboard together:
+
+```bash
+./tools/run_stack_with_monitor.sh
+```
+
+Environment overrides:
+- `LOG_BASE`
+- `EVENTS_JSONL`
+- `HOST_METRICS_JSONL`
+- `WEB_HOST`
+- `WEB_PORT`
+- `MON_INTERVAL`
+
+## Soak/trend summary
+
+Create a summary report from collected metrics:
+
+```bash
+python3 tools/host_metrics_summary.py \
+  --jsonl rf_log/host_metrics.jsonl \
+  --out rf_log/host_metrics_summary.json
 ```
 
 ## Web dashboard integration

@@ -4,10 +4,14 @@
 
 ### Added
 - Raspberry Pi host monitoring sidecar: `tools/host_monitor.py` (JSONL + optional MQTT publish).
+- Host metrics summary tool: `tools/host_metrics_summary.py`.
+- Helper runner for monitor + web dashboard: `tools/run_stack_with_monitor.sh`.
 - Host metrics docs: `docs/HOST_MONITORING.md`.
+- Initial host soak report: `docs/SOAK_REPORT_HOST_MONITOR_2026-02-26.md`.
 
 ### Changed
 - Web dashboard (`webui/server.py`) now supports optional host metrics input via `--host-metrics-jsonl` and `/api/host_metrics`.
+- Host monitor now surfaces threshold breaches to MQTT status topic (`<prefix>/rx/status`) when in warn state.
 
 ### Added
 - Issue #5: MQTT publisher block wired by default in `src/ALERT1v3.grc`/`src/ALERT1v3.py` with runtime vars (`mqtt_broker_host`, `mqtt_broker_port`, `mqtt_username`, `mqtt_password`, `mqtt_topic_prefix`).

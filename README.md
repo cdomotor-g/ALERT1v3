@@ -35,6 +35,7 @@ Current goals:
 - Replay/validation fixture: `docs/REPLAY.md`
 - Web UI MVP notes: `docs/WEBUI.md`
 - Host monitoring (Raspberry Pi): `docs/HOST_MONITORING.md`
+- Latest host soak report: `docs/SOAK_REPORT_HOST_MONITOR_2026-02-26.md`
 - Sidecar architecture: `docs/SIDECARS.md`
 - Roadmap and milestones: `docs/ROADMAP.md`
 - Versioning + naming policy: `docs/VERSIONING.md`
