@@ -12,11 +12,13 @@ class alert_protocol_decoder(gr.basic_block):
       - float stream containing symbol decisions / soft-ish values
 
     Output stream (single float, kept for GRC compatibility):
-      - decoded data_val as float (or 0.0 when no frame emitted)
+      - decoded data_val as float
 
     Message output:
       - debug_out (PMT dict with structured decode payload)
     """
+
+    FRAME_WORDS = 4
 
     def __init__(self):
         gr.basic_block.__init__(
@@ -34,6 +36,10 @@ class alert_protocol_decoder(gr.basic_block):
         self.bits_per_word = 10
         self.word_count = 0
 
+        # Runtime counters to help verify behavior during long runs.
+        self.frames_decoded = 0
+        self.frames_dropped_output_full = 0
+
     def _publish_event(self, event_dict):
         try:
             msg = pmt.to_pmt(event_dict)
@@ -41,6 +47,12 @@ class alert_protocol_decoder(gr.basic_block):
             # Fallback to string if PMT conversion fails for any reason.
             msg = pmt.intern(str(event_dict))
         self.message_port_pub(pmt.intern("debug_out"), msg)
+
+    def _reset_frame_collection(self):
+        self.word_count = 0
+        self.message_bits = []
+        self.state = "HUNTING_S"
+        self.bit_buffer = []
 
     def _decode_message_bits(self, bits):
         """Decode 32 collected bits into fields using current legacy mapping."""
@@ -67,7 +79,7 @@ class alert_protocol_decoder(gr.basic_block):
             "status": "ok",
             "frame": {
                 "bits_per_word": self.bits_per_word,
-                "word_count": 4,
+                "word_count": self.FRAME_WORDS,
                 "payload_bits": raw_bits,
                 "payload_hex": raw_hex,
             },
@@ -86,6 +98,7 @@ class alert_protocol_decoder(gr.basic_block):
 
         consumed = 0
         produced = 0
+        out_capacity = len(out0)
 
         for float_sample in in0:
             logical_bit = 1 if float_sample > 0.5 else 0
@@ -95,28 +108,31 @@ class alert_protocol_decoder(gr.basic_block):
                 if logical_bit == 1:
                     self.state = "COLLECTING_WORD"
                     self.bit_buffer = [logical_bit]
+                continue
 
-            elif self.state == "COLLECTING_WORD":
+            if self.state == "COLLECTING_WORD":
                 self.bit_buffer.append(logical_bit)
 
-                if len(self.bit_buffer) == self.bits_per_word:
-                    # Keep legacy behavior: consume payload bits [1:9] from each 10-bit word.
-                    self.message_bits.extend(self.bit_buffer[1:9])
-                    self.word_count += 1
+                if len(self.bit_buffer) < self.bits_per_word:
+                    continue
 
-                    if self.word_count == 4:
-                        event = self._decode_message_bits(self.message_bits)
-                        self._publish_event(event)
+                # Keep legacy behavior: consume payload bits [1:9] from each 10-bit word.
+                self.message_bits.extend(self.bit_buffer[1:9])
+                self.word_count += 1
 
-                        if produced < len(out0):
-                            out0[produced] = float(event["decode"]["data_val"])
-                            produced += 1
+                if self.word_count == self.FRAME_WORDS:
+                    event = self._decode_message_bits(self.message_bits)
+                    self._publish_event(event)
 
-                        self.word_count = 0
-                        self.message_bits = []
+                    if produced < out_capacity:
+                        out0[produced] = float(event["decode"]["data_val"])
+                        produced += 1
+                        self.frames_decoded += 1
+                    else:
+                        # Keep decoding/logging alive even when scheduler gives no output room.
+                        self.frames_dropped_output_full += 1
 
-                    self.state = "HUNTING_S"
-                    self.bit_buffer = []
+                self._reset_frame_collection()
 
         self.consume(0, consumed)
         return produced
