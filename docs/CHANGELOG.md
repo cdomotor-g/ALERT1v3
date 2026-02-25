@@ -8,6 +8,10 @@
 - Helper runner for monitor + web dashboard: `tools/run_stack_with_monitor.sh`.
 - Host metrics docs: `docs/HOST_MONITORING.md`.
 - Initial host soak report: `docs/SOAK_REPORT_HOST_MONITOR_2026-02-26.md`.
+- Sidecar perf monitor framework scaffold:
+  - `sidecars/perf/monitor.py`
+  - `sidecars/perf/adapters/linux_proc.py`
+  - compatibility wrapper kept at `tools/host_monitor.py`
 
 ### Changed
 - Web dashboard (`webui/server.py`) now supports optional host metrics input via `--host-metrics-jsonl` and `/api/host_metrics`.

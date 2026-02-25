@@ -8,21 +8,24 @@ This project uses sidecars for non-DSP responsibilities (monitoring, replay, int
 - Isolate environment-specific concerns (OS metrics, services, packaging).
 - Improve portability across Raspberry Pi and other host platforms.
 
-## Proposed layout
+## Layout
 
 ```text
 sidecars/
   perf/
-    monitor.py            # platform-neutral runner
+    monitor.py            # platform-neutral runner (implemented)
     adapters/
-      linux_proc.py       # Linux /proc + thermal zone adapter
+      linux_proc.py       # Linux /proc + thermal zone adapter (implemented)
       macos_ps.py         # future
       windows_wmi.py      # future
   replay/
-    runner.py             # replay orchestration
+    runner.py             # replay orchestration (future)
   mqtt/
-    bridge.py             # optional external MQTT bridge
+    bridge.py             # optional external MQTT bridge (future)
 ```
+
+Compatibility wrapper:
+- `tools/host_monitor.py` forwards to `sidecars/perf/monitor.py` so existing scripts keep working.
 
 ## Naming conventions
 

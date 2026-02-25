@@ -2,8 +2,9 @@
 
 FW-LAB includes a lightweight sidecar monitor for Pi resource usage.
 
-Script:
-- `tools/host_monitor.py`
+Scripts:
+- `sidecars/perf/monitor.py` (canonical)
+- `tools/host_monitor.py` (compatibility wrapper)
 
 Outputs:
 - JSONL file (default): `rf_log/host_metrics.jsonl`
