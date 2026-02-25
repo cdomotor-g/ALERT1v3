@@ -1,6 +1,6 @@
-# ALERT1v3
+# ALERT
 
-ALERT1v3 is an RTL-SDR + GNU Radio receiver/decoder flowgraph for legacy ALERT-style transmissions (default center frequency: 173.9 MHz).
+ALERT is an RTL-SDR + GNU Radio receiver/decoder flowgraph for legacy ALERT-style transmissions (default center frequency: 173.9 MHz).
 
 Current goals:
 - Improve decode clarity and reliability
@@ -8,7 +8,7 @@ Current goals:
 - Add MQTT integration for downstream systems
 - Add a decoupled web UI (without hard dependency on bokehgui)
 
-## Current State (v3 baseline)
+## Current State (v0.2 line)
 
 - RF receive via RTL-SDR (`osmosdr`)
 - FSK-like demodulation chain and symbol sync
@@ -18,7 +18,7 @@ Current goals:
 
 ## Quick Start (current flowgraph)
 
-1. Open `ALERT1v3.grc` in GNU Radio Companion
+1. Open `src/ALERT1v3.grc` in GNU Radio Companion
 2. Confirm SDR and audio devices are available
 3. Start flowgraph
 4. Set:
@@ -35,6 +35,7 @@ Current goals:
 - Replay/validation fixture: `docs/REPLAY.md`
 - Web UI MVP notes: `docs/WEBUI.md`
 - Roadmap and milestones: `docs/ROADMAP.md`
+- Versioning + naming policy: `docs/VERSIONING.md`
 - Change log: `docs/CHANGELOG.md`
 
 ## Design Direction

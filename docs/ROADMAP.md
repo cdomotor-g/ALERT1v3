@@ -1,4 +1,4 @@
-# ALERT1v3 Roadmap
+# ALERT Roadmap
 
 ## Phase 0 — Project setup
 
