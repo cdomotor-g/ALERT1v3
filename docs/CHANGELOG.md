@@ -12,6 +12,10 @@
   - `sidecars/perf/monitor.py`
   - `sidecars/perf/adapters/linux_proc.py`
   - compatibility wrapper kept at `tools/host_monitor.py`
+- Multi-platform baseline docs/tooling:
+  - `docs/PLATFORMS.md`
+  - `tools/platform_capabilities.py`
+  - `tools/smoke_platform.sh`
 
 ### Changed
 - Web dashboard (`webui/server.py`) now supports optional host metrics input via `--host-metrics-jsonl` and `/api/host_metrics`.

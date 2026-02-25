@@ -65,8 +65,8 @@
 
 ## Phase 9 — Multi-platform and sidecar architecture
 
-- [ ] Define platform matrix (Raspberry Pi / Linux x86_64 / macOS / Windows where feasible)
-- [ ] Introduce sidecar interface contracts (monitoring, replay, integration bridges)
-- [ ] Refactor host monitor into a platform-adapter model
-- [ ] Add naming/structure conventions for cross-platform sidecars
+- [x] Define platform matrix (Raspberry Pi / Linux x86_64 / macOS / Windows where feasible)
+- [x] Introduce sidecar interface contracts (monitoring, replay, integration bridges)
+- [x] Refactor host monitor into a platform-adapter model
+- [x] Add naming/structure conventions for cross-platform sidecars
 - [ ] Add CI smoke checks for key platform paths
