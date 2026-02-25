@@ -35,6 +35,7 @@ Current goals:
 - Replay/validation fixture: `docs/REPLAY.md`
 - Web UI MVP notes: `docs/WEBUI.md`
 - Host monitoring (Raspberry Pi): `docs/HOST_MONITORING.md`
+- Sidecar architecture: `docs/SIDECARS.md`
 - Roadmap and milestones: `docs/ROADMAP.md`
 - Versioning + naming policy: `docs/VERSIONING.md`
 - Change log: `docs/CHANGELOG.md`

@@ -57,15 +57,16 @@
 - [ ] Add decoder extension plan (feature flags or parallel decode path)
 - [ ] Add test captures/replay cases for ALERT2
 
-## Phase 8 — Next overnight run targets
+## Phase 8 — Operational completion targets
 
-- [ ] **Finish Issue #5 (MQTT):**
-  - wire MQTT block into `src/ALERT1v3.grc`
-  - add/verify runtime config vars
-  - run end-to-end broker soak validation
-- [ ] **Finish Issue #4 (Qt UI):**
-  - add Operator-tab counters (decode rate / total / recent errors)
-  - tighten layout for faster operator workflow
-- [ ] **Add replay fixture/tooling:**
-  - one-command replay for decoder → logger → web/MQTT path
-  - useful for regression checks and future automation
+- [ ] Finish Raspberry Pi host monitoring acceptance (breach surfacing + soak summary + helper runner)
+- [ ] Complete log retention/rotation controls
+- [ ] Package one-command run mode for unattended deployments
+
+## Phase 9 — Multi-platform and sidecar architecture
+
+- [ ] Define platform matrix (Raspberry Pi / Linux x86_64 / macOS / Windows where feasible)
+- [ ] Introduce sidecar interface contracts (monitoring, replay, integration bridges)
+- [ ] Refactor host monitor into a platform-adapter model
+- [ ] Add naming/structure conventions for cross-platform sidecars
+- [ ] Add CI smoke checks for key platform paths
