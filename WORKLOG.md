@@ -54,5 +54,5 @@
   - Added usage docs in `docs/WEBUI.md` and linked docs from `README.md`.
 - Validation:
   - `python -m py_compile webui/server.py`
-- Commit: pending
-- Next action: run all syntax checks, commit/push, update issues #4/#5/#6.
+- Commit: `566aa74`
+- Next action: update issue threads with acceptance/partial status and close where complete.
