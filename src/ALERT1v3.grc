@@ -192,6 +192,78 @@ blocks:
     coordinate: [392, 220.0]
     rotation: 0
     state: enabled
+- name: log_base_path
+  id: variable
+  parameters:
+    comment: ''
+    value: '''/home/cdomotor/rf_log'''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [704, 220.0]
+    rotation: 0
+    state: enabled
+- name: mqtt_broker_host
+  id: variable
+  parameters:
+    comment: ''
+    value: '''127.0.0.1'''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [824, 220.0]
+    rotation: 0
+    state: enabled
+- name: mqtt_broker_port
+  id: variable
+  parameters:
+    comment: ''
+    value: '1883'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [944, 220.0]
+    rotation: 0
+    state: enabled
+- name: mqtt_username
+  id: variable
+  parameters:
+    comment: ''
+    value: ''''''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1064, 220.0]
+    rotation: 0
+    state: enabled
+- name: mqtt_password
+  id: variable
+  parameters:
+    comment: ''
+    value: ''''''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1184, 220.0]
+    rotation: 0
+    state: enabled
+- name: mqtt_topic_prefix
+  id: variable
+  parameters:
+    comment: ''
+    value: '''alert'''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1304, 220.0]
+    rotation: 0
+    state: enabled
 - name: analog_agc_xx_0
   id: analog_agc_xx
   parameters:
@@ -400,152 +472,152 @@ blocks:
 - name: epy_block_0
   id: epy_block
   parameters:
-    _source_code: \"import json
-from gnuradio import gr
-import pmt
-import datetime
-import os
-import csv
-
-
-class blk(gr.basic_block):
-    \"\"\"
-    ALERT decode logger.
-
-    Accepts structured PMT messages on 'msg_in' and writes:
-      - CSV summary rows
-      - JSONL full events
-
-    File layout:
-      <base_path>/<YYYY-MM-DD>/
-        rx_data_<HHMMSS>.csv
-        rx_events_<HHMMSS>.jsonl
-    \"\"\"
-
-    def __init__(self, base_path='/home/pi/rf_logs'):
-        gr.basic_block.__init__(self, name='ALERT Event Logger', in_sig=None, out_sig=None)
-        self.message_port_register_in(pmt.intern('msg_in'))
-        self.set_msg_handler(pmt.intern('msg_in'), self.handle_msg)
-
-        self.base_path = base_path
-        self.current_date = ''
-        self.csv_file = None
-        self.jsonl_file = None
-        self.csv_writer = None
-
-    def _open_session_files(self):
-        now = datetime.datetime.now()
-        date_str = now.strftime('%Y-%m-%d')
-        session_str = now.strftime('%H%M%S')
-
-        target_dir = os.path.join(self.base_path, date_str)
-        os.makedirs(target_dir, exist_ok=True)
-
-        csv_path = os.path.join(target_dir, f'rx_data_{session_str}.csv')
-        jsonl_path = os.path.join(target_dir, f'rx_events_{session_str}.jsonl')
-
-        self.csv_file = open(csv_path, 'a', newline='')
-        self.jsonl_file = open(jsonl_path, 'a')
-        self.csv_writer = csv.writer(self.csv_file)
-        self.csv_writer.writerow([
-            'timestamp', 'status', 'sensor_id', 'format_id', 'is_binary', 'data_val', 'payload_hex', 'summary'
-        ])
-        self.current_date = date_str
-
-    def _ensure_files(self):
-        date_str = datetime.datetime.now().strftime('%Y-%m-%d')
-        if self.csv_file is None or self.jsonl_file is None or date_str != self.current_date:
-            self._close_files()
-            self._open_session_files()
-
-    def _close_files(self):
-        if self.csv_file:
-            try:
-                self.csv_file.flush()
-                self.csv_file.close()
-            except Exception:
-                pass
-        if self.jsonl_file:
-            try:
-                self.jsonl_file.flush()
-                self.jsonl_file.close()
-            except Exception:
-                pass
-        self.csv_file = None
-        self.jsonl_file = None
-        self.csv_writer = None
-
-    def _normalize_event(self, msg):
-        now_ts = datetime.datetime.utcnow().isoformat() + 'Z'
-        try:
-            event = pmt.to_python(msg)
-        except Exception:
-            event = str(msg)
-
-        if not isinstance(event, dict):
-            event = {
-                'schema': 'alert.decode.v1',
-                'ts': now_ts,
-                'status': 'raw',
-                'summary': str(event),
-                'display': str(event),
-                'decode': {},
-                'frame': {},
-            }
-
-        event.setdefault('schema', 'alert.decode.v1')
-        event.setdefault('ts', now_ts)
-        event.setdefault('status', 'unknown')
-        event.setdefault('decode', {})
-        event.setdefault('frame', {})
-
-        if not isinstance(event.get('decode'), dict):
-            event['decode'] = {}
-        if not isinstance(event.get('frame'), dict):
-            event['frame'] = {}
-
-        if 'summary' not in event:
-            event['summary'] = str(event.get('display', ''))
-        if 'display' not in event:
-            event['display'] = str(event.get('summary', ''))
-
-        return event
-
-    def handle_msg(self, msg):
-        try:
-            self._ensure_files()
-            event = self._normalize_event(msg)
-
-            decode = event.get('decode', {})
-            frame = event.get('frame', {})
-
-            row = [
-                event.get('ts', datetime.datetime.utcnow().isoformat() + 'Z'),
-                event.get('status', 'unknown'),
-                decode.get('sensor_id', ''),
-                decode.get('format_id', ''),
-                decode.get('is_binary', ''),
-                decode.get('data_val', ''),
-                frame.get('payload_hex', ''),
-                event.get('summary', ''),
-            ]
-
-            self.csv_writer.writerow(row)
-            self.csv_file.flush()
-
-            self.jsonl_file.write(json.dumps(event, default=str) + '\n')
-            self.jsonl_file.flush()
-
-        except Exception as e:
-            self.logger.error(f'Logging error: {e}')
-
-    def stop(self):
-        self._close_files()
-        return True
-\"
+    _source_code: |
+      import json
+      from gnuradio import gr
+      import pmt
+      import datetime
+      import os
+      import csv
+      
+      
+      class blk(gr.basic_block):
+          """
+          ALERT decode logger.
+      
+          Accepts structured PMT messages on 'msg_in' and writes:
+            - CSV summary rows
+            - JSONL full events
+      
+          File layout:
+            <base_path>/<YYYY-MM-DD>/
+              rx_data_<HHMMSS>.csv
+              rx_events_<HHMMSS>.jsonl
+          """
+      
+          def __init__(self, base_path='/home/pi/rf_logs'):
+              gr.basic_block.__init__(self, name='ALERT Event Logger', in_sig=None, out_sig=None)
+              self.message_port_register_in(pmt.intern('msg_in'))
+              self.set_msg_handler(pmt.intern('msg_in'), self.handle_msg)
+      
+              self.base_path = base_path
+              self.current_date = ''
+              self.csv_file = None
+              self.jsonl_file = None
+              self.csv_writer = None
+      
+          def _open_session_files(self):
+              now = datetime.datetime.now()
+              date_str = now.strftime('%Y-%m-%d')
+              session_str = now.strftime('%H%M%S')
+      
+              target_dir = os.path.join(self.base_path, date_str)
+              os.makedirs(target_dir, exist_ok=True)
+      
+              csv_path = os.path.join(target_dir, f'rx_data_{session_str}.csv')
+              jsonl_path = os.path.join(target_dir, f'rx_events_{session_str}.jsonl')
+      
+              self.csv_file = open(csv_path, 'a', newline='')
+              self.jsonl_file = open(jsonl_path, 'a')
+              self.csv_writer = csv.writer(self.csv_file)
+              self.csv_writer.writerow([
+                  'timestamp', 'status', 'sensor_id', 'format_id', 'is_binary', 'data_val', 'payload_hex', 'summary'
+              ])
+              self.current_date = date_str
+      
+          def _ensure_files(self):
+              date_str = datetime.datetime.now().strftime('%Y-%m-%d')
+              if self.csv_file is None or self.jsonl_file is None or date_str != self.current_date:
+                  self._close_files()
+                  self._open_session_files()
+      
+          def _close_files(self):
+              if self.csv_file:
+                  try:
+                      self.csv_file.flush()
+                      self.csv_file.close()
+                  except Exception:
+                      pass
+              if self.jsonl_file:
+                  try:
+                      self.jsonl_file.flush()
+                      self.jsonl_file.close()
+                  except Exception:
+                      pass
+              self.csv_file = None
+              self.jsonl_file = None
+              self.csv_writer = None
+      
+          def _normalize_event(self, msg):
+              now_ts = datetime.datetime.utcnow().isoformat() + 'Z'
+              try:
+                  event = pmt.to_python(msg)
+              except Exception:
+                  event = str(msg)
+      
+              if not isinstance(event, dict):
+                  event = {
+                      'schema': 'alert.decode.v1',
+                      'ts': now_ts,
+                      'status': 'raw',
+                      'summary': str(event),
+                      'display': str(event),
+                      'decode': {},
+                      'frame': {},
+                  }
+      
+              event.setdefault('schema', 'alert.decode.v1')
+              event.setdefault('ts', now_ts)
+              event.setdefault('status', 'unknown')
+              event.setdefault('decode', {})
+              event.setdefault('frame', {})
+      
+              if not isinstance(event.get('decode'), dict):
+                  event['decode'] = {}
+              if not isinstance(event.get('frame'), dict):
+                  event['frame'] = {}
+      
+              if 'summary' not in event:
+                  event['summary'] = str(event.get('display', ''))
+              if 'display' not in event:
+                  event['display'] = str(event.get('summary', ''))
+      
+              return event
+      
+          def handle_msg(self, msg):
+              try:
+                  self._ensure_files()
+                  event = self._normalize_event(msg)
+      
+                  decode = event.get('decode', {})
+                  frame = event.get('frame', {})
+      
+                  row = [
+                      event.get('ts', datetime.datetime.utcnow().isoformat() + 'Z'),
+                      event.get('status', 'unknown'),
+                      decode.get('sensor_id', ''),
+                      decode.get('format_id', ''),
+                      decode.get('is_binary', ''),
+                      decode.get('data_val', ''),
+                      frame.get('payload_hex', ''),
+                      event.get('summary', ''),
+                  ]
+      
+                  self.csv_writer.writerow(row)
+                  self.csv_file.flush()
+      
+                  self.jsonl_file.write(json.dumps(event, default=str) + '\n')
+                  self.jsonl_file.flush()
+      
+              except Exception as e:
+                  self.logger.error(f'Logging error: {e}')
+      
+          def stop(self):
+              self._close_files()
+              return True
     affinity: ''
     alias: ''
-    base_path: '''/home/cdomotor/rf_log'''
+    base_path: log_base_path
     comment: ''
     maxoutbuf: '0'
     minoutbuf: '0'
@@ -561,148 +633,189 @@ class blk(gr.basic_block):
 - name: epy_block_1
   id: epy_block
   parameters:
-    _source_code: \"import numpy as np
-from gnuradio import gr
-import pmt
-import datetime
-
-
-class alert_protocol_decoder(gr.basic_block):
-    \"\"\"
-    ALERT protocol decoder.
-
-    Input:
-      - float stream containing symbol decisions / soft-ish values
-
-    Output stream (single float, kept for GRC compatibility):
-      - decoded data_val as float
-
-    Message output:
-      - debug_out (PMT dict with structured decode payload)
-    \"\"\"
-
-    FRAME_WORDS = 4
-
-    def __init__(self):
-        gr.basic_block.__init__(
-            self,
-            name=\"ALERT Protocol Decoder\",
-            in_sig=[np.float32],
-            out_sig=[np.float32],
-        )
-
-        self.message_port_register_out(pmt.intern(\"debug_out\"))
-
-        self.state = \"HUNTING_S\"
-        self.bit_buffer = []
-        self.message_bits = []
-        self.bits_per_word = 10
-        self.word_count = 0
-
-        # Runtime counters to help verify behavior during long runs.
-        self.frames_decoded = 0
-        self.frames_dropped_output_full = 0
-
-    def _publish_event(self, event_dict):
-        try:
-            msg = pmt.to_pmt(event_dict)
-        except Exception:
-            # Fallback to string if PMT conversion fails for any reason.
-            msg = pmt.intern(str(event_dict))
-        self.message_port_pub(pmt.intern(\"debug_out\"), msg)
-
-    def _reset_frame_collection(self):
-        self.word_count = 0
-        self.message_bits = []
-        self.state = \"HUNTING_S\"
-        self.bit_buffer = []
-
-    def _decode_message_bits(self, bits):
-        \"\"\"Decode 32 collected bits into fields using current legacy mapping.\"\"\"
-        msg_int = np.uint32(0)
-        for b in bits:
-            msg_int = (msg_int << 1) | np.uint32(b)
-
-        sensor_id = (msg_int >> 0) & 0x3F
-        sensor_id |= ((msg_int >> 8) & 0x3F) << 6
-        sensor_id |= ((msg_int >> 16) & 0x01) << 12
-
-        format_id = (msg_int >> 6) & 0x03
-        is_binary = format_id == 2
-
-        data_val = (msg_int >> 17) & 0x1F
-        data_val |= ((msg_int >> 24) & 0x3F) << 5
-
-        raw_bits = ''.join(str(int(b)) for b in bits)
-        raw_hex = f\"{int(msg_int):08X}\"
-
-        summary = f\"{int(sensor_id):04d}, {int(data_val):06d}\"
-
-        return {
-            \"schema\": \"alert.decode.v1\",
-            \"ts\": datetime.datetime.utcnow().isoformat() + \"Z\",
-            \"status\": \"ok\",
-            \"frame\": {
-                \"bits_per_word\": self.bits_per_word,
-                \"word_count\": self.FRAME_WORDS,
-                \"payload_bits\": raw_bits,
-                \"payload_hex\": raw_hex,
-            },
-            \"decode\": {
-                \"sensor_id\": int(sensor_id),
-                \"format_id\": int(format_id),
-                \"is_binary\": bool(is_binary),
-                \"data_val\": int(data_val),
-            },
-            \"summary\": summary,
-            \"display\": summary,
-        }
-
-    def general_work(self, input_items, output_items):
-        in0 = input_items[0]
-        out0 = output_items[0]
-
-        consumed = 0
-        produced = 0
-        out_capacity = len(out0)
-
-        for float_sample in in0:
-            logical_bit = 1 if float_sample > 0.5 else 0
-            consumed += 1
-
-            if self.state == \"HUNTING_S\":
-                if logical_bit == 1:
-                    self.state = \"COLLECTING_WORD\"
-                    self.bit_buffer = [logical_bit]
-                continue
-
-            if self.state == \"COLLECTING_WORD\":
-                self.bit_buffer.append(logical_bit)
-
-                if len(self.bit_buffer) < self.bits_per_word:
-                    continue
-
-                # Keep legacy behavior: consume payload bits [1:9] from each 10-bit word.
-                self.message_bits.extend(self.bit_buffer[1:9])
-                self.word_count += 1
-
-                if self.word_count == self.FRAME_WORDS:
-                    event = self._decode_message_bits(self.message_bits)
-                    self._publish_event(event)
-
-                    if produced < out_capacity:
-                        out0[produced] = float(event[\"decode\"][\"data_val\"])
-                        produced += 1
-                        self.frames_decoded += 1
-                    else:
-                        # Keep decoding/logging alive even when scheduler gives no output room.
-                        self.frames_dropped_output_full += 1
-
-                self._reset_frame_collection()
-
-        self.consume(0, consumed)
-        return produced
-\"
+    _source_code: |
+      import numpy as np
+      from gnuradio import gr
+      import pmt
+      import datetime
+      
+      
+      class alert_protocol_decoder(gr.basic_block):
+          """
+          ALERT protocol decoder.
+      
+          Input:
+            - float stream containing symbol decisions / soft-ish values
+      
+          Output stream (single float, kept for GRC compatibility):
+            - decoded data_val as float
+      
+          Message output:
+            - debug_out (PMT dict with structured decode payload)
+          """
+      
+          FRAME_WORDS = 4
+      
+          def __init__(self):
+              gr.basic_block.__init__(
+                  self,
+                  name="ALERT Protocol Decoder",
+                  in_sig=[np.float32],
+                  out_sig=[np.float32],
+              )
+      
+              self.message_port_register_out(pmt.intern("debug_out"))
+              self.message_port_register_out(pmt.intern("stats_out"))
+      
+              self.state = "HUNTING_S"
+              self.bit_buffer = []
+              self.message_bits = []
+              self.bits_per_word = 10
+              self.word_count = 0
+      
+              # Runtime counters to help verify behavior during long runs.
+              self.frames_decoded = 0
+              self.frames_dropped_output_full = 0
+              self.frames_total = 0
+              self.error_total = 0
+              self._window_decode = 0
+              self._window_errors = 0
+              self._window_started = datetime.datetime.utcnow()
+      
+          def _publish_event(self, event_dict):
+              try:
+                  msg = pmt.to_pmt(event_dict)
+              except Exception:
+                  # Fallback to string if PMT conversion fails for any reason.
+                  msg = pmt.intern(str(event_dict))
+              self.message_port_pub(pmt.intern("debug_out"), msg)
+      
+          def _reset_word_collection(self):
+              self.state = "HUNTING_S"
+              self.bit_buffer = []
+      
+          def _reset_frame_collection(self):
+              self.word_count = 0
+              self.message_bits = []
+              self._reset_word_collection()
+      
+          def _publish_stats_if_due(self, force=False):
+              now = datetime.datetime.utcnow()
+              elapsed = (now - self._window_started).total_seconds()
+              if not force and elapsed < 1.0:
+                  return
+      
+              decode_rate = (self._window_decode / elapsed) if elapsed > 0 else 0.0
+              stats = {
+                  "schema": "alert.operator.stats.v1",
+                  "ts": now.isoformat() + "Z",
+                  "decode_rate_hz": round(float(decode_rate), 3),
+                  "total_decodes": int(self.frames_total),
+                  "recent_errors": int(self._window_errors),
+                  "error_total": int(self.error_total),
+                  "window_seconds": round(float(elapsed), 3),
+                  "display": f"rate={decode_rate:.2f}/s | total={self.frames_total} | recent_errors={self._window_errors}",
+              }
+              self.message_port_pub(pmt.intern("stats_out"), pmt.to_pmt(stats["display"]))
+      
+              self._window_started = now
+              self._window_decode = 0
+              self._window_errors = 0
+      
+          def _decode_message_bits(self, bits):
+              """Decode 32 collected bits into fields using current legacy mapping."""
+              msg_int = np.uint32(0)
+              for b in bits:
+                  msg_int = (msg_int << 1) | np.uint32(b)
+      
+              sensor_id = (msg_int >> 0) & 0x3F
+              sensor_id |= ((msg_int >> 8) & 0x3F) << 6
+              sensor_id |= ((msg_int >> 16) & 0x01) << 12
+      
+              format_id = (msg_int >> 6) & 0x03
+              is_binary = format_id == 2
+      
+              data_val = (msg_int >> 17) & 0x1F
+              data_val |= ((msg_int >> 24) & 0x3F) << 5
+      
+              raw_bits = ''.join(str(int(b)) for b in bits)
+              raw_hex = f"{int(msg_int):08X}"
+      
+              summary = f"{int(sensor_id):04d}, {int(data_val):06d}"
+      
+              return {
+                  "schema": "alert.decode.v1",
+                  "ts": datetime.datetime.utcnow().isoformat() + "Z",
+                  "status": "ok",
+                  "frame": {
+                      "bits_per_word": self.bits_per_word,
+                      "word_count": self.FRAME_WORDS,
+                      "payload_bits": raw_bits,
+                      "payload_hex": raw_hex,
+                  },
+                  "decode": {
+                      "sensor_id": int(sensor_id),
+                      "format_id": int(format_id),
+                      "is_binary": bool(is_binary),
+                      "data_val": int(data_val),
+                  },
+                  "summary": summary,
+                  "display": summary,
+              }
+      
+          def general_work(self, input_items, output_items):
+              in0 = input_items[0]
+              out0 = output_items[0]
+      
+              consumed = 0
+              produced = 0
+              out_capacity = len(out0)
+      
+              for float_sample in in0:
+                  logical_bit = 1 if float_sample > 0.5 else 0
+                  consumed += 1
+      
+                  if self.state == "HUNTING_S":
+                      if logical_bit == 1:
+                          self.state = "COLLECTING_WORD"
+                          self.bit_buffer = [logical_bit]
+                      continue
+      
+                  if self.state == "COLLECTING_WORD":
+                      self.bit_buffer.append(logical_bit)
+      
+                      if len(self.bit_buffer) < self.bits_per_word:
+                          continue
+      
+                      # Keep legacy behavior: consume payload bits [1:9] from each 10-bit word.
+                      self.message_bits.extend(self.bit_buffer[1:9])
+                      self.word_count += 1
+      
+                      if self.word_count == self.FRAME_WORDS:
+                          event = self._decode_message_bits(self.message_bits)
+                          self._publish_event(event)
+                          self.frames_total += 1
+      
+                          if produced < out_capacity:
+                              out0[produced] = float(event["decode"]["data_val"])
+                              produced += 1
+                              self.frames_decoded += 1
+                              self._window_decode += 1
+                          else:
+                              # Keep decoding/logging alive even when scheduler gives no output room.
+                              self.frames_dropped_output_full += 1
+                              self.error_total += 1
+                              self._window_errors += 1
+      
+                          self._reset_frame_collection()
+                      else:
+                          self._reset_word_collection()
+      
+                      self._publish_stats_if_due()
+      
+              self._publish_stats_if_due()
+              self.consume(0, consumed)
+              return produced
     affinity: ''
     alias: ''
     comment: ''
@@ -710,11 +823,174 @@ class alert_protocol_decoder(gr.basic_block):
     minoutbuf: '0'
   states:
     _io_cache: ('ALERT Protocol Decoder', 'alert_protocol_decoder', [], [('0', 'float',
-      1)], [('0', 'float', 1), ('debug_out', 'message', 1)], '', [])
+      1)], [('0', 'float', 1), ('debug_out', 'message', 1), ('stats_out', 'message', 1)], '', [])
     bus_sink: false
     bus_source: false
     bus_structure: null
     coordinate: [592, 752.0]
+    rotation: 0
+    state: enabled
+- name: epy_block_2
+  id: epy_block
+  parameters:
+    _source_code: |
+      import json
+      import time
+      from gnuradio import gr
+      import pmt
+      
+      
+      class mqtt_event_publisher(gr.basic_block):
+          """
+          Publish ALERT decode/status events to MQTT.
+      
+          Topic layout (prefix default: alert):
+            <prefix>/rx/decoded
+            <prefix>/rx/raw
+            <prefix>/rx/status
+            <prefix>/rx/metrics
+          """
+      
+          def __init__(self, broker_host='127.0.0.1', broker_port=1883, username='', password='', topic_prefix='alert'):
+              gr.basic_block.__init__(self, name='ALERT MQTT Publisher', in_sig=None, out_sig=None)
+              self.message_port_register_in(pmt.intern('msg_in'))
+              self.set_msg_handler(pmt.intern('msg_in'), self.handle_msg)
+      
+              self.broker_host = broker_host
+              self.broker_port = int(broker_port)
+              self.username = username
+              self.password = password
+              self.topic_prefix = topic_prefix.strip('/') or 'alert'
+      
+              self._client = None
+              self._connected = False
+              self._published = 0
+              self._dropped = 0
+              self._last_metrics = 0.0
+      
+              self._setup_client()
+      
+          def _setup_client(self):
+              try:
+                  import paho.mqtt.client as mqtt
+              except Exception as exc:
+                  self.logger.error(f'MQTT disabled (paho-mqtt unavailable): {exc}')
+                  return
+      
+              self._client = mqtt.Client(client_id='alert1v3-rx', clean_session=True)
+              if self.username:
+                  self._client.username_pw_set(self.username, self.password)
+      
+              self._client.on_connect = self._on_connect
+              self._client.on_disconnect = self._on_disconnect
+      
+              try:
+                  self._client.connect_async(self.broker_host, self.broker_port, keepalive=30)
+                  self._client.loop_start()
+              except Exception as exc:
+                  self.logger.error(f'MQTT connect failed: {exc}')
+                  self._client = None
+      
+          def _on_connect(self, _client, _userdata, _flags, rc):
+              self._connected = (rc == 0)
+              if rc != 0:
+                  self.logger.error(f'MQTT connect returned rc={rc}')
+      
+          def _on_disconnect(self, _client, _userdata, _rc):
+              self._connected = False
+      
+          def _publish_json(self, topic_suffix, payload):
+              if not self._client or not self._connected:
+                  self._dropped += 1
+                  return
+      
+              topic = f'{self.topic_prefix}/{topic_suffix}'
+              try:
+                  self._client.publish(topic, json.dumps(payload, default=str), qos=0, retain=False)
+                  self._published += 1
+              except Exception as exc:
+                  self._dropped += 1
+                  self.logger.error(f'MQTT publish failed ({topic}): {exc}')
+      
+          def _publish_metrics(self, event):
+              now = time.time()
+              if now - self._last_metrics < 5.0:
+                  return
+              self._last_metrics = now
+      
+              metrics = {
+                  'schema': 'alert.mqtt.metrics.v1',
+                  'ts': event.get('ts', ''),
+                  'status': 'ok' if self._connected else 'disconnected',
+                  'broker': f'{self.broker_host}:{self.broker_port}',
+                  'published': self._published,
+                  'dropped': self._dropped,
+              }
+              self._publish_json('rx/metrics', metrics)
+      
+          def handle_msg(self, msg):
+              try:
+                  event = pmt.to_python(msg)
+              except Exception:
+                  event = str(msg)
+      
+              if not isinstance(event, dict):
+                  event = {
+                      'schema': 'alert.decode.v1',
+                      'ts': '',
+                      'status': 'raw',
+                      'summary': str(event),
+                      'decode': {},
+                      'frame': {},
+                  }
+      
+              decode = event.get('decode', {}) if isinstance(event.get('decode'), dict) else {}
+              frame = event.get('frame', {}) if isinstance(event.get('frame'), dict) else {}
+      
+              self._publish_json('rx/decoded', event)
+              self._publish_json('rx/raw', {
+                  'schema': event.get('schema', 'alert.decode.v1'),
+                  'ts': event.get('ts', ''),
+                  'status': event.get('status', 'unknown'),
+                  'frame': frame,
+              })
+              self._publish_json('rx/status', {
+                  'schema': event.get('schema', 'alert.decode.v1'),
+                  'ts': event.get('ts', ''),
+                  'status': event.get('status', 'unknown'),
+                  'summary': event.get('summary', ''),
+                  'sensor_id': decode.get('sensor_id'),
+                  'format_id': decode.get('format_id'),
+              })
+              self._publish_metrics(event)
+      
+          def stop(self):
+              if self._client:
+                  try:
+                      self._client.loop_stop()
+                      self._client.disconnect()
+                  except Exception:
+                      pass
+              return True
+    affinity: ''
+    alias: ''
+    broker_host: mqtt_broker_host
+    broker_port: mqtt_broker_port
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    password: mqtt_password
+    topic_prefix: mqtt_topic_prefix
+    username: mqtt_username
+  states:
+    _io_cache: ('ALERT MQTT Publisher', 'mqtt_event_publisher', [('broker_host', "'127.0.0.1'"),
+      ('broker_port', '1883'), ('username', "''"), ('password', "''"), ('topic_prefix',
+      "'alert'")], [('msg_in', 'message', 1)], [], '', ['broker_host', 'broker_port',
+      'username', 'password', 'topic_prefix'])
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1200, 780.0]
     rotation: 0
     state: enabled
 - name: import_0
@@ -778,6 +1054,28 @@ class alert_protocol_decoder(gr.basic_block):
     coordinate: [496, 884.0]
     rotation: 0
     state: enabled
+- name: qtgui_edit_box_msg_1
+  id: qtgui_edit_box_msg
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    gui_hint: tabwid0@0:4,0,1,4
+    is_pair: 'False'
+    is_static: 'True'
+    key: ''
+    label: Decoder counters
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: string
+    value: ''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1120, 700.0]
+    rotation: 0
+    state: enabled
 - name: low_pass_filter_1
   id: low_pass_filter
   parameters:
@@ -812,7 +1110,7 @@ class alert_protocol_decoder(gr.basic_block):
     is_pair: 'False'
     is_static: 'True'
     key: ''
-    label: ''
+    label: Latest decode
     maxoutbuf: '0'
     minoutbuf: '0'
     type: string
@@ -1861,6 +2159,8 @@ connections:
 - [epy_block_1, '0', blocks_null_sink_2, '0']
 - [epy_block_1, debug_out, epy_block_0, msg_in]
 - [epy_block_1, debug_out, qtgui_edit_box_msg_0, val]
+- [epy_block_1, stats_out, qtgui_edit_box_msg_1, val]
+- [epy_block_1, debug_out, epy_block_2, msg_in]
 - [low_pass_filter_0, '0', analog_simple_squelch_cc_0, '0']
 - [low_pass_filter_0, '0', qtgui_waterfall_sink_x_1, '0']
 - [low_pass_filter_0_0, '0', analog_wfm_rcv_0, '0']

@@ -44,6 +44,7 @@ from gnuradio.qtgui import Range, RangeWidget
 from PyQt5 import QtCore
 import ALERT1v3_epy_block_0 as epy_block_0  # embedded python block
 import ALERT1v3_epy_block_1 as epy_block_1  # embedded python block
+import ALERT1v3_epy_block_2 as epy_block_2  # embedded python block
 import osmosdr
 import time
 
@@ -94,6 +95,12 @@ class ALERT1v3(gr.top_block, Qt.QWidget):
         self.samp_rate_audio = samp_rate_audio = 48000
         self.rf_squelch = rf_squelch = -33
         self.rfGain = rfGain = 40
+        self.mqtt_username = mqtt_username = ''
+        self.mqtt_topic_prefix = mqtt_topic_prefix = 'alert'
+        self.mqtt_password = mqtt_password = ''
+        self.mqtt_broker_port = mqtt_broker_port = 1883
+        self.mqtt_broker_host = mqtt_broker_host = '127.0.0.1'
+        self.log_base_path = log_base_path = '/home/cdomotor/rf_log'
         self.demod_rate = demod_rate = samp_rate/decimation
         self.center_freq = center_freq = 173.9e6
 
@@ -106,12 +113,17 @@ class ALERT1v3(gr.top_block, Qt.QWidget):
         self.tabwid0_layout_0 = Qt.QBoxLayout(Qt.QBoxLayout.TopToBottom, self.tabwid0_widget_0)
         self.tabwid0_grid_layout_0 = Qt.QGridLayout()
         self.tabwid0_layout_0.addLayout(self.tabwid0_grid_layout_0)
-        self.tabwid0.addTab(self.tabwid0_widget_0, 'config')
+        self.tabwid0.addTab(self.tabwid0_widget_0, 'Operator')
         self.tabwid0_widget_1 = Qt.QWidget()
         self.tabwid0_layout_1 = Qt.QBoxLayout(Qt.QBoxLayout.TopToBottom, self.tabwid0_widget_1)
         self.tabwid0_grid_layout_1 = Qt.QGridLayout()
         self.tabwid0_layout_1.addLayout(self.tabwid0_grid_layout_1)
-        self.tabwid0.addTab(self.tabwid0_widget_1, 'run')
+        self.tabwid0.addTab(self.tabwid0_widget_1, 'Signal')
+        self.tabwid0_widget_2 = Qt.QWidget()
+        self.tabwid0_layout_2 = Qt.QBoxLayout(Qt.QBoxLayout.TopToBottom, self.tabwid0_widget_2)
+        self.tabwid0_grid_layout_2 = Qt.QGridLayout()
+        self.tabwid0_layout_2.addLayout(self.tabwid0_grid_layout_2)
+        self.tabwid0.addTab(self.tabwid0_widget_2, 'Diagnostics')
         self.top_layout.addWidget(self.tabwid0)
         self._rf_squelch_range = Range(-50, 0, 1, -33, 1)
         self._rf_squelch_win = RangeWidget(self._rf_squelch_range, self.set_rf_squelch, "'rf_squelch'", "counter_slider", float, QtCore.Qt.Horizontal)
@@ -336,11 +348,11 @@ class ALERT1v3(gr.top_block, Qt.QWidget):
             self.qtgui_time_sink_x_0_1.set_line_alpha(i, alphas[i])
 
         self._qtgui_time_sink_x_0_1_win = sip.wrapinstance(self.qtgui_time_sink_x_0_1.qwidget(), Qt.QWidget)
-        self.tabwid0_grid_layout_1.addWidget(self._qtgui_time_sink_x_0_1_win, 5, 0, 1, 1)
-        for r in range(5, 6):
-            self.tabwid0_grid_layout_1.setRowStretch(r, 1)
-        for c in range(0, 1):
-            self.tabwid0_grid_layout_1.setColumnStretch(c, 1)
+        self.tabwid0_grid_layout_2.addWidget(self._qtgui_time_sink_x_0_1_win, 0, 1, 1, 1)
+        for r in range(0, 1):
+            self.tabwid0_grid_layout_2.setRowStretch(r, 1)
+        for c in range(1, 2):
+            self.tabwid0_grid_layout_2.setColumnStretch(c, 1)
         self.qtgui_time_sink_x_0 = qtgui.time_sink_f(
             1024, #size
             samp_rate, #samp_rate
@@ -389,11 +401,11 @@ class ALERT1v3(gr.top_block, Qt.QWidget):
             self.qtgui_time_sink_x_0.set_line_alpha(i, alphas[i])
 
         self._qtgui_time_sink_x_0_win = sip.wrapinstance(self.qtgui_time_sink_x_0.qwidget(), Qt.QWidget)
-        self.tabwid0_grid_layout_1.addWidget(self._qtgui_time_sink_x_0_win, 4, 0, 1, 1)
-        for r in range(4, 5):
-            self.tabwid0_grid_layout_1.setRowStretch(r, 1)
+        self.tabwid0_grid_layout_2.addWidget(self._qtgui_time_sink_x_0_win, 0, 0, 1, 1)
+        for r in range(0, 1):
+            self.tabwid0_grid_layout_2.setRowStretch(r, 1)
         for c in range(0, 1):
-            self.tabwid0_grid_layout_1.setColumnStretch(c, 1)
+            self.tabwid0_grid_layout_2.setColumnStretch(c, 1)
         self.qtgui_time_raster_sink_x_0 = qtgui.time_raster_sink_f(
             samp_rate,
             30,
@@ -430,18 +442,25 @@ class ALERT1v3(gr.top_block, Qt.QWidget):
             self.qtgui_time_raster_sink_x_0.set_line_alpha(i, alphas[i])
 
         self._qtgui_time_raster_sink_x_0_win = sip.wrapinstance(self.qtgui_time_raster_sink_x_0.qwidget(), Qt.QWidget)
-        self.tabwid0_grid_layout_1.addWidget(self._qtgui_time_raster_sink_x_0_win, 3, 1, 4, 3)
-        for r in range(3, 7):
-            self.tabwid0_grid_layout_1.setRowStretch(r, 1)
-        for c in range(1, 4):
-            self.tabwid0_grid_layout_1.setColumnStretch(c, 1)
-        self.qtgui_edit_box_msg_0 = qtgui.edit_box_msg(qtgui.STRING, '', '', False, True, '', None)
+        self.tabwid0_grid_layout_2.addWidget(self._qtgui_time_raster_sink_x_0_win, 1, 0, 3, 3)
+        for r in range(1, 4):
+            self.tabwid0_grid_layout_2.setRowStretch(r, 1)
+        for c in range(0, 3):
+            self.tabwid0_grid_layout_2.setColumnStretch(c, 1)
+        self.qtgui_edit_box_msg_1 = qtgui.edit_box_msg(qtgui.STRING, '', 'Decoder counters', False, True, '', None)
+        self._qtgui_edit_box_msg_1_win = sip.wrapinstance(self.qtgui_edit_box_msg_1.qwidget(), Qt.QWidget)
+        self.tabwid0_grid_layout_0.addWidget(self._qtgui_edit_box_msg_1_win, 4, 0, 1, 4)
+        for r in range(4, 5):
+            self.tabwid0_grid_layout_0.setRowStretch(r, 1)
+        for c in range(0, 4):
+            self.tabwid0_grid_layout_0.setColumnStretch(c, 1)
+        self.qtgui_edit_box_msg_0 = qtgui.edit_box_msg(qtgui.STRING, '', 'Latest decode', False, True, '', None)
         self._qtgui_edit_box_msg_0_win = sip.wrapinstance(self.qtgui_edit_box_msg_0.qwidget(), Qt.QWidget)
-        self.tabwid0_grid_layout_1.addWidget(self._qtgui_edit_box_msg_0_win, 6, 0, 1, 1)
-        for r in range(6, 7):
-            self.tabwid0_grid_layout_1.setRowStretch(r, 1)
-        for c in range(0, 1):
-            self.tabwid0_grid_layout_1.setColumnStretch(c, 1)
+        self.tabwid0_grid_layout_0.addWidget(self._qtgui_edit_box_msg_0_win, 3, 0, 1, 4)
+        for r in range(3, 4):
+            self.tabwid0_grid_layout_0.setRowStretch(r, 1)
+        for c in range(0, 4):
+            self.tabwid0_grid_layout_0.setColumnStretch(c, 1)
         self.low_pass_filter_1 = filter.fir_filter_fff(
             1,
             firdes.low_pass(
@@ -469,8 +488,9 @@ class ALERT1v3(gr.top_block, Qt.QWidget):
                 1e3,
                 window.WIN_HAMMING,
                 6.76))
+        self.epy_block_2 = epy_block_2.mqtt_event_publisher(broker_host=mqtt_broker_host, broker_port=mqtt_broker_port, username=mqtt_username, password=mqtt_password, topic_prefix=mqtt_topic_prefix)
         self.epy_block_1 = epy_block_1.alert_protocol_decoder()
-        self.epy_block_0 = epy_block_0.blk(base_path='/home/cdomotor/rf_log')
+        self.epy_block_0 = epy_block_0.blk(base_path=log_base_path)
         self.digital_symbol_sync_xx_0 = digital.symbol_sync_ff(
             digital.TED_EARLY_LATE,
             (demod_rate/300),
@@ -504,7 +524,9 @@ class ALERT1v3(gr.top_block, Qt.QWidget):
         # Connections
         ##################################################
         self.msg_connect((self.epy_block_1, 'debug_out'), (self.epy_block_0, 'msg_in'))
+        self.msg_connect((self.epy_block_1, 'debug_out'), (self.epy_block_2, 'msg_in'))
         self.msg_connect((self.epy_block_1, 'debug_out'), (self.qtgui_edit_box_msg_0, 'val'))
+        self.msg_connect((self.epy_block_1, 'stats_out'), (self.qtgui_edit_box_msg_1, 'val'))
         self.connect((self.analog_agc_xx_0, 0), (self.low_pass_filter_1, 0))
         self.connect((self.analog_agc_xx_0_0, 0), (self.blocks_multiply_const_vxx_0, 0))
         self.connect((self.analog_quadrature_demod_cf_0, 0), (self.analog_agc_xx_0, 0))
@@ -591,6 +613,48 @@ class ALERT1v3(gr.top_block, Qt.QWidget):
     def set_rfGain(self, rfGain):
         self.rfGain = rfGain
         self.rtlsdr_source_0.set_gain(self.rfGain, 0)
+
+    def get_mqtt_username(self):
+        return self.mqtt_username
+
+    def set_mqtt_username(self, mqtt_username):
+        self.mqtt_username = mqtt_username
+        self.epy_block_2.username = self.mqtt_username
+
+    def get_mqtt_topic_prefix(self):
+        return self.mqtt_topic_prefix
+
+    def set_mqtt_topic_prefix(self, mqtt_topic_prefix):
+        self.mqtt_topic_prefix = mqtt_topic_prefix
+        self.epy_block_2.topic_prefix = self.mqtt_topic_prefix
+
+    def get_mqtt_password(self):
+        return self.mqtt_password
+
+    def set_mqtt_password(self, mqtt_password):
+        self.mqtt_password = mqtt_password
+        self.epy_block_2.password = self.mqtt_password
+
+    def get_mqtt_broker_port(self):
+        return self.mqtt_broker_port
+
+    def set_mqtt_broker_port(self, mqtt_broker_port):
+        self.mqtt_broker_port = mqtt_broker_port
+        self.epy_block_2.broker_port = self.mqtt_broker_port
+
+    def get_mqtt_broker_host(self):
+        return self.mqtt_broker_host
+
+    def set_mqtt_broker_host(self, mqtt_broker_host):
+        self.mqtt_broker_host = mqtt_broker_host
+        self.epy_block_2.broker_host = self.mqtt_broker_host
+
+    def get_log_base_path(self):
+        return self.log_base_path
+
+    def set_log_base_path(self, log_base_path):
+        self.log_base_path = log_base_path
+        self.epy_block_0.base_path = self.log_base_path
 
     def get_demod_rate(self):
         return self.demod_rate

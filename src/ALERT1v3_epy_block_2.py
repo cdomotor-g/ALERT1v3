@@ -38,7 +38,7 @@ class mqtt_event_publisher(gr.basic_block):
         try:
             import paho.mqtt.client as mqtt
         except Exception as exc:
-            self.logger.warning(f'MQTT disabled (paho-mqtt unavailable): {exc}')
+            self.logger.error(f'MQTT disabled (paho-mqtt unavailable): {exc}')
             return
 
         self._client = mqtt.Client(client_id='alert1v3-rx', clean_session=True)
@@ -52,13 +52,13 @@ class mqtt_event_publisher(gr.basic_block):
             self._client.connect_async(self.broker_host, self.broker_port, keepalive=30)
             self._client.loop_start()
         except Exception as exc:
-            self.logger.warning(f'MQTT connect failed: {exc}')
+            self.logger.error(f'MQTT connect failed: {exc}')
             self._client = None
 
     def _on_connect(self, _client, _userdata, _flags, rc):
         self._connected = (rc == 0)
         if rc != 0:
-            self.logger.warning(f'MQTT connect returned rc={rc}')
+            self.logger.error(f'MQTT connect returned rc={rc}')
 
     def _on_disconnect(self, _client, _userdata, _rc):
         self._connected = False
@@ -74,7 +74,7 @@ class mqtt_event_publisher(gr.basic_block):
             self._published += 1
         except Exception as exc:
             self._dropped += 1
-            self.logger.warning(f'MQTT publish failed ({topic}): {exc}')
+            self.logger.error(f'MQTT publish failed ({topic}): {exc}')
 
     def _publish_metrics(self, event):
         now = time.time()

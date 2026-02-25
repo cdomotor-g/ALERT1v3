@@ -1,7 +1,9 @@
-# MQTT Output (Issue #5 incremental)
+# MQTT Output (Issue #5)
 
 ALERT1v3 now includes an MQTT publisher block implementation at:
 - `src/ALERT1v3_epy_block_2.py`
+
+The MQTT block is wired by default in `src/ALERT1v3.grc` and receives decoder events via `debug_out`.
 
 ## Topics
 With default prefix `alert`:
@@ -16,7 +18,14 @@ With default prefix `alert`:
 - `username` / `password`
 - `topic_prefix` (default `alert`)
 
+## Runtime config vars in the flowgraph
+- `mqtt_broker_host`
+- `mqtt_broker_port`
+- `mqtt_username`
+- `mqtt_password`
+- `mqtt_topic_prefix`
+
 ## Notes
 - Uses `paho-mqtt` when available.
-- If unavailable, block stays non-fatal and logs a warning.
+- If unavailable, block stays non-fatal and logs an error (decode/log path remains live).
 - Designed to preserve decoder behavior when MQTT is offline.

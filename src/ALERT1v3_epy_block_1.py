@@ -29,6 +29,7 @@ class alert_protocol_decoder(gr.basic_block):
         )
 
         self.message_port_register_out(pmt.intern("debug_out"))
+        self.message_port_register_out(pmt.intern("stats_out"))
 
         self.state = "HUNTING_S"
         self.bit_buffer = []
@@ -39,6 +40,11 @@ class alert_protocol_decoder(gr.basic_block):
         # Runtime counters to help verify behavior during long runs.
         self.frames_decoded = 0
         self.frames_dropped_output_full = 0
+        self.frames_total = 0
+        self.error_total = 0
+        self._window_decode = 0
+        self._window_errors = 0
+        self._window_started = datetime.datetime.utcnow()
 
     def _publish_event(self, event_dict):
         try:
@@ -48,11 +54,37 @@ class alert_protocol_decoder(gr.basic_block):
             msg = pmt.intern(str(event_dict))
         self.message_port_pub(pmt.intern("debug_out"), msg)
 
+    def _reset_word_collection(self):
+        self.state = "HUNTING_S"
+        self.bit_buffer = []
+
     def _reset_frame_collection(self):
         self.word_count = 0
         self.message_bits = []
-        self.state = "HUNTING_S"
-        self.bit_buffer = []
+        self._reset_word_collection()
+
+    def _publish_stats_if_due(self, force=False):
+        now = datetime.datetime.utcnow()
+        elapsed = (now - self._window_started).total_seconds()
+        if not force and elapsed < 1.0:
+            return
+
+        decode_rate = (self._window_decode / elapsed) if elapsed > 0 else 0.0
+        stats = {
+            "schema": "alert.operator.stats.v1",
+            "ts": now.isoformat() + "Z",
+            "decode_rate_hz": round(float(decode_rate), 3),
+            "total_decodes": int(self.frames_total),
+            "recent_errors": int(self._window_errors),
+            "error_total": int(self.error_total),
+            "window_seconds": round(float(elapsed), 3),
+            "display": f"rate={decode_rate:.2f}/s | total={self.frames_total} | recent_errors={self._window_errors}",
+        }
+        self.message_port_pub(pmt.intern("stats_out"), pmt.to_pmt(stats["display"]))
+
+        self._window_started = now
+        self._window_decode = 0
+        self._window_errors = 0
 
     def _decode_message_bits(self, bits):
         """Decode 32 collected bits into fields using current legacy mapping."""
@@ -126,16 +158,25 @@ class alert_protocol_decoder(gr.basic_block):
                 if self.word_count == self.FRAME_WORDS:
                     event = self._decode_message_bits(self.message_bits)
                     self._publish_event(event)
+                    self.frames_total += 1
 
                     if produced < out_capacity:
                         out0[produced] = float(event["decode"]["data_val"])
                         produced += 1
                         self.frames_decoded += 1
+                        self._window_decode += 1
                     else:
                         # Keep decoding/logging alive even when scheduler gives no output room.
                         self.frames_dropped_output_full += 1
+                        self.error_total += 1
+                        self._window_errors += 1
 
-                self._reset_frame_collection()
+                    self._reset_frame_collection()
+                else:
+                    self._reset_word_collection()
 
+                self._publish_stats_if_due()
+
+        self._publish_stats_if_due()
         self.consume(0, consumed)
         return produced
