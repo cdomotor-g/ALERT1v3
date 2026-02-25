@@ -47,20 +47,18 @@ Current debug output prints:
 - Integrity checks (checksum/parity/CRC) are currently absent
 - No explicit framing confidence metric yet
 
-## 4) Proposed Decoded Event Schema (v1)
+## 4) Decoded Event Schema (v1, current implementation)
 
 ```json
 {
   "schema": "alert.decode.v1",
   "ts": "2026-01-01T12:00:00Z",
-  "rx": {
-    "center_freq_hz": 173900000,
-    "rf_gain_db": 40,
-    "rf_squelch_db": -33
-  },
+  "status": "ok",
   "frame": {
-    "raw_bits": "...",
-    "raw_hex": "..."
+    "bits_per_word": 10,
+    "word_count": 4,
+    "payload_bits": "010101...",
+    "payload_hex": "A1B2C3D4"
   },
   "decode": {
     "sensor_id": 1234,
@@ -68,16 +66,18 @@ Current debug output prints:
     "is_binary": true,
     "data_val": 321
   },
-  "status": "ok",
-  "quality": 0.91,
-  "errors": []
+  "summary": "1234, 000321",
+  "display": "1234, 000321"
 }
 ```
 
-## 5) Immediate decoder improvements
+Notes:
+- `summary` remains the stable human-readable line for operator views.
+- `display` duplicates `summary` to keep GUI-oriented paths explicit.
+- `status` is currently `ok` for successful frame decodes.
 
-1. Fix output signature mismatch in embedded block
-2. Preserve raw frame bits/hex for each decode
-3. Emit structured message payload (not only text)
-4. Add explicit decode status/error flags
-5. Build a small offline replay test harness from captured frames
+## 5) Next decoder improvements
+
+1. Add explicit error/status events for framing anomalies
+2. Add optional confidence/quality estimates from symbol timing context
+3. Build a small offline replay test harness from captured frames

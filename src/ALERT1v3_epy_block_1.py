@@ -73,6 +73,8 @@ class alert_protocol_decoder(gr.basic_block):
         raw_bits = ''.join(str(int(b)) for b in bits)
         raw_hex = f"{int(msg_int):08X}"
 
+        summary = f"{int(sensor_id):04d}, {int(data_val):06d}"
+
         return {
             "schema": "alert.decode.v1",
             "ts": datetime.datetime.utcnow().isoformat() + "Z",
@@ -89,7 +91,8 @@ class alert_protocol_decoder(gr.basic_block):
                 "is_binary": bool(is_binary),
                 "data_val": int(data_val),
             },
-            "summary": f"{int(sensor_id):04d}, {int(data_val):06d}",
+            "summary": summary,
+            "display": summary,
         }
 
     def general_work(self, input_items, output_items):
