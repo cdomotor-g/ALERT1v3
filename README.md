@@ -31,6 +31,8 @@ Current goals:
 
 - Architecture: `docs/ARCHITECTURE.md`
 - Protocol decode notes: `docs/PROTOCOL.md`
+- MQTT integration notes: `docs/MQTT.md`
+- Web UI MVP notes: `docs/WEBUI.md`
 - Roadmap and milestones: `docs/ROADMAP.md`
 - Change log: `docs/CHANGELOG.md`
 

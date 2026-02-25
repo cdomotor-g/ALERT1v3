@@ -4,7 +4,7 @@
 
 - [x] Create baseline docs
 - [ ] Confirm protocol assumptions against sample captures
-- [ ] Define schema contract for decoded events (`alert.decode.v1`)
+- [x] Define schema contract for decoded events (`alert.decode.v1`)
 
 ## Phase 1 — Decoder hardening
 
@@ -29,7 +29,7 @@
 
 ## Phase 4 — MQTT integration
 
-- [ ] Add MQTT publisher block/module
+- [x] Add MQTT publisher block/module
 - [ ] Publish topics:
   - `alert/rx/decoded`
   - `alert/rx/raw`
@@ -39,9 +39,9 @@
 
 ## Phase 5 — Web UI MVP
 
-- [ ] Stand up lightweight backend (FastAPI suggested)
-- [ ] Serve recent decoded events + live stream
-- [ ] Build minimal dashboard (status + table + quick filters)
+- [x] Stand up lightweight backend (implemented with stdlib HTTP server)
+- [x] Serve recent decoded events + live stream (REST + SSE)
+- [x] Build minimal dashboard (status + table + quick filters)
 
 ## Phase 6 — Stabilization
 
