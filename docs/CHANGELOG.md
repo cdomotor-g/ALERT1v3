@@ -14,6 +14,10 @@
 - Issue #2: decoder structured event polish in `src/ALERT1v3_epy_block_1.py`:
   - Added explicit `display` field mirroring `summary` for GUI-friendly readability.
   - Kept existing `summary` output stable for operator workflows.
+- Issue #3: logger robustness upgrade in `src/ALERT1v3_epy_block_0.py`:
+  - Added safe event normalization for malformed/non-dict PMT payloads.
+  - Guaranteed fallback schema keys for CSV/JSONL writes.
+  - Preserved flush-on-write behavior for both CSV and JSONL sinks.
 - Hardened decoder contract in `src/ALERT1v3_epy_block_1.py`:
   - Explicit single-output handling aligned with flowgraph wiring
   - Guarded output writes using scheduler-provided output capacity

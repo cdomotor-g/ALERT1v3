@@ -73,21 +73,49 @@ class blk(gr.basic_block):
         self.jsonl_file = None
         self.csv_writer = None
 
+    def _normalize_event(self, msg):
+        now_ts = datetime.datetime.utcnow().isoformat() + 'Z'
+        try:
+            event = pmt.to_python(msg)
+        except Exception:
+            event = str(msg)
+
+        if not isinstance(event, dict):
+            event = {
+                'schema': 'alert.decode.v1',
+                'ts': now_ts,
+                'status': 'raw',
+                'summary': str(event),
+                'display': str(event),
+                'decode': {},
+                'frame': {},
+            }
+
+        event.setdefault('schema', 'alert.decode.v1')
+        event.setdefault('ts', now_ts)
+        event.setdefault('status', 'unknown')
+        event.setdefault('decode', {})
+        event.setdefault('frame', {})
+
+        if not isinstance(event.get('decode'), dict):
+            event['decode'] = {}
+        if not isinstance(event.get('frame'), dict):
+            event['frame'] = {}
+
+        if 'summary' not in event:
+            event['summary'] = str(event.get('display', ''))
+        if 'display' not in event:
+            event['display'] = str(event.get('summary', ''))
+
+        return event
+
     def handle_msg(self, msg):
         try:
             self._ensure_files()
+            event = self._normalize_event(msg)
 
-            event = pmt.to_python(msg)
-            if not isinstance(event, dict):
-                event = {
-                    'schema': 'alert.decode.v1',
-                    'ts': datetime.datetime.utcnow().isoformat() + 'Z',
-                    'status': 'raw',
-                    'summary': str(event),
-                }
-
-            decode = event.get('decode', {}) if isinstance(event.get('decode', {}), dict) else {}
-            frame = event.get('frame', {}) if isinstance(event.get('frame', {}), dict) else {}
+            decode = event.get('decode', {})
+            frame = event.get('frame', {})
 
             row = [
                 event.get('ts', datetime.datetime.utcnow().isoformat() + 'Z'),
