@@ -32,6 +32,7 @@ Current goals:
 - Architecture: `docs/ARCHITECTURE.md`
 - Protocol decode notes: `docs/PROTOCOL.md`
 - MQTT integration notes: `docs/MQTT.md`
+- Replay/validation fixture: `docs/REPLAY.md`
 - Web UI MVP notes: `docs/WEBUI.md`
 - Roadmap and milestones: `docs/ROADMAP.md`
 - Change log: `docs/CHANGELOG.md`
@@ -46,3 +47,13 @@ Treat GNU Radio as the decode engine, and move integrations/UI to clean interfac
 - Web UI consumes events from backend service
 
 This separation reduces coupling and avoids repeating UI/tooling dead-ends from previous versions.
+
+## Replay Validation (no SDR required)
+
+Run a full synthetic replay of decoder → logger → MQTT → web API:
+
+```bash
+./tools/replay_validate.sh
+```
+
+See `docs/REPLAY.md` for details and environment overrides.

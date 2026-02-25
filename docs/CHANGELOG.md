@@ -3,7 +3,12 @@
 ## Unreleased
 
 ### Added
-- Issue #5: new MQTT publisher block implementation at `src/ALERT1v3_epy_block_2.py` (incremental, not yet flowgraph-wired).
+- Issue #5: MQTT publisher block wired by default in `src/ALERT1v3.grc`/`src/ALERT1v3.py` with runtime vars (`mqtt_broker_host`, `mqtt_broker_port`, `mqtt_username`, `mqtt_password`, `mqtt_topic_prefix`).
+- Issue #4: Operator-tab decode counters (`decode rate`, `total decodes`, `recent errors`) via `stats_out` + `Decoder counters` widget.
+- Replay fixture/tooling:
+  - `tools/replay_pipeline.py`
+  - `tools/replay_validate.sh`
+  - `docs/REPLAY.md`
 - Issue #6: decoupled web dashboard backend at `webui/server.py` with REST + SSE endpoints.
 - Documentation for new integration paths:
   - `docs/MQTT.md`
@@ -30,8 +35,8 @@
 - Hardened decoder contract in `src/ALERT1v3_epy_block_1.py`:
   - Explicit single-output handling aligned with flowgraph wiring
   - Guarded output writes using scheduler-provided output capacity
-  - Added frame collection reset helper for cleaner state transitions
-  - Added runtime counters (`frames_decoded`, `frames_dropped_output_full`)
+  - Fixed frame/word reset behavior so full 4-word frames decode correctly
+  - Added runtime counters (`frames_decoded`, `frames_dropped_output_full`) and operator stats output (`stats_out`)
 - Synced embedded decoder source in `src/ALERT1v3.grc` with external block file.
 
 ### Notes

@@ -56,3 +56,18 @@
   - `python -m py_compile webui/server.py`
 - Commit: `566aa74`
 - Next action: update issue threads with acceptance/partial status and close where complete.
+
+## 2026-02-25 22:46:26 AEST — Issue #4 + #5 completion
+- Status: implemented
+- Changes:
+  - Wired MQTT publisher into default flowgraph (`src/ALERT1v3.grc` + regenerated `src/ALERT1v3.py`).
+  - Added runtime variables in flowgraph: `mqtt_broker_host`, `mqtt_broker_port`, `mqtt_username`, `mqtt_password`, `mqtt_topic_prefix`, `log_base_path`.
+  - Connected decoder `debug_out` -> logger + MQTT publisher.
+  - Added Operator tab counter display (`Decoder counters`) fed from new decoder `stats_out` message port.
+  - Upgraded decoder internals to emit live operator stats (decode rate / total / recent errors).
+  - Fixed decoder frame reset logic so full 4-word frames decode correctly (unblocked replay + live validation).
+- Validation:
+  - `grcc src/ALERT1v3.grc -o src`
+  - `python3 -m py_compile src/ALERT1v3.py src/ALERT1v3_epy_block_0.py src/ALERT1v3_epy_block_1.py src/ALERT1v3_epy_block_2.py`
+- Commit: `b75b2ca`
+- Next action: add one-command replay fixture/tooling + docs + full chain validation output capture.
