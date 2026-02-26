@@ -38,6 +38,7 @@ Current goals:
 - Latest host soak report: `docs/SOAK_REPORT_HOST_MONITOR_2026-02-26.md`
 - Sidecar architecture: `docs/SIDECARS.md`
 - Platform support matrix: `docs/PLATFORMS.md`
+- Remote access runbook: `docs/REMOTE_ACCESS.md`
 - Roadmap and milestones: `docs/ROADMAP.md`
 - Versioning + naming policy: `docs/VERSIONING.md`
 - Change log: `docs/CHANGELOG.md`

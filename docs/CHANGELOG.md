@@ -16,6 +16,10 @@
   - `docs/PLATFORMS.md`
   - `tools/platform_capabilities.py`
   - `tools/smoke_platform.sh`
+- Remote access hardening runbook and service assets:
+  - `docs/REMOTE_ACCESS.md`
+  - `deploy/fwlab-webui.service`
+  - `tools/start_webui.sh`
 
 ### Changed
 - Web dashboard (`webui/server.py`) now supports optional host metrics input via `--host-metrics-jsonl` and `/api/host_metrics`.
