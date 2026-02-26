@@ -11,48 +11,64 @@ from urllib.parse import parse_qs, urlparse
 
 HTML = """<!doctype html><html><head><meta charset='utf-8'><title>FW-LAB Dashboard</title>
 <style>
-body{font-family:Arial;margin:1rem;background:#10151c;color:#d7e0ea}
-table{width:100%;border-collapse:collapse}
-th,td{border-bottom:1px solid #243243;padding:.4rem}
+body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}
+.page{padding:1rem}
 .card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}
 .muted{color:#93a6b8}
 input,select,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}
 .grid{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:.6rem;margin-bottom:.8rem}
 .good{color:#6dd17c}.warn{color:#f2c14e}.bad{color:#f36f6f}
+
+.sticky-wrap{position:sticky;top:0;z-index:50;background:#10151c;padding-top:.6rem}
+
+.table-wrap{max-height:58vh;overflow:auto;border:1px solid #243243;border-radius:8px;background:#121922}
+table{width:100%;border-collapse:collapse}
+th,td{border-bottom:1px solid #243243;padding:.4rem}
+thead th{position:sticky;top:0;background:#17212b;z-index:5}
 tr.ok{background:rgba(75,160,98,.10)}
 tr.warn{background:rgba(220,170,80,.12)}
 tr.error{background:rgba(200,80,80,.14)}
-#detail pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;border-radius:6px;border:1px solid #2a3948;max-height:240px;overflow:auto}
+tr.inline-detail td{background:#0f141a}
+pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;border-radius:6px;border:1px solid #2a3948;max-height:240px;overflow:auto}
 .small{font-size:.9em}
 </style></head>
 <body>
-<h2>FW-LAB Live Dashboard</h2>
-<div class='card'>
-  Status: <span id='status'>starting</span> · Events loaded: <span id='count'>0</span>
-  · Sensor: <input id='sensor' placeholder='sensor id' style='width:90px'>
-  · Min score: <input id='minScore' type='number' min='0' max='1' step='0.05' placeholder='0.0' style='width:72px'>
-  · Status: <select id='statusFilter'><option value=''>all</option><option value='ok'>ok</option><option value='warn'>warn</option><option value='error'>error</option></select>
-  · <label><input type='checkbox' id='warnOnly'> warn/error only</label>
-  · <button id='resetBtn'>Reset filters</button>
-  · <button id='exportBtn'>Export filtered CSV</button>
-</div>
+<div class='page'>
+  <h2 style='margin-top:0'>FW-LAB Live Dashboard</h2>
 
-<div class='grid'>
-  <div class='card'><div class='muted small'>Decoder health</div><div id='sum-health'>n/a</div></div>
-  <div class='card'><div class='muted small'>Confidence (5m avg)</div><div id='sum-conf'>-</div></div>
-  <div class='card'><div class='muted small'>Errors (5m)</div><div id='sum-errs'>-</div></div>
-  <div class='card'><div class='muted small'>Decode rate (/min)</div><div id='sum-rate'>-</div></div>
-</div>
+  <div class='sticky-wrap'>
+    <div class='card'>
+      Status: <span id='status'>starting</span> · Events loaded: <span id='count'>0</span>
+      · Sensor: <input id='sensor' placeholder='sensor id' style='width:90px'>
+      · Min score: <input id='minScore' type='number' min='0' max='1' step='0.05' placeholder='0.0' style='width:72px'>
+      · Status: <select id='statusFilter'><option value=''>all</option><option value='ok'>ok</option><option value='warn'>warn</option><option value='error'>error</option></select>
+      · <label><input type='checkbox' id='warnOnly'> warn/error only</label>
+      · Time: <select id='timeMode'><option value='local' selected>local</option><option value='zulu'>zulu</option></select>
+      · Detail: <select id='detailMode'><option value='top' selected>top</option><option value='inline'>inline</option></select>
+      · <button id='resetBtn'>Reset filters</button>
+      · <button id='exportBtn'>Export filtered CSV</button>
+    </div>
 
-<div class='card'>
-  Host metrics: <span id='hm-status' class='muted'>n/a</span> · CPU <span id='hm-cpu'>-</span>% · RAM <span id='hm-mem'>-</span>% · Disk <span id='hm-disk'>-</span>% · Temp <span id='hm-temp'>-</span>°C · Load/core <span id='hm-load'>-</span> · Breaches <span id='hm-breach'>0</span>
-</div>
+    <div class='grid'>
+      <div class='card'><div class='muted small'>Decoder health</div><div id='sum-health'>n/a</div></div>
+      <div class='card'><div class='muted small'>Confidence (5m avg)</div><div id='sum-conf'>-</div></div>
+      <div class='card'><div class='muted small'>Errors (5m)</div><div id='sum-errs'>-</div></div>
+      <div class='card'><div class='muted small'>Decode rate (/min)</div><div id='sum-rate'>-</div></div>
+    </div>
 
-<table><thead><tr><th>Time</th><th>Status</th><th>Score</th><th>Conf</th><th>Errs</th><th>Sensor</th><th>Format</th><th>Data</th><th>Summary</th></tr></thead><tbody id='rows'></tbody></table>
+    <div class='card'>
+      Host metrics: <span id='hm-status' class='muted'>n/a</span> · CPU <span id='hm-cpu'>-</span>% · RAM <span id='hm-mem'>-</span>% · Disk <span id='hm-disk'>-</span>% · Temp <span id='hm-temp'>-</span>°C · Load/core <span id='hm-load'>-</span> · Breaches <span id='hm-breach'>0</span>
+    </div>
 
-<div id='detail' class='card' style='margin-top:.8rem'>
-  <div class='muted'>Drill-down (click a row)</div>
-  <pre id='detailText'>No event selected.</pre>
+    <div id='detailTop' class='card'>
+      <div class='muted'>Drill-down (click a row)</div>
+      <pre id='detailText'>No event selected.</pre>
+    </div>
+  </div>
+
+  <div class='table-wrap'>
+    <table><thead><tr><th>Time</th><th>Status</th><th>Score</th><th>Conf</th><th>Errs</th><th>Sensor</th><th>Format</th><th>Data</th><th>Summary</th></tr></thead><tbody id='rows'></tbody></table>
+  </div>
 </div>
 
 <script>
@@ -67,16 +83,27 @@ tr.error{background:rgba(200,80,80,.14)}
   var minScore=document.getElementById('minScore');
   var statusFilter=document.getElementById('statusFilter');
   var warnOnly=document.getElementById('warnOnly');
+  var timeMode=document.getElementById('timeMode');
+  var detailMode=document.getElementById('detailMode');
   var resetBtn=document.getElementById('resetBtn');
   var exportBtn=document.getElementById('exportBtn');
   var detailText=document.getElementById('detailText');
+  var detailTop=document.getElementById('detailTop');
   var events=[];
+  var inlineRow=null;
+
+  function fmtTs(ts){
+    if(!ts) return '';
+    var d=new Date(ts);
+    if(!isFinite(d.getTime())) return ts;
+    if(timeMode.value==='zulu') return d.toISOString();
+    return d.toLocaleString();
+  }
 
   function classForStatus(s){ if(s==='ok') return 'good'; if(s==='warn') return 'warn'; return 'bad'; }
 
   function computeSummary(){
-    var now = Date.now();
-    var recent = [];
+    var now = Date.now(), recent=[];
     for(var i=0;i<events.length;i++){
       var t=Date.parse(g(events[i],'ts',''));
       if(isFinite(t) && (now-t)<=300000) recent.push(events[i]);
@@ -107,51 +134,68 @@ tr.error{background:rgba(200,80,80,.14)}
   }
 
   function passFilter(ev){
-    var f=sensor.value.trim();
-    var de=g(ev,'decode',{});
+    var f=sensor.value.trim(), de=g(ev,'decode',{});
     if(f && String(g(de,'sensor_id',''))!==f) return false;
     var sf=statusFilter.value; if(sf && g(ev,'status','')!==sf) return false;
     if(warnOnly.checked && g(ev,'status','ok')==='ok') return false;
     var ms=minScore.value.trim();
-    if(ms){
-      var v=Number(ms), q=g(g(ev,'quality',{}),'score',null);
-      if(typeof q==='number' && q < v) return false;
-    }
+    if(ms){ var v=Number(ms), q=g(g(ev,'quality',{}),'score',null); if(typeof q==='number' && q < v) return false; }
     return true;
   }
 
+  function detailPayload(evt){
+    var fr=g(evt,'frame',{});
+    return JSON.stringify({
+      ts:g(evt,'ts',''), status:g(evt,'status',''), summary:g(evt,'summary',''),
+      quality:g(evt,'quality',{}), errors:g(evt,'errors',[]), decode:g(evt,'decode',{}),
+      frame:{ payload_hex:g(fr,'payload_hex',''), bits_preview:String(g(fr,'payload_bits','')).slice(0,128) }
+    }, null, 2);
+  }
+
+  function clearInlineDetail(){
+    if(inlineRow && inlineRow.parentNode){ inlineRow.parentNode.removeChild(inlineRow); }
+    inlineRow=null;
+  }
+
+  function showDetail(tr, evt){
+    var text=detailPayload(evt);
+    if(detailMode.value==='top'){
+      clearInlineDetail();
+      detailTop.style.display='block';
+      detailText.textContent=text;
+      return;
+    }
+    detailTop.style.display='none';
+    clearInlineDetail();
+    inlineRow=document.createElement('tr'); inlineRow.className='inline-detail';
+    var td=document.createElement('td'); td.colSpan=9;
+    var pre=document.createElement('pre'); pre.textContent=text;
+    td.appendChild(pre); inlineRow.appendChild(td);
+    tr.parentNode.insertBefore(inlineRow, tr.nextSibling);
+  }
+
   function render(){
+    clearInlineDetail();
     rows.innerHTML='';
     var shown=0;
     for(var i=events.length-1;i>=0;i--){
-      var ev=events[i];
-      if(!passFilter(ev)) continue;
-      shown++;
-      var tr=document.createElement('tr');
-      tr.className = g(ev,'status','');
-      var q=g(g(ev,'quality',{}),'score',null); q=(typeof q==='number') ? q.toFixed(3) : '';
+      var ev=events[i]; if(!passFilter(ev)) continue; shown++;
+      var tr=document.createElement('tr'); tr.className=g(ev,'status','');
+      var q=g(g(ev,'quality',{}),'score',null); q=(typeof q==='number')?q.toFixed(3):'';
       var c=g(g(ev,'quality',{}),'confidence','');
       var errs=g(ev,'errors',[]); var errN=(errs&&errs.length)?errs.length:0;
       var de=g(ev,'decode',{});
-      tr.innerHTML='<td>'+g(ev,'ts','')+'</td><td>'+g(ev,'status','')+'</td><td>'+q+'</td><td>'+c+'</td><td>'+errN+'</td><td>'+g(de,'sensor_id','')+'</td><td>'+g(de,'format_id','')+'</td><td>'+g(de,'data_val','')+'</td><td>'+g(ev,'summary','')+'</td>';
-      (function(evt){ tr.addEventListener('click', function(){
-        var fr=g(evt,'frame',{});
-        detailText.textContent = JSON.stringify({
-          ts:g(evt,'ts',''), status:g(evt,'status',''), summary:g(evt,'summary',''),
-          quality:g(evt,'quality',{}), errors:g(evt,'errors',[]), decode:g(evt,'decode',{}),
-          frame:{ payload_hex:g(fr,'payload_hex',''), bits_preview:String(g(fr,'payload_bits','')).slice(0,128) }
-        }, null, 2);
-      }); })(ev);
+      tr.innerHTML='<td>'+fmtTs(g(ev,'ts',''))+'</td><td>'+g(ev,'status','')+'</td><td>'+q+'</td><td>'+c+'</td><td>'+errN+'</td><td>'+g(de,'sensor_id','')+'</td><td>'+g(de,'format_id','')+'</td><td>'+g(de,'data_val','')+'</td><td>'+g(ev,'summary','')+'</td>';
+      (function(t,e){ t.addEventListener('click', function(){ showDetail(t,e); }); })(tr,ev);
       rows.appendChild(tr);
-      if(shown>=150) break;
+      if(shown>=300) break;
     }
     count.textContent=String(events.length);
     computeSummary();
   }
 
   function exportCSV(){
-    var filtered=[];
-    for(var i=0;i<events.length;i++) if(passFilter(events[i])) filtered.push(events[i]);
+    var filtered=[]; for(var i=0;i<events.length;i++) if(passFilter(events[i])) filtered.push(events[i]);
     var lines=['"ts","status","quality_score","quality_confidence","errors_count","sensor_id","format_id","data_val","summary","error_codes"'];
     for(var j=0;j<filtered.length;j++){
       var ev=filtered[j], de=g(ev,'decode',{}), q=g(ev,'quality',{}), errs=g(ev,'errors',[]);
@@ -161,16 +205,12 @@ tr.error{background:rgba(200,80,80,.14)}
       lines.push(row.join(','));
     }
     var blob = new Blob([lines.join('\\n')], {type:'text/csv;charset=utf-8;'});
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a'); a.href=url; a.download='fwlab_filtered_events.csv'; a.click(); URL.revokeObjectURL(url);
+    var url = URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download='fwlab_filtered_events.csv'; a.click(); URL.revokeObjectURL(url);
   }
 
   function resetFilters(){ sensor.value=''; minScore.value=''; statusFilter.value=''; warnOnly.checked=false; render(); }
 
-  sensor.addEventListener('input',render);
-  minScore.addEventListener('input',render);
-  statusFilter.addEventListener('input',render);
-  warnOnly.addEventListener('input',render);
+  [sensor,minScore,statusFilter,warnOnly,timeMode,detailMode].forEach(function(el){ el.addEventListener('input',render); });
   exportBtn.addEventListener('click',exportCSV);
   resetBtn.addEventListener('click',resetFilters);
 
@@ -186,15 +226,11 @@ tr.error{background:rgba(200,80,80,.14)}
     document.getElementById('hm-load').textContent = g(mm,'load_1m_per_core','-');
     document.getElementById('hm-breach').textContent = String((g(m,'breaches',[])||[]).length);
   }
-
   function pollHost(){ fetch('/api/host_metrics').then(function(r){return r.json();}).then(function(d){ renderHost(g(d,'event',null)); })['catch'](function(){}); }
   pollHost(); setInterval(pollHost,3000);
 
   var es=new EventSource('/api/live');
-  es.onmessage=function(m){
-    try{ events.push(JSON.parse(m.data)); if(events.length>2000) events=events.slice(-2000); render(); status.textContent='live'; }
-    catch(e){}
-  };
+  es.onmessage=function(m){ try{ events.push(JSON.parse(m.data)); if(events.length>4000) events=events.slice(-4000); render(); status.textContent='live'; }catch(e){} };
   es.onerror=function(){ status.textContent='reconnecting'; };
 })();
 </script></body></html>"""
@@ -290,9 +326,10 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == '/api/events':
             q = parse_qs(parsed.query)
             limit = int(q.get('limit', ['100'])[0])
-            limit = max(1, min(limit, 2000))
+            limit = max(1, min(limit, 4000))
+            self.store.poll_new()
             events = list(self.store.events)[-limit:]
-            return self._json({'events': events, 'count': len(self.store.events)})
+            return self._json({'events': events, 'count': len(self.store.events), 'source': str(self.store.path)})
 
         if parsed.path == '/api/host_metrics':
             if not self.host_metrics_store:
@@ -340,6 +377,8 @@ def main():
 
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     print(f'Listening on http://{args.host}:{args.port} using {args.jsonl}')
+    if args.jsonl_follow_dir:
+        print(f'Following latest in: {args.jsonl_follow_dir}')
     if args.host_metrics_jsonl:
         print(f'Host metrics source: {args.host_metrics_jsonl}')
     server.serve_forever()
