@@ -16,6 +16,7 @@ Dashboard backend: `webui/server.py`.
 - Per-sensor summary stats (latest/min/max/avg)
 
 - Decoder health summary cards:
+- Storage status card (mode + used/free space + effective retention days)
   - health status (ok/warn/error mix)
   - 5-minute average confidence
   - 5-minute error summary (with top error code)

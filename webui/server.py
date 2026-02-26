@@ -2,6 +2,7 @@
 import argparse
 import json
 import time
+import shutil
 from datetime import datetime
 from collections import deque
 from http import HTTPStatus
@@ -60,6 +61,10 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
 
     <div class='card'>
       Host metrics: <span id='hm-status' class='muted'>n/a</span> · CPU <span id='hm-cpu'>-</span>% · RAM <span id='hm-mem'>-</span>% · Disk <span id='hm-disk'>-</span>% · Temp <span id='hm-temp'>-</span>°C · Load/core <span id='hm-load'>-</span> · Breaches <span id='hm-breach'>0</span>
+    </div>
+
+    <div class='card'>
+      Storage: <span id='st-mode' class='muted'>n/a</span> · Used <span id='st-used'>-</span>% · Free <span id='st-free'>-</span> GB · Retention <span id='st-days'>-</span> days
     </div>
 
     <div id='detailTop' class='card'>
@@ -232,7 +237,19 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     document.getElementById('hm-breach').textContent = String((g(m,'breaches',[])||[]).length);
   }
   function pollHost(){ fetch('/api/host_metrics').then(function(r){return r.json();}).then(function(d){ renderHost(g(d,'event',null)); })['catch'](function(){}); }
+  function pollStorage(){
+    fetch('/api/storage_status').then(function(r){return r.json();}).then(function(d){
+      var mode=(d.mode||'n/a');
+      document.getElementById('st-mode').textContent=mode;
+      document.getElementById('st-used').textContent=(d.disk_used_percent!=null?d.disk_used_percent:'-');
+      document.getElementById('st-free').textContent=(d.disk_free_gb!=null?d.disk_free_gb:'-');
+      document.getElementById('st-days').textContent=(d.effective_days!=null?d.effective_days:'-');
+      var el=document.getElementById('st-mode');
+      el.className = (mode==='emergency'||mode==='critical') ? 'bad' : (mode==='warn' ? 'warn' : 'good');
+    })['catch'](function(){});
+  }
   pollHost(); setInterval(pollHost,3000);
+  pollStorage(); setInterval(pollStorage,10000);
 
   var es=new EventSource('/api/live');
   es.onmessage=function(m){
@@ -315,6 +332,50 @@ Y Max: <input id='ymax' style='width:90px' placeholder='auto'>
   window.addEventListener('resize', function(){ chart.resize(); });
 })();
 </script></div></body></html>"""
+
+
+def load_storage_policy(path='config/storage_policy.json'):
+    p = Path(path)
+    if not p.exists():
+        return {}
+    try:
+        return json.loads(p.read_text(encoding='utf-8'))
+    except Exception:
+        return {}
+
+
+def storage_status():
+    pol = load_storage_policy()
+    th = pol.get('thresholds', {})
+    warn = float(th.get('warnDiskPercent', 85))
+    critical = float(th.get('criticalDiskPercent', 92))
+    emergency = float(th.get('emergencyDiskPercent', 96))
+
+    cp = pol.get('criticalPolicy', {})
+    local_days = float(pol.get('localRetentionDays', 2))
+    critical_days = float(cp.get('criticalRetentionDays', 1))
+    emergency_hours = float(cp.get('emergencyRetentionHours', 12))
+
+    d = shutil.disk_usage('/')
+    used_pct = (100.0 * d.used / d.total) if d.total else 0.0
+    mode = 'normal'
+    effective_days = local_days
+    if used_pct >= emergency:
+        mode = 'emergency'
+        effective_days = emergency_hours / 24.0
+    elif used_pct >= critical:
+        mode = 'critical'
+        effective_days = critical_days
+    elif used_pct >= warn:
+        mode = 'warn'
+
+    return {
+        'mode': mode,
+        'disk_used_percent': round(used_pct, 3),
+        'disk_free_gb': round(d.free / (1024**3), 3),
+        'effective_days': round(effective_days, 3),
+        'policy_days': local_days,
+    }
 
 
 def parse_ts(ts: str):
@@ -465,6 +526,9 @@ class Handler(BaseHTTPRequestHandler):
                 'avg': round(sum(vals)/len(vals), 3) if vals else None,
             }
             return self._json({'sensor_id': sensor_id, 'window': win, 'points': points, 'stats': stats, 'source': str(self.store.path)})
+
+        if parsed.path == '/api/storage_status':
+            return self._json(storage_status())
 
         if parsed.path == '/api/host_metrics':
             if not self.host_metrics_store:

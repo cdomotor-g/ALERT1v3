@@ -7,4 +7,4 @@ Type=oneshot
 User=cdomotor
 Group=cdomotor
 WorkingDirectory=/home/cdomotor/.openclaw/workspace/projects/ALERT1v3
-ExecStart=/usr/bin/python3 /home/cdomotor/.openclaw/workspace/projects/ALERT1v3/tools/log_retention.py --days 14 --max-mb 1024
+ExecStart=/usr/bin/python3 /home/cdomotor/.openclaw/workspace/projects/ALERT1v3/tools/log_retention.py --policy /home/cdomotor/.openclaw/workspace/projects/ALERT1v3/config/storage_policy.json

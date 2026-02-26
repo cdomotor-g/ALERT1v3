@@ -4,8 +4,18 @@ FW-LAB includes automated retention to keep disk usage bounded.
 
 ## Policy (default)
 
-- Delete logs older than **14 days**
-- Enforce total matching log footprint under **1024 MB**
+Configured in `config/storage_policy.json`:
+
+- Local hot retention: **2 days**
+- Max local matching logs: **1024 MB**
+- Disk thresholds:
+  - warn at 85%
+  - critical at 92%
+  - emergency at 96%
+
+Critical behavior:
+- critical mode: tighter retention/size behavior
+- emergency mode: most aggressive retention window
 
 Matching files:
 - `*.jsonl`

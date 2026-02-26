@@ -1,0 +1,13 @@
+{
+  "localRetentionDays": 2,
+  "maxLocalMb": 1024,
+  "thresholds": {
+    "warnDiskPercent": 85,
+    "criticalDiskPercent": 92,
+    "emergencyDiskPercent": 96
+  },
+  "criticalPolicy": {
+    "criticalRetentionDays": 1,
+    "emergencyRetentionHours": 12
+  }
+}

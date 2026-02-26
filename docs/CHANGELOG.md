@@ -57,6 +57,10 @@
   - interactive zoom/pan and slider
   - toolbox restore/save image
   - configurable Y-axis min/max
+- Storage policy controls:
+  - new `config/storage_policy.json` (2-day default local retention)
+  - retention engine supports warn/critical/emergency disk modes
+  - web UI storage status card via `/api/storage_status`
 
 ### Changed
 - Web dashboard (`webui/server.py`) now supports optional host metrics input via `--host-metrics-jsonl` and `/api/host_metrics`.
