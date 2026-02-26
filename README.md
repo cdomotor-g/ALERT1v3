@@ -41,6 +41,7 @@ Current goals:
 - Remote access runbook: `docs/REMOTE_ACCESS.md`
 - Packaging/run mode: `docs/PACKAGING.md`
 - Log retention controls: `docs/RETENTION.md`
+- Soak and resilience: `docs/SOAK.md`
 - Roadmap and milestones: `docs/ROADMAP.md`
 - Versioning + naming policy: `docs/VERSIONING.md`
 - Change log: `docs/CHANGELOG.md`

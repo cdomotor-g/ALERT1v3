@@ -43,6 +43,10 @@
   - status/score/confidence/error columns and row coloring
   - click-to-drill event detail panel
   - filtered CSV export button
+- Soak/resilience tooling:
+  - `tools/run_soak.sh`
+  - `tools/soak_report.py`
+  - `docs/SOAK.md`
 
 ### Changed
 - Web dashboard (`webui/server.py`) now supports optional host metrics input via `--host-metrics-jsonl` and `/api/host_metrics`.
