@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SERVICES=(fwlab-webui.service fwlab-host-monitor.service)
+
+cmd="${1:-status}"
+
+case "$cmd" in
+  install)
+    sudo cp deploy/fwlab-webui.service /etc/systemd/system/fwlab-webui.service
+    sudo cp deploy/fwlab-host-monitor.service /etc/systemd/system/fwlab-host-monitor.service
+    sudo chmod 644 /etc/systemd/system/fwlab-webui.service /etc/systemd/system/fwlab-host-monitor.service
+    sudo chmod +x tools/start_webui.sh tools/start_host_monitor.sh tools/host_monitor.py
+    sudo systemctl daemon-reload
+    echo "Installed service units."
+    ;;
+  enable)
+    sudo systemctl enable --now "${SERVICES[@]}"
+    ;;
+  start)
+    sudo systemctl start "${SERVICES[@]}"
+    ;;
+  stop)
+    sudo systemctl stop "${SERVICES[@]}"
+    ;;
+  restart)
+    sudo systemctl restart "${SERVICES[@]}"
+    ;;
+  disable)
+    sudo systemctl disable --now "${SERVICES[@]}" || true
+    ;;
+  status)
+    sudo systemctl status --no-pager "${SERVICES[@]}"
+    ;;
+  logs)
+    journalctl -u fwlab-webui.service -u fwlab-host-monitor.service -f
+    ;;
+  *)
+    echo "Usage: $0 {install|enable|start|stop|restart|disable|status|logs}" >&2
+    exit 1
+    ;;
+esac

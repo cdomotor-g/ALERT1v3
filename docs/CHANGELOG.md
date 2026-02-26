@@ -20,6 +20,11 @@
   - `docs/REMOTE_ACCESS.md`
   - `deploy/fwlab-webui.service`
   - `tools/start_webui.sh`
+- Packaging/one-command operations assets:
+  - `docs/PACKAGING.md`
+  - `deploy/fwlab-host-monitor.service`
+  - `tools/start_host_monitor.sh`
+  - `tools/fwlabctl`
 
 ### Changed
 - Web dashboard (`webui/server.py`) now supports optional host metrics input via `--host-metrics-jsonl` and `/api/host_metrics`.

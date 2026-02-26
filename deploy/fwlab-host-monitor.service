@@ -1,0 +1,17 @@
+[Unit]
+Description=FW-LAB Host Monitor
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=cdomotor
+Group=cdomotor
+WorkingDirectory=/home/cdomotor/.openclaw/workspace/projects/ALERT1v3
+ExecStart=/home/cdomotor/.openclaw/workspace/projects/ALERT1v3/tools/start_host_monitor.sh
+Restart=always
+RestartSec=3
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

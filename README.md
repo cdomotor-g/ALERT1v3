@@ -39,6 +39,7 @@ Current goals:
 - Sidecar architecture: `docs/SIDECARS.md`
 - Platform support matrix: `docs/PLATFORMS.md`
 - Remote access runbook: `docs/REMOTE_ACCESS.md`
+- Packaging/run mode: `docs/PACKAGING.md`
 - Roadmap and milestones: `docs/ROADMAP.md`
 - Versioning + naming policy: `docs/VERSIONING.md`
 - Change log: `docs/CHANGELOG.md`

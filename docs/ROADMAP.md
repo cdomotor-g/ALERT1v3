@@ -59,9 +59,9 @@
 
 ## Phase 8 — Operational completion targets
 
-- [ ] Finish Raspberry Pi host monitoring acceptance (breach surfacing + soak summary + helper runner)
+- [x] Finish Raspberry Pi host monitoring acceptance (breach surfacing + soak summary + helper runner)
 - [ ] Complete log retention/rotation controls
-- [ ] Package one-command run mode for unattended deployments
+- [x] Package one-command run mode for unattended deployments
 
 ## Phase 9 — Multi-platform and sidecar architecture
 
