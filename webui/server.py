@@ -38,7 +38,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
 
   <div class='sticky-wrap'>
     <div class='card'>
-      Status: <span id='status'>starting</span> · Events loaded: <span id='count'>0</span>
+      Status: <span id='status'>starting</span> · Events loaded: <span id='count'>0</span> · Source: <span id='source' class='muted'>n/a</span>
       · Sensor: <input id='sensor' placeholder='sensor id' style='width:90px'>
       · Min score: <input id='minScore' type='number' min='0' max='1' step='0.05' placeholder='0.0' style='width:72px'>
       · Status: <select id='statusFilter'><option value=''>all</option><option value='ok'>ok</option><option value='warn'>warn</option><option value='error'>error</option></select>
@@ -79,6 +79,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   var rows=document.getElementById('rows');
   var status=document.getElementById('status');
   var count=document.getElementById('count');
+  var source=document.getElementById('source');
   var sensor=document.getElementById('sensor');
   var minScore=document.getElementById('minScore');
   var statusFilter=document.getElementById('statusFilter');
@@ -214,7 +215,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   exportBtn.addEventListener('click',exportCSV);
   resetBtn.addEventListener('click',resetFilters);
 
-  fetch('/api/events?limit=400').then(function(r){return r.json();}).then(function(d){events=d.events||[]; render();});
+  fetch('/api/events?limit=400').then(function(r){return r.json();}).then(function(d){events=d.events||[]; source.textContent=g(d,'source','n/a'); render();});
 
   function renderHost(m){
     document.getElementById('hm-status').textContent = g(m,'status','n/a');
@@ -230,7 +231,15 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   pollHost(); setInterval(pollHost,3000);
 
   var es=new EventSource('/api/live');
-  es.onmessage=function(m){ try{ events.push(JSON.parse(m.data)); if(events.length>4000) events=events.slice(-4000); render(); status.textContent='live'; }catch(e){} };
+  es.onmessage=function(m){
+    try{
+      events.push(JSON.parse(m.data));
+      if(events.length>4000) events=events.slice(-4000);
+      fetch('/api/events?limit=1').then(function(r){return r.json();}).then(function(d){ source.textContent=g(d,'source','n/a'); })['catch'](function(){});
+      render();
+      status.textContent='live';
+    }catch(e){}
+  };
   es.onerror=function(){ status.textContent='reconnecting'; };
 })();
 </script></body></html>"""
