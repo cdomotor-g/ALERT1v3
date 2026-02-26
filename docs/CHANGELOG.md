@@ -38,6 +38,11 @@
   - decoder now emits `status`, `quality`, and `errors` fields in `alert.decode.v1`
   - timing/output/framing quality error taxonomy added
   - replay validation now asserts quality/error/status presence in logged events
+- Web UI confidence UX improvements:
+  - decoder health summary cards (health/confidence/errors/rate)
+  - status/score/confidence/error columns and row coloring
+  - click-to-drill event detail panel
+  - filtered CSV export button
 
 ### Changed
 - Web dashboard (`webui/server.py`) now supports optional host metrics input via `--host-metrics-jsonl` and `/api/host_metrics`.
