@@ -1,0 +1,44 @@
+# Log retention and storage controls
+
+FW-LAB includes automated retention to keep disk usage bounded.
+
+## Policy (default)
+
+- Delete logs older than **14 days**
+- Enforce total matching log footprint under **1024 MB**
+
+Matching files:
+- `*.jsonl`
+- `*.csv`
+- `*.log`
+
+Roots scanned by default:
+- `/home/cdomotor/rf_log`
+- `/home/cdomotor/.openclaw/workspace/projects/ALERT1v3/rf_log`
+
+## Manual run
+
+```bash
+python3 tools/log_retention.py --days 14 --max-mb 1024
+python3 tools/log_retention.py --days 14 --max-mb 1024 --dry-run
+```
+
+## Service/timer
+
+Installed units:
+- `fwlab-log-retention.service`
+- `fwlab-log-retention.timer`
+
+Control via:
+
+```bash
+./tools/fwlabctl install
+./tools/fwlabctl enable
+./tools/fwlabctl retention-run
+systemctl list-timers fwlab-log-retention.timer
+```
+
+## Notes
+
+- Retention is additive safety; keep backups for critical data.
+- Current host already trends high on root disk usage, so this should remain enabled.

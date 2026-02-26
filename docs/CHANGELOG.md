@@ -25,6 +25,11 @@
   - `deploy/fwlab-host-monitor.service`
   - `tools/start_host_monitor.sh`
   - `tools/fwlabctl`
+- Log retention/rotation controls:
+  - `tools/log_retention.py`
+  - `deploy/fwlab-log-retention.service`
+  - `deploy/fwlab-log-retention.timer`
+  - `docs/RETENTION.md`
 
 ### Changed
 - Web dashboard (`webui/server.py`) now supports optional host metrics input via `--host-metrics-jsonl` and `/api/host_metrics`.

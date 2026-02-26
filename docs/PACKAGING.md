@@ -15,6 +15,7 @@ chmod +x tools/fwlabctl
 This installs and enables:
 - `fwlab-webui.service`
 - `fwlab-host-monitor.service`
+- `fwlab-log-retention.timer` (daily cleanup)
 
 ## Operations
 
@@ -23,6 +24,7 @@ This installs and enables:
 ./tools/fwlabctl restart
 ./tools/fwlabctl stop
 ./tools/fwlabctl logs
+./tools/fwlabctl retention-run
 ```
 
 ## Environment overrides

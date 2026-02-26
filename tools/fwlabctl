@@ -2,6 +2,8 @@
 set -euo pipefail
 
 SERVICES=(fwlab-webui.service fwlab-host-monitor.service)
+TIMER=fwlab-log-retention.timer
+RETENTION_SERVICE=fwlab-log-retention.service
 
 cmd="${1:-status}"
 
@@ -9,13 +11,15 @@ case "$cmd" in
   install)
     sudo cp deploy/fwlab-webui.service /etc/systemd/system/fwlab-webui.service
     sudo cp deploy/fwlab-host-monitor.service /etc/systemd/system/fwlab-host-monitor.service
-    sudo chmod 644 /etc/systemd/system/fwlab-webui.service /etc/systemd/system/fwlab-host-monitor.service
-    sudo chmod +x tools/start_webui.sh tools/start_host_monitor.sh tools/host_monitor.py
+    sudo cp deploy/fwlab-log-retention.service /etc/systemd/system/fwlab-log-retention.service
+    sudo cp deploy/fwlab-log-retention.timer /etc/systemd/system/fwlab-log-retention.timer
+    sudo chmod 644 /etc/systemd/system/fwlab-webui.service /etc/systemd/system/fwlab-host-monitor.service /etc/systemd/system/fwlab-log-retention.service /etc/systemd/system/fwlab-log-retention.timer
+    sudo chmod +x tools/start_webui.sh tools/start_host_monitor.sh tools/host_monitor.py tools/log_retention.py
     sudo systemctl daemon-reload
     echo "Installed service units."
     ;;
   enable)
-    sudo systemctl enable --now "${SERVICES[@]}"
+    sudo systemctl enable --now "${SERVICES[@]}" "$TIMER"
     ;;
   start)
     sudo systemctl start "${SERVICES[@]}"
@@ -27,16 +31,20 @@ case "$cmd" in
     sudo systemctl restart "${SERVICES[@]}"
     ;;
   disable)
-    sudo systemctl disable --now "${SERVICES[@]}" || true
+    sudo systemctl disable --now "${SERVICES[@]}" "$TIMER" || true
     ;;
   status)
-    sudo systemctl status --no-pager "${SERVICES[@]}"
+    sudo systemctl status --no-pager "${SERVICES[@]}" "$TIMER" "$RETENTION_SERVICE"
+    ;;
+  retention-run)
+    sudo systemctl start "$RETENTION_SERVICE"
+    sudo systemctl status --no-pager "$RETENTION_SERVICE"
     ;;
   logs)
     journalctl -u fwlab-webui.service -u fwlab-host-monitor.service -f
     ;;
   *)
-    echo "Usage: $0 {install|enable|start|stop|restart|disable|status|logs}" >&2
+    echo "Usage: $0 {install|enable|start|stop|restart|disable|status|logs|retention-run}" >&2
     exit 1
     ;;
 esac

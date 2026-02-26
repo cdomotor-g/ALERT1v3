@@ -1,0 +1,11 @@
+[Unit]
+Description=Run FW-LAB log retention daily
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=10m
+Unit=fwlab-log-retention.service
+
+[Install]
+WantedBy=timers.target
