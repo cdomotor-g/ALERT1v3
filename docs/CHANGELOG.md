@@ -47,6 +47,9 @@
   - `tools/run_soak.sh`
   - `tools/soak_report.py`
   - `docs/SOAK.md`
+- Web UI log-follow hardening:
+  - `webui/server.py` can auto-follow latest `rx_events_*.jsonl` via `--jsonl-follow-dir`
+  - `tools/start_webui.sh` enables follow mode for `/home/cdomotor/rf_log`
 
 ### Changed
 - Web dashboard (`webui/server.py`) now supports optional host metrics input via `--host-metrics-jsonl` and `/api/host_metrics`.

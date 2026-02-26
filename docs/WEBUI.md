@@ -31,9 +31,9 @@ Dashboard backend: `webui/server.py`.
 python3 webui/server.py --jsonl /path/to/rx_events_*.jsonl --host 0.0.0.0 --port 8088
 ```
 
-With host metrics:
+With host metrics + auto-follow latest event file:
 ```bash
-python3 webui/server.py --jsonl /path/to/rx_events_*.jsonl --host-metrics-jsonl /path/to/host_metrics.jsonl --host 0.0.0.0 --port 8088
+python3 webui/server.py --jsonl /path/to/current/rx_events_*.jsonl --jsonl-follow-dir /home/cdomotor/rf_log --host-metrics-jsonl /path/to/host_metrics.jsonl --host 0.0.0.0 --port 8088
 ```
 
 ## Design notes

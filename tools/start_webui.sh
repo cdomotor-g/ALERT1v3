@@ -11,7 +11,7 @@ fi
 
 HOST_JSONL="$(find "$ROOT/rf_log" -type f -name 'host_metrics*.jsonl' 2>/dev/null | sort | tail -n1 || true)"
 
-ARGS=(--jsonl "$LATEST_JSONL" --host 0.0.0.0 --port 8088)
+ARGS=(--jsonl "$LATEST_JSONL" --jsonl-follow-dir "/home/cdomotor/rf_log" --host 0.0.0.0 --port 8088)
 if [[ -n "${HOST_JSONL}" ]]; then
   ARGS+=(--host-metrics-jsonl "$HOST_JSONL")
 fi

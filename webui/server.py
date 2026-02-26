@@ -16,7 +16,7 @@ table{width:100%;border-collapse:collapse}
 th,td{border-bottom:1px solid #243243;padding:.4rem}
 .card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}
 .muted{color:#93a6b8}
-input,select{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}
+input,select,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}
 .grid{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:.6rem;margin-bottom:.8rem}
 .good{color:#6dd17c}.warn{color:#f2c14e}.bad{color:#f36f6f}
 tr.ok{background:rgba(75,160,98,.10)}
@@ -33,6 +33,7 @@ tr.error{background:rgba(200,80,80,.14)}
   · Min score: <input id='minScore' type='number' min='0' max='1' step='0.05' placeholder='0.0' style='width:72px'>
   · Status: <select id='statusFilter'><option value=''>all</option><option value='ok'>ok</option><option value='warn'>warn</option><option value='error'>error</option></select>
   · <label><input type='checkbox' id='warnOnly'> warn/error only</label>
+  · <button id='resetBtn'>Reset filters</button>
   · <button id='exportBtn'>Export filtered CSV</button>
 </div>
 
@@ -55,137 +56,157 @@ tr.error{background:rgba(200,80,80,.14)}
 </div>
 
 <script>
-const rows=document.getElementById('rows'); const status=document.getElementById('status'); const count=document.getElementById('count');
-const sensor=document.getElementById('sensor'); const minScore=document.getElementById('minScore'); const statusFilter=document.getElementById('statusFilter'); const warnOnly=document.getElementById('warnOnly');
-const exportBtn=document.getElementById('exportBtn');
-const detailText=document.getElementById('detailText');
-let events=[];
+(function(){
+  function g(o,k,d){ return (o && o[k]!==undefined && o[k]!==null) ? o[k] : d; }
+  function escCSV(v){ return ('"'+String(v).replace(/"/g,'""')+'"'); }
 
-function classForStatus(s){ if(s==='ok') return 'good'; if(s==='warn') return 'warn'; return 'bad'; }
+  var rows=document.getElementById('rows');
+  var status=document.getElementById('status');
+  var count=document.getElementById('count');
+  var sensor=document.getElementById('sensor');
+  var minScore=document.getElementById('minScore');
+  var statusFilter=document.getElementById('statusFilter');
+  var warnOnly=document.getElementById('warnOnly');
+  var resetBtn=document.getElementById('resetBtn');
+  var exportBtn=document.getElementById('exportBtn');
+  var detailText=document.getElementById('detailText');
+  var events=[];
 
-function computeSummary(){
-  const now = Date.now();
-  const recent = events.filter(e=>{
-    const t = Date.parse(e.ts||'');
-    return isFinite(t) ? (now - t) <= 5*60*1000 : false;
-  });
-  if(!recent.length){
-    document.getElementById('sum-health').textContent='n/a';
-    document.getElementById('sum-conf').textContent='-';
-    document.getElementById('sum-errs').textContent='-';
-    document.getElementById('sum-rate').textContent='0.0';
-    return;
+  function classForStatus(s){ if(s==='ok') return 'good'; if(s==='warn') return 'warn'; return 'bad'; }
+
+  function computeSummary(){
+    var now = Date.now();
+    var recent = [];
+    for(var i=0;i<events.length;i++){
+      var t=Date.parse(g(events[i],'ts',''));
+      if(isFinite(t) && (now-t)<=300000) recent.push(events[i]);
+    }
+    if(!recent.length){
+      document.getElementById('sum-health').textContent='n/a';
+      document.getElementById('sum-conf').textContent='-';
+      document.getElementById('sum-errs').textContent='-';
+      document.getElementById('sum-rate').textContent='0.0';
+      return;
+    }
+    var st={ok:0,warn:0,error:0}, scoreN=0, scoreSum=0, errCnt=0, codeCount={};
+    for(var j=0;j<recent.length;j++){
+      var e=recent[j]; var s=g(e,'status','ok'); st[s]=(st[s]||0)+1;
+      var q=g(g(e,'quality',{}),'score',null); if(typeof q==='number'){ scoreN++; scoreSum+=q; }
+      var errs=g(e,'errors',[]); if(!errs || !errs.length) errs=[];
+      errCnt += errs.length;
+      for(var k=0;k<errs.length;k++){ var c=g(errs[k],'code','unknown'); codeCount[c]=(codeCount[c]||0)+1; }
+    }
+    var health = st.error>0 ? 'ERROR' : (st.warn>0 ? 'WARN' : 'OK');
+    var healthEl=document.getElementById('sum-health');
+    healthEl.textContent=health+' (ok:'+st.ok+' warn:'+st.warn+' err:'+st.error+')';
+    healthEl.className=classForStatus(health.toLowerCase());
+    document.getElementById('sum-conf').textContent = scoreN ? (scoreSum/scoreN).toFixed(3) : 'n/a';
+    var top='none',topN=0; for(var key in codeCount){ if(codeCount[key]>topN){topN=codeCount[key]; top=key;} }
+    document.getElementById('sum-errs').textContent = errCnt+' total'+(topN?(' · top '+top+' ('+topN+')'):'');
+    document.getElementById('sum-rate').textContent = (recent.length/5.0).toFixed(2);
   }
-  const st = {ok:0,warn:0,error:0};
-  let scoreN=0, scoreSum=0, errCnt=0;
-  const codeCount={};
-  for(const e of recent){
-    const s=e.status||'ok'; st[s]=(st[s]||0)+1;
-    const q=e.quality?.score;
-    if(typeof q==='number'){ scoreN++; scoreSum+=q; }
-    const errs=Array.isArray(e.errors)?e.errors:[];
-    errCnt += errs.length;
-    for(const er of errs){ const c=er?.code||'unknown'; codeCount[c]=(codeCount[c]||0)+1; }
+
+  function passFilter(ev){
+    var f=sensor.value.trim();
+    var de=g(ev,'decode',{});
+    if(f && String(g(de,'sensor_id',''))!==f) return false;
+    var sf=statusFilter.value; if(sf && g(ev,'status','')!==sf) return false;
+    if(warnOnly.checked && g(ev,'status','ok')==='ok') return false;
+    var ms=minScore.value.trim();
+    if(ms){
+      var v=Number(ms), q=g(g(ev,'quality',{}),'score',null);
+      if(typeof q==='number' && q < v) return false;
+    }
+    return true;
   }
-  const health = st.error>0 ? 'ERROR' : (st.warn>0 ? 'WARN' : 'OK');
-  const healthEl = document.getElementById('sum-health');
-  healthEl.textContent = `${health} (ok:${st.ok||0} warn:${st.warn||0} err:${st.error||0})`;
-  healthEl.className = classForStatus(health.toLowerCase());
-  document.getElementById('sum-conf').textContent = scoreN ? (scoreSum/scoreN).toFixed(3) : 'n/a';
-  let top='none',topN=0; for(const [k,v] of Object.entries(codeCount)){ if(v>topN){topN=v; top=k;} }
-  document.getElementById('sum-errs').textContent = `${errCnt} total${topN?` · top ${top} (${topN})`:''}`;
-  document.getElementById('sum-rate').textContent = ((recent.length/5.0)).toFixed(2);
-}
 
-function passFilter(ev){
-  const f=sensor.value.trim(); if(f && String(ev.decode?.sensor_id??'')!==f) return false;
-  const sf=statusFilter.value; if(sf && (ev.status||'')!==sf) return false;
-  if(warnOnly.checked && (ev.status==='ok' || !ev.status)) return false;
-  const ms=minScore.value.trim();
-  if(ms){
-    const v=Number(ms); const q=ev.quality?.score;
-    if(typeof q==='number' && q < v) return false;
+  function render(){
+    rows.innerHTML='';
+    var shown=0;
+    for(var i=events.length-1;i>=0;i--){
+      var ev=events[i];
+      if(!passFilter(ev)) continue;
+      shown++;
+      var tr=document.createElement('tr');
+      tr.className = g(ev,'status','');
+      var q=g(g(ev,'quality',{}),'score',null); q=(typeof q==='number') ? q.toFixed(3) : '';
+      var c=g(g(ev,'quality',{}),'confidence','');
+      var errs=g(ev,'errors',[]); var errN=(errs&&errs.length)?errs.length:0;
+      var de=g(ev,'decode',{});
+      tr.innerHTML='<td>'+g(ev,'ts','')+'</td><td>'+g(ev,'status','')+'</td><td>'+q+'</td><td>'+c+'</td><td>'+errN+'</td><td>'+g(de,'sensor_id','')+'</td><td>'+g(de,'format_id','')+'</td><td>'+g(de,'data_val','')+'</td><td>'+g(ev,'summary','')+'</td>';
+      (function(evt){ tr.addEventListener('click', function(){
+        var fr=g(evt,'frame',{});
+        detailText.textContent = JSON.stringify({
+          ts:g(evt,'ts',''), status:g(evt,'status',''), summary:g(evt,'summary',''),
+          quality:g(evt,'quality',{}), errors:g(evt,'errors',[]), decode:g(evt,'decode',{}),
+          frame:{ payload_hex:g(fr,'payload_hex',''), bits_preview:String(g(fr,'payload_bits','')).slice(0,128) }
+        }, null, 2);
+      }); })(ev);
+      rows.appendChild(tr);
+      if(shown>=150) break;
+    }
+    count.textContent=String(events.length);
+    computeSummary();
   }
-  return true;
-}
 
-function render(){
-  rows.innerHTML=''; let shown=0;
-  for(const ev of events.slice().reverse()){
-    if(!passFilter(ev)) continue;
-    shown++;
-    const tr=document.createElement('tr');
-    tr.className = ev.status || '';
-    const q = (typeof ev.quality?.score==='number') ? ev.quality.score.toFixed(3) : '';
-    const c = ev.quality?.confidence || '';
-    const errs = Array.isArray(ev.errors) ? ev.errors.length : 0;
-    tr.innerHTML=`<td>${ev.ts||''}</td><td>${ev.status||''}</td><td>${q}</td><td>${c}</td><td>${errs}</td><td>${ev.decode?.sensor_id??''}</td><td>${ev.decode?.format_id??''}</td><td>${ev.decode?.data_val??''}</td><td>${ev.summary||''}</td>`;
-    tr.addEventListener('click',()=>{
-      detailText.textContent = JSON.stringify({
-        ts: ev.ts,
-        status: ev.status,
-        summary: ev.summary,
-        quality: ev.quality,
-        errors: ev.errors,
-        decode: ev.decode,
-        frame: { payload_hex: ev.frame?.payload_hex, bits_preview: (ev.frame?.payload_bits||'').slice(0,128) }
-      }, null, 2);
-    });
-    rows.appendChild(tr);
-    if(shown>=150) break;
+  function exportCSV(){
+    var filtered=[];
+    for(var i=0;i<events.length;i++) if(passFilter(events[i])) filtered.push(events[i]);
+    var lines=['"ts","status","quality_score","quality_confidence","errors_count","sensor_id","format_id","data_val","summary","error_codes"'];
+    for(var j=0;j<filtered.length;j++){
+      var ev=filtered[j], de=g(ev,'decode',{}), q=g(ev,'quality',{}), errs=g(ev,'errors',[]);
+      var errCodes=[]; for(var k=0;k<errs.length;k++) errCodes.push(g(errs[k],'code',''));
+      var row=[g(ev,'ts',''),g(ev,'status',''),g(q,'score',''),g(q,'confidence',''),errs.length||0,g(de,'sensor_id',''),g(de,'format_id',''),g(de,'data_val',''),g(ev,'summary',''),errCodes.join('|')];
+      for(var r=0;r<row.length;r++) row[r]=escCSV(row[r]);
+      lines.push(row.join(','));
+    }
+    var blob = new Blob([lines.join('\\n')], {type:'text/csv;charset=utf-8;'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a'); a.href=url; a.download='fwlab_filtered_events.csv'; a.click(); URL.revokeObjectURL(url);
   }
-  count.textContent=String(events.length);
-  computeSummary();
-}
 
-[sensor,minScore,statusFilter,warnOnly].forEach(el=>el.addEventListener('input',render));
-exportBtn.addEventListener('click',()=>{
-  const filtered = events.filter(passFilter);
-  const header = ['ts','status','quality_score','quality_confidence','errors_count','sensor_id','format_id','data_val','summary','error_codes'];
-  const rows = filtered.map(ev=>[
-    ev.ts||'', ev.status||'',
-    (typeof ev.quality?.score==='number')?ev.quality.score:'',
-    ev.quality?.confidence||'',
-    Array.isArray(ev.errors)?ev.errors.length:0,
-    ev.decode?.sensor_id??'', ev.decode?.format_id??'', ev.decode?.data_val??'',
-    (ev.summary||'').replaceAll(',', ';'),
-    (Array.isArray(ev.errors)?ev.errors.map(e=>e.code||'').join('|'):'')
-  ]);
-  const csv = [header.join(',')].concat(rows.map(r=>r.map(x=>`"${String(x).replaceAll('"','""')}"`).join(','))).join('\n');
-  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'fwlab_filtered_events.csv';
-  a.click();
-  URL.revokeObjectURL(url);
-});
-fetch('/api/events?limit=400').then(r=>r.json()).then(d=>{events=d.events||[]; render();});
+  function resetFilters(){ sensor.value=''; minScore.value=''; statusFilter.value=''; warnOnly.checked=false; render(); }
 
-function renderHost(m){
-  document.getElementById('hm-status').textContent = m?.status || 'n/a';
-  const mm = m?.metrics || {};
-  document.getElementById('hm-cpu').textContent = (mm.cpu_percent ?? '-');
-  document.getElementById('hm-mem').textContent = (mm.mem_percent ?? '-');
-  document.getElementById('hm-disk').textContent = (mm.disk_percent ?? '-');
-  document.getElementById('hm-temp').textContent = (mm.temp_c ?? '-');
-  document.getElementById('hm-load').textContent = (mm.load_1m_per_core ?? '-');
-  document.getElementById('hm-breach').textContent = String((m?.breaches || []).length);
-}
-fetch('/api/host_metrics').then(r=>r.json()).then(d=>renderHost(d.event||null)).catch(()=>{});
-setInterval(()=>fetch('/api/host_metrics').then(r=>r.json()).then(d=>renderHost(d.event||null)).catch(()=>{}),3000);
+  sensor.addEventListener('input',render);
+  minScore.addEventListener('input',render);
+  statusFilter.addEventListener('input',render);
+  warnOnly.addEventListener('input',render);
+  exportBtn.addEventListener('click',exportCSV);
+  resetBtn.addEventListener('click',resetFilters);
 
-const es=new EventSource('/api/live');
-es.onmessage=(m)=>{ try{ events.push(JSON.parse(m.data)); if(events.length>2000) events=events.slice(-2000); render(); status.textContent='live'; }catch{} };
-es.onerror=()=>status.textContent='reconnecting';
+  fetch('/api/events?limit=400').then(function(r){return r.json();}).then(function(d){events=d.events||[]; render();});
+
+  function renderHost(m){
+    document.getElementById('hm-status').textContent = g(m,'status','n/a');
+    var mm=g(m,'metrics',{});
+    document.getElementById('hm-cpu').textContent = g(mm,'cpu_percent','-');
+    document.getElementById('hm-mem').textContent = g(mm,'mem_percent','-');
+    document.getElementById('hm-disk').textContent = g(mm,'disk_percent','-');
+    document.getElementById('hm-temp').textContent = g(mm,'temp_c','-');
+    document.getElementById('hm-load').textContent = g(mm,'load_1m_per_core','-');
+    document.getElementById('hm-breach').textContent = String((g(m,'breaches',[])||[]).length);
+  }
+
+  function pollHost(){ fetch('/api/host_metrics').then(function(r){return r.json();}).then(function(d){ renderHost(g(d,'event',null)); })['catch'](function(){}); }
+  pollHost(); setInterval(pollHost,3000);
+
+  var es=new EventSource('/api/live');
+  es.onmessage=function(m){
+    try{ events.push(JSON.parse(m.data)); if(events.length>2000) events=events.slice(-2000); render(); status.textContent='live'; }
+    catch(e){}
+  };
+  es.onerror=function(){ status.textContent='reconnecting'; };
+})();
 </script></body></html>"""
 
 
 class EventStore:
-    def __init__(self, jsonl_path: Path, max_events: int = 2000):
+    def __init__(self, jsonl_path: Path, max_events: int = 2000, follow_latest_in: Path | None = None):
         self.path = jsonl_path
         self.events = deque(maxlen=max_events)
         self.offset = 0
+        self.follow_latest_in = follow_latest_in
+        self._last_scan = 0.0
         self._initial_load()
 
     def _initial_load(self):
@@ -207,7 +228,28 @@ class EventStore:
         if isinstance(event, dict):
             self.events.append(event)
 
+    def _maybe_switch_latest(self):
+        if not self.follow_latest_in:
+            return
+        now = time.time()
+        if now - self._last_scan < 2.0:
+            return
+        self._last_scan = now
+
+        candidates = sorted(self.follow_latest_in.rglob('rx_events_*.jsonl'))
+        if not candidates:
+            return
+        latest = candidates[-1]
+        if latest == self.path:
+            return
+
+        self.path = latest
+        self.offset = 0
+        self.events.clear()
+        self._initial_load()
+
     def poll_new(self):
+        self._maybe_switch_latest()
         if not self.path.exists():
             return []
         new_events = []
@@ -281,12 +323,14 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     p = argparse.ArgumentParser(description='FW-LAB web dashboard server')
     p.add_argument('--jsonl', required=True, help='Path to rx_events_*.jsonl')
+    p.add_argument('--jsonl-follow-dir', default='', help='Optional directory to auto-follow latest rx_events_*.jsonl')
     p.add_argument('--host-metrics-jsonl', default='', help='Optional path to host_metrics.jsonl')
     p.add_argument('--host', default='127.0.0.1')
     p.add_argument('--port', type=int, default=8088)
     args = p.parse_args()
 
-    store = EventStore(Path(args.jsonl))
+    follow_dir = Path(args.jsonl_follow_dir) if args.jsonl_follow_dir else None
+    store = EventStore(Path(args.jsonl), follow_latest_in=follow_dir)
     Handler.store = store
 
     if args.host_metrics_jsonl:
