@@ -53,6 +53,10 @@
 - Sensor trends MVP:
   - new `/trends` page with per-sensor line chart and stats
   - new `/api/trends` endpoint (JSONL-backed)
+- Trends chart upgraded to ECharts:
+  - interactive zoom/pan and slider
+  - toolbox restore/save image
+  - configurable Y-axis min/max
 
 ### Changed
 - Web dashboard (`webui/server.py`) now supports optional host metrics input via `--host-metrics-jsonl` and `/api/host_metrics`.

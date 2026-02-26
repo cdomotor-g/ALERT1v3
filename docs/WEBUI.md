@@ -11,6 +11,8 @@ Dashboard backend: `webui/server.py`.
 ## UI features
 - Dedicated trends page: `/trends`
 - Sensor trend chart with selectable timeframe (15m/1h/6h/24h)
+- ECharts-powered interaction (zoom/pan slider, toolbox restore/save)
+- Optional manual Y-axis min/max controls
 - Per-sensor summary stats (latest/min/max/avg)
 
 - Decoder health summary cards:

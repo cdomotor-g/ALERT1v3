@@ -249,27 +249,62 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
 </script></body></html>"""
 
 TRENDS_HTML = """<!doctype html><html><head><meta charset='utf-8'><title>FW-LAB Trends</title>
-<script src='https://cdn.jsdelivr.net/npm/chart.js'></script>
-<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,select,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}a{color:#7fc8ff}</style></head>
+<script src='https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js'></script>
+<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,select,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}a{color:#7fc8ff}#chart{height:420px}</style></head>
 <body><div class='page'>
 <h2 style='margin-top:0'>FW-LAB Sensor Trends</h2>
 <div class='card'><a href='/'>Dashboard</a> · <a href='/trends'>Trends</a><br><br>
 Sensor ID: <input id='sensor' style='width:120px' placeholder='e.g. 4099'>
 Window: <select id='window'><option value='15m'>15m</option><option value='1h'>1h</option><option value='6h'>6h</option><option value='24h' selected>24h</option></select>
 Time: <select id='timeMode'><option value='local' selected>local</option><option value='zulu'>zulu</option></select>
-<button id='load'>Load</button> <span id='msg'></span></div>
+Y Min: <input id='ymin' style='width:90px' placeholder='auto'>
+Y Max: <input id='ymax' style='width:90px' placeholder='auto'>
+<button id='load'>Load</button> <button id='resetZoom'>Reset zoom</button> <span id='msg'></span></div>
 <div class='card'>Latest: <span id='latest'>-</span> · Min: <span id='min'>-</span> · Max: <span id='max'>-</span> · Avg: <span id='avg'>-</span></div>
-<div class='card'><canvas id='chart' height='100'></canvas></div>
+<div class='card'><div id='chart'></div></div>
 <script>
 (function(){
   var sensor=document.getElementById('sensor'), win=document.getElementById('window'), timeMode=document.getElementById('timeMode'), msg=document.getElementById('msg');
+  var ymin=document.getElementById('ymin'), ymax=document.getElementById('ymax');
   var latest=document.getElementById('latest'), minv=document.getElementById('min'), maxv=document.getElementById('max'), avgv=document.getElementById('avg');
-  var c=null, ctx=document.getElementById('chart');
+  var chart = echarts.init(document.getElementById('chart'));
+  var lastPoints=[];
+
   function fmt(ts){ var d=new Date(ts); if(!isFinite(d.getTime())) return ts; return timeMode.value==='zulu' ? d.toISOString() : d.toLocaleString(); }
-  function draw(points){ var labels=points.map(p=>fmt(p.ts)), vals=points.map(p=>p.value); if(c) c.destroy(); c=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:'data_val',data:vals,borderColor:'#7fc8ff',backgroundColor:'rgba(127,200,255,.2)',pointRadius:1.2,tension:.2}]},options:{responsive:true,maintainAspectRatio:false}}); }
+
+  function draw(points){
+    lastPoints = points || [];
+    var data = lastPoints.map(function(p){ return [fmt(p.ts), p.value]; });
+    var yMin = ymin.value.trim(); var yMax = ymax.value.trim();
+    var option = {
+      backgroundColor:'#17212b',
+      animation:false,
+      tooltip:{trigger:'axis'},
+      toolbox:{feature:{dataZoom:{yAxisIndex:'none'},restore:{},saveAsImage:{}}},
+      xAxis:{type:'category',boundaryGap:false,data:data.map(function(x){return x[0];}),axisLabel:{color:'#d7e0ea'},axisLine:{lineStyle:{color:'#2a3948'}}},
+      yAxis:{type:'value',min: yMin===''? null : Number(yMin), max: yMax===''? null : Number(yMax),axisLabel:{color:'#d7e0ea'},splitLine:{lineStyle:{color:'#2a3948'}}},
+      dataZoom:[{type:'inside',xAxisIndex:0,filterMode:'none'},{type:'slider',xAxisIndex:0,filterMode:'none'}],
+      series:[{name:'data_val',type:'line',showSymbol:false,smooth:0.15,lineStyle:{width:1.8,color:'#7fc8ff'},areaStyle:{color:'rgba(127,200,255,.18)'},data:data.map(function(x){return x[1];})}]
+    };
+    chart.setOption(option,true);
+  }
+
   function load(){ var sid=sensor.value.trim(); if(!sid){ msg.textContent=' enter sensor id'; return; } msg.textContent=' loading...';
-    fetch('/api/trends?sensor_id='+encodeURIComponent(sid)+'&window='+encodeURIComponent(win.value)+'&limit=4000').then(r=>r.json()).then(d=>{ msg.textContent=' points='+((d.points||[]).length); latest.textContent=d.stats?.latest ?? '-'; minv.textContent=d.stats?.min ?? '-'; maxv.textContent=d.stats?.max ?? '-'; avgv.textContent=d.stats?.avg ?? '-'; draw(d.points||[]); }).catch(()=>msg.textContent=' failed'); }
-  document.getElementById('load').addEventListener('click',load); timeMode.addEventListener('input',()=>{ if(c) load(); });
+    fetch('/api/trends?sensor_id='+encodeURIComponent(sid)+'&window='+encodeURIComponent(win.value)+'&limit=12000').then(function(r){return r.json();}).then(function(d){
+      var pts = d.points||[];
+      msg.textContent=' points='+pts.length;
+      latest.textContent=(d.stats && d.stats.latest!=null)?d.stats.latest:'-';
+      minv.textContent=(d.stats && d.stats.min!=null)?d.stats.min:'-';
+      maxv.textContent=(d.stats && d.stats.max!=null)?d.stats.max:'-';
+      avgv.textContent=(d.stats && d.stats.avg!=null)?d.stats.avg:'-';
+      draw(pts);
+    }).catch(function(){ msg.textContent=' failed'; draw([]); }); }
+
+  document.getElementById('load').addEventListener('click',load);
+  document.getElementById('resetZoom').addEventListener('click',function(){ draw(lastPoints); });
+  timeMode.addEventListener('input',function(){ draw(lastPoints); });
+  ymin.addEventListener('change',function(){ draw(lastPoints); });
+  ymax.addEventListener('change',function(){ draw(lastPoints); });
 
   var params = new URLSearchParams(window.location.search);
   var qpSensor = params.get('sensor_id');
@@ -277,6 +312,7 @@ Time: <select id='timeMode'><option value='local' selected>local</option><option
   if(qpSensor){ sensor.value = qpSensor; }
   if(qpWindow && ['15m','1h','6h','24h'].indexOf(qpWindow) >= 0){ win.value = qpWindow; }
   if(sensor.value.trim()){ load(); }
+  window.addEventListener('resize', function(){ chart.resize(); });
 })();
 </script></div></body></html>"""
 
