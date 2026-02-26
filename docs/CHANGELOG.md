@@ -34,6 +34,10 @@
   - retained LWT/status heartbeat behavior in `src/ALERT1v3_epy_block_2.py`
   - heartbeat topic `alert/rx/heartbeat`
   - schema/versioning notes in `docs/MQTT.md`
+- Protocol confidence hardening:
+  - decoder now emits `status`, `quality`, and `errors` fields in `alert.decode.v1`
+  - timing/output/framing quality error taxonomy added
+  - replay validation now asserts quality/error/status presence in logged events
 
 ### Changed
 - Web dashboard (`webui/server.py`) now supports optional host metrics input via `--host-metrics-jsonl` and `/api/host_metrics`.

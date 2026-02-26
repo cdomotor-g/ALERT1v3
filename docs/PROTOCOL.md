@@ -74,10 +74,23 @@ Current debug output prints:
 Notes:
 - `summary` remains the stable human-readable line for operator views.
 - `display` duplicates `summary` to keep GUI-oriented paths explicit.
-- `status` is currently `ok` for successful frame decodes.
+- `status` can be `ok`, `warn`, or `error`.
+
+Quality and errors (current decoder):
+- `quality.score` (0.0-1.0)
+- `quality.confidence` (`high` / `medium` / `low`)
+- `quality.ones_ratio`
+- `errors[]` with `{code, message}`
+
+Current error taxonomy includes:
+- `timing.hunt_timeout`
+- `pipeline.output_overflow`
+- `framing.length_mismatch`
+- `decode.invalid_format_id`
+- `signal.bit_balance_extreme`
 
 ## 5) Next decoder improvements
 
-1. Add explicit error/status events for framing anomalies
-2. Add optional confidence/quality estimates from symbol timing context
-3. Build a small offline replay test harness from captured frames
+1. Tune quality heuristics against known-good and known-bad captures
+2. Add optional checksum/parity verification when protocol evidence is available
+3. Extend replay assertions with negative/noisy fixture cases

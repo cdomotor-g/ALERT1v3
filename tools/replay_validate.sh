@@ -51,6 +51,20 @@ WEB_PID=$!
 sleep 1
 WEB_COUNT="$(curl -s 'http://127.0.0.1:18088/api/events?limit=200' | python3 -c 'import sys,json; print(json.load(sys.stdin).get("count",0))')"
 
+SCHEMA_CHECK="$(python3 - <<'PY' "$JSONL_PATH"
+import json,sys
+ok=0
+with open(sys.argv[1],encoding='utf-8',errors='replace') as f:
+    for line in f:
+        if not line.strip():
+            continue
+        ev=json.loads(line)
+        if isinstance(ev,dict) and 'quality' in ev and 'errors' in ev and 'status' in ev:
+            ok += 1
+print(ok)
+PY
+)"
+
 MQTT_LINES="$(wc -l < "$TMP/mqtt.log")"
 JSONL_LINES="$(wc -l < "$JSONL_PATH")"
 
@@ -59,6 +73,7 @@ echo "jsonl=$JSONL_PATH"
 echo "jsonl_lines=$JSONL_LINES"
 echo "mqtt_lines=$MQTT_LINES"
 echo "web_count=$WEB_COUNT"
+echo "schema_quality_events=$SCHEMA_CHECK"
 
 if [[ "$JSONL_LINES" -lt 1 ]]; then
   echo "ERROR: no JSONL events written" >&2
@@ -71,6 +86,10 @@ fi
 if [[ "$WEB_COUNT" -lt 1 ]]; then
   echo "ERROR: web API saw no events" >&2
   exit 4
+fi
+if [[ "$SCHEMA_CHECK" -lt 1 ]]; then
+  echo "ERROR: no events with quality/errors/status fields" >&2
+  exit 5
 fi
 
 echo "OK: decoder->logger->web/mqtt replay validation passed"
