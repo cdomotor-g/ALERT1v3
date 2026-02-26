@@ -2,6 +2,7 @@
 import argparse
 import json
 import time
+from datetime import datetime
 from collections import deque
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -35,6 +36,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
 <body>
 <div class='page'>
   <h2 style='margin-top:0'>FW-LAB Live Dashboard</h2>
+  <div class='card' style='padding:.45rem .8rem'><a href='/trends' style='color:#7fc8ff'>Open sensor trends</a></div>
 
   <div class='sticky-wrap'>
     <div class='card'>
@@ -244,6 +246,44 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
 })();
 </script></body></html>"""
 
+TRENDS_HTML = """<!doctype html><html><head><meta charset='utf-8'><title>FW-LAB Trends</title>
+<script src='https://cdn.jsdelivr.net/npm/chart.js'></script>
+<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,select,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}a{color:#7fc8ff}</style></head>
+<body><div class='page'>
+<h2 style='margin-top:0'>FW-LAB Sensor Trends</h2>
+<div class='card'><a href='/'>Dashboard</a> · <a href='/trends'>Trends</a><br><br>
+Sensor ID: <input id='sensor' style='width:120px' placeholder='e.g. 4099'>
+Window: <select id='window'><option value='15m'>15m</option><option value='1h' selected>1h</option><option value='6h'>6h</option><option value='24h'>24h</option></select>
+Time: <select id='timeMode'><option value='local' selected>local</option><option value='zulu'>zulu</option></select>
+<button id='load'>Load</button> <span id='msg'></span></div>
+<div class='card'>Latest: <span id='latest'>-</span> · Min: <span id='min'>-</span> · Max: <span id='max'>-</span> · Avg: <span id='avg'>-</span></div>
+<div class='card'><canvas id='chart' height='100'></canvas></div>
+<script>
+(function(){
+  var sensor=document.getElementById('sensor'), win=document.getElementById('window'), timeMode=document.getElementById('timeMode'), msg=document.getElementById('msg');
+  var latest=document.getElementById('latest'), minv=document.getElementById('min'), maxv=document.getElementById('max'), avgv=document.getElementById('avg');
+  var c=null, ctx=document.getElementById('chart');
+  function fmt(ts){ var d=new Date(ts); if(!isFinite(d.getTime())) return ts; return timeMode.value==='zulu' ? d.toISOString() : d.toLocaleString(); }
+  function draw(points){ var labels=points.map(p=>fmt(p.ts)), vals=points.map(p=>p.value); if(c) c.destroy(); c=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:'data_val',data:vals,borderColor:'#7fc8ff',backgroundColor:'rgba(127,200,255,.2)',pointRadius:1.2,tension:.2}]},options:{responsive:true,maintainAspectRatio:false}}); }
+  function load(){ var sid=sensor.value.trim(); if(!sid){ msg.textContent=' enter sensor id'; return; } msg.textContent=' loading...';
+    fetch('/api/trends?sensor_id='+encodeURIComponent(sid)+'&window='+encodeURIComponent(win.value)+'&limit=4000').then(r=>r.json()).then(d=>{ msg.textContent=' points='+((d.points||[]).length); latest.textContent=d.stats?.latest ?? '-'; minv.textContent=d.stats?.min ?? '-'; maxv.textContent=d.stats?.max ?? '-'; avgv.textContent=d.stats?.avg ?? '-'; draw(d.points||[]); }).catch(()=>msg.textContent=' failed'); }
+  document.getElementById('load').addEventListener('click',load); timeMode.addEventListener('input',()=>{ if(c) load(); });
+})();
+</script></div></body></html>"""
+
+
+def parse_ts(ts: str):
+    try:
+        if ts.endswith('Z'):
+            ts = ts[:-1] + '+00:00'
+        return datetime.fromisoformat(ts)
+    except Exception:
+        return None
+
+
+def window_seconds(w: str) -> int:
+    return {'15m': 900, '1h': 3600, '6h': 21600, '24h': 86400}.get(w, 3600)
+
 
 class EventStore:
     def __init__(self, jsonl_path: Path, max_events: int = 2000, follow_latest_in: Path | None = None):
@@ -332,6 +372,15 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(payload)
             return
 
+        if parsed.path == '/trends':
+            payload = TRENDS_HTML.encode('utf-8')
+            self.send_response(HTTPStatus.OK)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Content-Length', str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
+
         if parsed.path == '/api/events':
             q = parse_qs(parsed.query)
             limit = int(q.get('limit', ['100'])[0])
@@ -339,6 +388,38 @@ class Handler(BaseHTTPRequestHandler):
             self.store.poll_new()
             events = list(self.store.events)[-limit:]
             return self._json({'events': events, 'count': len(self.store.events), 'source': str(self.store.path)})
+
+        if parsed.path == '/api/trends':
+            q = parse_qs(parsed.query)
+            sensor_id = (q.get('sensor_id', [''])[0] or '').strip()
+            win = q.get('window', ['1h'])[0]
+            limit = int(q.get('limit', ['2000'])[0])
+            limit = max(100, min(limit, 10000))
+
+            self.store.poll_new()
+            cutoff = time.time() - window_seconds(win)
+            points = []
+            for ev in list(self.store.events):
+                de = ev.get('decode') or {}
+                if str(de.get('sensor_id', '')) != sensor_id:
+                    continue
+                ts = ev.get('ts', '')
+                dt = parse_ts(ts)
+                if not dt or dt.timestamp() < cutoff:
+                    continue
+                v = de.get('data_val')
+                if isinstance(v, (int, float)):
+                    points.append({'ts': ts, 'value': float(v)})
+
+            points = points[-limit:]
+            vals = [p['value'] for p in points]
+            stats = {
+                'latest': vals[-1] if vals else None,
+                'min': min(vals) if vals else None,
+                'max': max(vals) if vals else None,
+                'avg': round(sum(vals)/len(vals), 3) if vals else None,
+            }
+            return self._json({'sensor_id': sensor_id, 'window': win, 'points': points, 'stats': stats, 'source': str(self.store.path)})
 
         if parsed.path == '/api/host_metrics':
             if not self.host_metrics_store:

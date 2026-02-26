@@ -6,8 +6,13 @@ Dashboard backend: `webui/server.py`.
 - `GET /api/events?limit=200` — recent decoded events
 - `GET /api/live` — SSE live stream
 - `GET /api/host_metrics` — latest host metrics (if configured)
+- `GET /api/trends?sensor_id=<id>&window=1h&limit=4000` — trend points + stats
 
 ## UI features
+- Dedicated trends page: `/trends`
+- Sensor trend chart with selectable timeframe (15m/1h/6h/24h)
+- Per-sensor summary stats (latest/min/max/avg)
+
 - Decoder health summary cards:
   - health status (ok/warn/error mix)
   - 5-minute average confidence

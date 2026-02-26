@@ -50,6 +50,9 @@
 - Web UI log-follow hardening:
   - `webui/server.py` can auto-follow latest `rx_events_*.jsonl` via `--jsonl-follow-dir`
   - `tools/start_webui.sh` enables follow mode for `/home/cdomotor/rf_log`
+- Sensor trends MVP:
+  - new `/trends` page with per-sensor line chart and stats
+  - new `/api/trends` endpoint (JSONL-backed)
 
 ### Changed
 - Web dashboard (`webui/server.py`) now supports optional host metrics input via `--host-metrics-jsonl` and `/api/host_metrics`.
