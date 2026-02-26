@@ -30,6 +30,10 @@
   - `deploy/fwlab-log-retention.service`
   - `deploy/fwlab-log-retention.timer`
   - `docs/RETENTION.md`
+- MQTT operational polish:
+  - retained LWT/status heartbeat behavior in `src/ALERT1v3_epy_block_2.py`
+  - heartbeat topic `alert/rx/heartbeat`
+  - schema/versioning notes in `docs/MQTT.md`
 
 ### Changed
 - Web dashboard (`webui/server.py`) now supports optional host metrics input via `--host-metrics-jsonl` and `/api/host_metrics`.

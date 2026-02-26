@@ -13,6 +13,10 @@ class mqtt_event_publisher(gr.basic_block):
       <prefix>/rx/raw
       <prefix>/rx/status
       <prefix>/rx/metrics
+      <prefix>/rx/heartbeat   (retained online heartbeat)
+
+    Last Will:
+      <prefix>/rx/status (retained offline payload)
     """
 
     def __init__(self, broker_host='127.0.0.1', broker_port=1883, username='', password='', topic_prefix='alert'):
@@ -31,8 +35,12 @@ class mqtt_event_publisher(gr.basic_block):
         self._published = 0
         self._dropped = 0
         self._last_metrics = 0.0
+        self._last_heartbeat = 0.0
 
         self._setup_client()
+
+    def _topic(self, suffix):
+        return f'{self.topic_prefix}/{suffix}'
 
     def _setup_client(self):
         try:
@@ -41,9 +49,17 @@ class mqtt_event_publisher(gr.basic_block):
             self.logger.error(f'MQTT disabled (paho-mqtt unavailable): {exc}')
             return
 
-        self._client = mqtt.Client(client_id='alert1v3-rx', clean_session=True)
+        self._client = mqtt.Client(client_id='fw-lab-rx', clean_session=True)
         if self.username:
             self._client.username_pw_set(self.username, self.password)
+
+        lwt = {
+            'schema': 'alert.mqtt.status.v1',
+            'ts': '',
+            'status': 'offline',
+            'source': 'mqtt_event_publisher',
+        }
+        self._client.will_set(self._topic('rx/status'), payload=json.dumps(lwt), qos=1, retain=True)
 
         self._client.on_connect = self._on_connect
         self._client.on_disconnect = self._on_disconnect
@@ -59,18 +75,30 @@ class mqtt_event_publisher(gr.basic_block):
         self._connected = (rc == 0)
         if rc != 0:
             self.logger.error(f'MQTT connect returned rc={rc}')
+            return
+
+        now = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+        online = {
+            'schema': 'alert.mqtt.status.v1',
+            'ts': now,
+            'status': 'online',
+            'source': 'mqtt_event_publisher',
+            'broker': f'{self.broker_host}:{self.broker_port}',
+        }
+        self._publish_json('rx/status', online, retain=True, qos=1)
+        self._publish_heartbeat(force=True)
 
     def _on_disconnect(self, _client, _userdata, _rc):
         self._connected = False
 
-    def _publish_json(self, topic_suffix, payload):
+    def _publish_json(self, topic_suffix, payload, retain=False, qos=0):
         if not self._client or not self._connected:
             self._dropped += 1
             return
 
-        topic = f'{self.topic_prefix}/{topic_suffix}'
+        topic = self._topic(topic_suffix)
         try:
-            self._client.publish(topic, json.dumps(payload, default=str), qos=0, retain=False)
+            self._client.publish(topic, json.dumps(payload, default=str), qos=qos, retain=retain)
             self._published += 1
         except Exception as exc:
             self._dropped += 1
@@ -91,6 +119,20 @@ class mqtt_event_publisher(gr.basic_block):
             'dropped': self._dropped,
         }
         self._publish_json('rx/metrics', metrics)
+
+    def _publish_heartbeat(self, force=False):
+        now = time.time()
+        if not force and (now - self._last_heartbeat) < 30.0:
+            return
+        self._last_heartbeat = now
+
+        hb = {
+            'schema': 'alert.mqtt.heartbeat.v1',
+            'ts': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(now)),
+            'status': 'online' if self._connected else 'disconnected',
+            'source': 'mqtt_event_publisher',
+        }
+        self._publish_json('rx/heartbeat', hb, retain=True, qos=1)
 
     def handle_msg(self, msg):
         try:
@@ -119,7 +161,7 @@ class mqtt_event_publisher(gr.basic_block):
             'frame': frame,
         })
         self._publish_json('rx/status', {
-            'schema': event.get('schema', 'alert.decode.v1'),
+            'schema': 'alert.mqtt.status.v1',
             'ts': event.get('ts', ''),
             'status': event.get('status', 'unknown'),
             'summary': event.get('summary', ''),
@@ -127,8 +169,17 @@ class mqtt_event_publisher(gr.basic_block):
             'format_id': decode.get('format_id'),
         })
         self._publish_metrics(event)
+        self._publish_heartbeat()
 
     def stop(self):
+        if self._client and self._connected:
+            offline = {
+                'schema': 'alert.mqtt.status.v1',
+                'ts': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+                'status': 'offline',
+                'source': 'mqtt_event_publisher',
+            }
+            self._publish_json('rx/status', offline, retain=True, qos=1)
         if self._client:
             try:
                 self._client.loop_stop()

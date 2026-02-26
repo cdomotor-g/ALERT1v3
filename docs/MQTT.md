@@ -9,8 +9,15 @@ The MQTT block is wired by default in `src/ALERT1v3.grc` and receives decoder ev
 With default prefix `alert`:
 - `alert/rx/decoded` (full `alert.decode.v1` event)
 - `alert/rx/raw` (frame-focused payload)
-- `alert/rx/status` (status + summary + key IDs)
+- `alert/rx/status` (publisher status + decode summary)
 - `alert/rx/metrics` (publisher counters + connection status)
+- `alert/rx/heartbeat` (retained online heartbeat)
+
+## Operational behavior
+
+- Last Will and Testament (LWT): retained `offline` payload on `alert/rx/status`
+- On connect: retained `online` payload on `alert/rx/status`
+- Heartbeat: retained payload every ~30s on `alert/rx/heartbeat`
 
 ## Block parameters
 - `broker_host` (default `127.0.0.1`)
@@ -24,6 +31,15 @@ With default prefix `alert`:
 - `mqtt_username`
 - `mqtt_password`
 - `mqtt_topic_prefix`
+
+## Schema/versioning guidance
+
+- Decode payloads use `alert.decode.v1`.
+- MQTT operational payloads use:
+  - `alert.mqtt.status.v1`
+  - `alert.mqtt.metrics.v1`
+  - `alert.mqtt.heartbeat.v1`
+- Keep `topic_prefix` stable per deployment, and bump schema version when payload shape changes.
 
 ## Notes
 - Uses `paho-mqtt` when available.
