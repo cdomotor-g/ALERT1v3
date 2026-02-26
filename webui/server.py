@@ -188,7 +188,9 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
       var c=g(g(ev,'quality',{}),'confidence','');
       var errs=g(ev,'errors',[]); var errN=(errs&&errs.length)?errs.length:0;
       var de=g(ev,'decode',{});
-      tr.innerHTML='<td>'+fmtTs(g(ev,'ts',''))+'</td><td>'+g(ev,'status','')+'</td><td>'+q+'</td><td>'+c+'</td><td>'+errN+'</td><td>'+g(de,'sensor_id','')+'</td><td>'+g(de,'format_id','')+'</td><td>'+g(de,'data_val','')+'</td><td>'+g(ev,'summary','')+'</td>';
+      var sid=g(de,'sensor_id','');
+      var sidLink = (sid!=='' && sid!==null && sid!==undefined) ? ('<a style="color:#7fc8ff" href="/trends?sensor_id='+encodeURIComponent(String(sid))+'&window=24h">'+sid+'</a>') : '';
+      tr.innerHTML='<td>'+fmtTs(g(ev,'ts',''))+'</td><td>'+g(ev,'status','')+'</td><td>'+q+'</td><td>'+c+'</td><td>'+errN+'</td><td>'+sidLink+'</td><td>'+g(de,'format_id','')+'</td><td>'+g(de,'data_val','')+'</td><td>'+g(ev,'summary','')+'</td>';
       (function(t,e){ t.addEventListener('click', function(){ showDetail(t,e); }); })(tr,ev);
       rows.appendChild(tr);
       if(shown>=300) break;
@@ -253,7 +255,7 @@ TRENDS_HTML = """<!doctype html><html><head><meta charset='utf-8'><title>FW-LAB 
 <h2 style='margin-top:0'>FW-LAB Sensor Trends</h2>
 <div class='card'><a href='/'>Dashboard</a> · <a href='/trends'>Trends</a><br><br>
 Sensor ID: <input id='sensor' style='width:120px' placeholder='e.g. 4099'>
-Window: <select id='window'><option value='15m'>15m</option><option value='1h' selected>1h</option><option value='6h'>6h</option><option value='24h'>24h</option></select>
+Window: <select id='window'><option value='15m'>15m</option><option value='1h'>1h</option><option value='6h'>6h</option><option value='24h' selected>24h</option></select>
 Time: <select id='timeMode'><option value='local' selected>local</option><option value='zulu'>zulu</option></select>
 <button id='load'>Load</button> <span id='msg'></span></div>
 <div class='card'>Latest: <span id='latest'>-</span> · Min: <span id='min'>-</span> · Max: <span id='max'>-</span> · Avg: <span id='avg'>-</span></div>
@@ -268,6 +270,13 @@ Time: <select id='timeMode'><option value='local' selected>local</option><option
   function load(){ var sid=sensor.value.trim(); if(!sid){ msg.textContent=' enter sensor id'; return; } msg.textContent=' loading...';
     fetch('/api/trends?sensor_id='+encodeURIComponent(sid)+'&window='+encodeURIComponent(win.value)+'&limit=4000').then(r=>r.json()).then(d=>{ msg.textContent=' points='+((d.points||[]).length); latest.textContent=d.stats?.latest ?? '-'; minv.textContent=d.stats?.min ?? '-'; maxv.textContent=d.stats?.max ?? '-'; avgv.textContent=d.stats?.avg ?? '-'; draw(d.points||[]); }).catch(()=>msg.textContent=' failed'); }
   document.getElementById('load').addEventListener('click',load); timeMode.addEventListener('input',()=>{ if(c) load(); });
+
+  var params = new URLSearchParams(window.location.search);
+  var qpSensor = params.get('sensor_id');
+  var qpWindow = params.get('window');
+  if(qpSensor){ sensor.value = qpSensor; }
+  if(qpWindow && ['15m','1h','6h','24h'].indexOf(qpWindow) >= 0){ win.value = qpWindow; }
+  if(sensor.value.trim()){ load(); }
 })();
 </script></div></body></html>"""
 
@@ -392,7 +401,7 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == '/api/trends':
             q = parse_qs(parsed.query)
             sensor_id = (q.get('sensor_id', [''])[0] or '').strip()
-            win = q.get('window', ['1h'])[0]
+            win = q.get('window', ['24h'])[0]
             limit = int(q.get('limit', ['2000'])[0])
             limit = max(100, min(limit, 10000))
 
