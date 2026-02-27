@@ -92,6 +92,9 @@
   - systemd units for uploader service/timer
   - `fwlabctl archive-run` operation
   - `config/archive_env.example` for credential injection
+- Resilience tooling/documentation:
+  - `tools/resilience_check.py`
+  - `docs/RESILIENCE.md`
 
 ### Changed
 - Web dashboard (`webui/server.py`) now supports optional host metrics input via `--host-metrics-jsonl` and `/api/host_metrics`.

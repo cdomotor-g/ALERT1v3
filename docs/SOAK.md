@@ -33,7 +33,12 @@ Artifacts:
 ## Resilience notes
 
 - Core services are managed by systemd:
+  - `fwlab-receiver.service`
   - `fwlab-webui.service`
   - `fwlab-host-monitor.service`
+- Maintenance/transfer timers:
+  - `fwlab-log-retention.timer`
+  - `fwlab-archive-uploader.timer`
 - Use `./tools/fwlabctl status` and `./tools/fwlabctl logs` during/after soak.
-- Keep log retention timer enabled to avoid disk growth issues during extended runs.
+- Keep retention and archive timers enabled to avoid disk growth and upload backlog.
+- See `docs/RESILIENCE.md` for failure-mode runbook.
