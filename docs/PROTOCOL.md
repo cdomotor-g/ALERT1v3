@@ -54,6 +54,11 @@ Current debug output prints:
   "schema": "alert.decode.v1",
   "ts": "2026-01-01T12:00:00Z",
   "status": "ok",
+  "rx": {
+    "center_freq_hz": 173900000.0,
+    "rf_gain_db": -1.0,
+    "rf_squelch_db": -33.0
+  },
   "frame": {
     "bits_per_word": 10,
     "word_count": 4,

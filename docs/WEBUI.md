@@ -10,6 +10,7 @@ Dashboard backend: `webui/server.py`.
 
 ## UI features
 - Dedicated trends page: `/trends`
+- Admin config page: `/admin` (storage policy editing scaffold)
 - Sensor trend chart with selectable timeframe (15m/1h/6h/24h)
 - ECharts-powered interaction (zoom/pan slider, toolbox restore/save)
 - Optional manual Y-axis min/max controls

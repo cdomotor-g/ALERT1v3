@@ -61,6 +61,13 @@
   - new `config/storage_policy.json` (2-day default local retention)
   - retention engine supports warn/critical/emergency disk modes
   - web UI storage status card via `/api/storage_status`
+- Dashboard updates:
+  - default drilldown mode set to inline
+  - Rx packet micro bar chart (last 30m) in top summary
+- Decoder metadata enrichment:
+  - decode events include `rx.center_freq_hz`, `rx.rf_gain_db`, `rx.rf_squelch_db`
+- Admin configuration scaffold:
+  - `/admin` page and `/api/admin/storage_policy` (GET/POST)
 
 ### Changed
 - Web dashboard (`webui/server.py`) now supports optional host metrics input via `--host-metrics-jsonl` and `/api/host_metrics`.

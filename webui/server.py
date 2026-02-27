@@ -37,7 +37,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
 <body>
 <div class='page'>
   <h2 style='margin-top:0'>FW-LAB Live Dashboard</h2>
-  <div class='card' style='padding:.45rem .8rem'><a href='/trends' style='color:#7fc8ff'>Open sensor trends</a></div>
+  <div class='card' style='padding:.45rem .8rem'><a href='/trends' style='color:#7fc8ff'>Open sensor trends</a> · <a href='/admin' style='color:#7fc8ff'>Admin config</a></div>
 
   <div class='sticky-wrap'>
     <div class='card'>
@@ -302,6 +302,45 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
 })();
 </script></body></html>"""
 
+ADMIN_HTML = """<!doctype html><html><head><meta charset='utf-8'><title>FW-LAB Admin</title>
+<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}a{color:#7fc8ff}.row{margin:.35rem 0}</style></head>
+<body><div class='page'>
+<h2 style='margin-top:0'>FW-LAB Admin</h2>
+<div class='card'><a href='/'>Dashboard</a> · <a href='/trends'>Trends</a> · <a href='/admin'>Admin</a></div>
+<div class='card'>
+  <div class='row'>Local retention days: <input id='localDays' type='number' step='0.1'></div>
+  <div class='row'>Max local MB: <input id='maxMb' type='number' step='1'></div>
+  <div class='row'>Warn disk %: <input id='warnPct' type='number' step='0.1'></div>
+  <div class='row'>Critical disk %: <input id='critPct' type='number' step='0.1'></div>
+  <div class='row'>Emergency disk %: <input id='emerPct' type='number' step='0.1'></div>
+  <div class='row'>Critical retention days: <input id='critDays' type='number' step='0.1'></div>
+  <div class='row'>Emergency retention hours: <input id='emerHours' type='number' step='1'></div>
+  <button id='save'>Save policy</button> <span id='msg'></span>
+</div>
+<script>
+(function(){
+  function setv(id,v){ document.getElementById(id).value = (v==null?'':v); }
+  function num(id){ var x=parseFloat(document.getElementById(id).value); return isNaN(x)?null:x; }
+  function load(){
+    fetch('/api/admin/storage_policy').then(r=>r.json()).then(p=>{
+      setv('localDays', p.localRetentionDays); setv('maxMb', p.maxLocalMb);
+      setv('warnPct', p.thresholds?.warnDiskPercent); setv('critPct', p.thresholds?.criticalDiskPercent); setv('emerPct', p.thresholds?.emergencyDiskPercent);
+      setv('critDays', p.criticalPolicy?.criticalRetentionDays); setv('emerHours', p.criticalPolicy?.emergencyRetentionHours);
+    });
+  }
+  document.getElementById('save').addEventListener('click', function(){
+    var body={
+      localRetentionDays:num('localDays'),
+      maxLocalMb:num('maxMb'),
+      thresholds:{warnDiskPercent:num('warnPct'),criticalDiskPercent:num('critPct'),emergencyDiskPercent:num('emerPct')},
+      criticalPolicy:{criticalRetentionDays:num('critDays'),emergencyRetentionHours:num('emerHours')}
+    };
+    fetch('/api/admin/storage_policy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(r=>r.json()).then(d=>{ document.getElementById('msg').textContent = d.ok ? ' saved' : ' failed'; });
+  });
+  load();
+})();
+</script></div></body></html>"""
+
 TRENDS_HTML = """<!doctype html><html><head><meta charset='utf-8'><title>FW-LAB Trends</title>
 <script src='https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js'></script>
 <style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,select,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}a{color:#7fc8ff}#chart{height:420px}</style></head>
@@ -379,6 +418,12 @@ def load_storage_policy(path='config/storage_policy.json'):
         return json.loads(p.read_text(encoding='utf-8'))
     except Exception:
         return {}
+
+
+def save_storage_policy(policy: dict, path='config/storage_policy.json'):
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(policy, indent=2) + '\n', encoding='utf-8')
 
 
 def storage_status():
@@ -504,6 +549,37 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(payload)
 
+    def do_POST(self):
+        parsed = urlparse(self.path)
+        if parsed.path == '/api/admin/storage_policy':
+            try:
+                length = int(self.headers.get('Content-Length', '0'))
+                raw = self.rfile.read(length) if length > 0 else b'{}'
+                body = json.loads(raw.decode('utf-8'))
+                if not isinstance(body, dict):
+                    raise ValueError('body must be object')
+
+                current = load_storage_policy()
+                merged = {
+                    'localRetentionDays': body.get('localRetentionDays', current.get('localRetentionDays', 2)),
+                    'maxLocalMb': body.get('maxLocalMb', current.get('maxLocalMb', 1024)),
+                    'thresholds': {
+                        'warnDiskPercent': (body.get('thresholds') or {}).get('warnDiskPercent', (current.get('thresholds') or {}).get('warnDiskPercent', 85)),
+                        'criticalDiskPercent': (body.get('thresholds') or {}).get('criticalDiskPercent', (current.get('thresholds') or {}).get('criticalDiskPercent', 92)),
+                        'emergencyDiskPercent': (body.get('thresholds') or {}).get('emergencyDiskPercent', (current.get('thresholds') or {}).get('emergencyDiskPercent', 96)),
+                    },
+                    'criticalPolicy': {
+                        'criticalRetentionDays': (body.get('criticalPolicy') or {}).get('criticalRetentionDays', (current.get('criticalPolicy') or {}).get('criticalRetentionDays', 1)),
+                        'emergencyRetentionHours': (body.get('criticalPolicy') or {}).get('emergencyRetentionHours', (current.get('criticalPolicy') or {}).get('emergencyRetentionHours', 12)),
+                    },
+                }
+                save_storage_policy(merged)
+                return self._json({'ok': True, 'policy': merged})
+            except Exception as e:
+                return self._json({'ok': False, 'error': str(e)}, code=400)
+
+        self.send_error(HTTPStatus.NOT_FOUND)
+
     def do_GET(self):
         parsed = urlparse(self.path)
         if parsed.path == '/':
@@ -523,6 +599,18 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(payload)
             return
+
+        if parsed.path == '/admin':
+            payload = ADMIN_HTML.encode('utf-8')
+            self.send_response(HTTPStatus.OK)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Content-Length', str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
+
+        if parsed.path == '/api/admin/storage_policy':
+            return self._json(load_storage_policy())
 
         if parsed.path == '/api/events':
             q = parse_qs(parsed.query)
