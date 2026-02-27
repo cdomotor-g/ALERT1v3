@@ -18,7 +18,7 @@ body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}
 .card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}
 .muted{color:#93a6b8}
 input,select,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}
-.grid{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:.6rem;margin-bottom:.8rem}
+.grid{display:grid;grid-template-columns:repeat(5,minmax(170px,1fr));gap:.6rem;margin-bottom:.8rem}
 .good{color:#6dd17c}.warn{color:#f2c14e}.bad{color:#f36f6f}
 
 .sticky-wrap{position:sticky;top:0;z-index:50;background:#10151c;padding-top:.6rem}
@@ -47,7 +47,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
       · Status: <select id='statusFilter'><option value=''>all</option><option value='ok'>ok</option><option value='warn'>warn</option><option value='error'>error</option></select>
       · <label><input type='checkbox' id='warnOnly'> warn/error only</label>
       · Time: <select id='timeMode'><option value='local' selected>local</option><option value='zulu'>zulu</option></select>
-      · Detail: <select id='detailMode'><option value='top' selected>top</option><option value='inline'>inline</option></select>
+      · Detail: <select id='detailMode'><option value='top'>top</option><option value='inline' selected>inline</option></select>
       · <button id='resetBtn'>Reset filters</button>
       · <button id='exportBtn'>Export filtered CSV</button>
     </div>
@@ -57,6 +57,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
       <div class='card'><div class='muted small'>Confidence (5m avg)</div><div id='sum-conf'>-</div></div>
       <div class='card'><div class='muted small'>Errors (5m)</div><div id='sum-errs'>-</div></div>
       <div class='card'><div class='muted small'>Decode rate (/min)</div><div id='sum-rate'>-</div></div>
+      <div class='card'><div class='muted small'>Rx packets (last 30m)</div><canvas id='rx-bars' height='56'></canvas></div>
     </div>
 
     <div class='card'>
@@ -97,6 +98,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   var exportBtn=document.getElementById('exportBtn');
   var detailText=document.getElementById('detailText');
   var detailTop=document.getElementById('detailTop');
+  var rxBars=document.getElementById('rx-bars');
   var events=[];
   var inlineRow=null;
 
@@ -109,6 +111,40 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   }
 
   function classForStatus(s){ if(s==='ok') return 'good'; if(s==='warn') return 'warn'; return 'bad'; }
+
+  function drawRxBars(){
+    if(!rxBars || !rxBars.getContext) return;
+    var ctx = rxBars.getContext('2d');
+    var w = rxBars.clientWidth || 220;
+    var h = rxBars.height || 56;
+    if(rxBars.width !== w) rxBars.width = w;
+    ctx.clearRect(0,0,w,h);
+
+    var bins = 15; // 15 x 2min = 30min window
+    var counts = new Array(bins).fill(0);
+    var now = Date.now();
+    var windowMs = 30*60*1000;
+    var binMs = windowMs / bins;
+    for(var i=0;i<events.length;i++){
+      var t = Date.parse(g(events[i],'ts',''));
+      if(!isFinite(t)) continue;
+      var age = now - t;
+      if(age < 0 || age > windowMs) continue;
+      var idx = bins - 1 - Math.floor(age / binMs);
+      if(idx>=0 && idx<bins) counts[idx]++;
+    }
+
+    var maxv = 1;
+    for(var j=0;j<counts.length;j++) if(counts[j]>maxv) maxv=counts[j];
+    var bw = Math.max(2, Math.floor((w-6) / bins) - 1);
+    for(var k=0;k<bins;k++){
+      var x = 3 + k*(bw+1);
+      var bh = Math.round((counts[k]/maxv) * (h-8));
+      var y = h - 4 - bh;
+      ctx.fillStyle = '#7fc8ff';
+      ctx.fillRect(x,y,bw,bh);
+    }
+  }
 
   function computeSummary(){
     var now = Date.now(), recent=[];
@@ -202,6 +238,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     }
     count.textContent=String(events.length);
     computeSummary();
+    drawRxBars();
   }
 
   function exportCSV(){
