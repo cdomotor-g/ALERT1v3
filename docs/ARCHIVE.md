@@ -52,10 +52,15 @@ Use environment-based credentials (do not commit secrets):
 - `AWS_SECRET_ACCESS_KEY`
 - optional: `AWS_SESSION_TOKEN`
 
+## Restore/integrity validation
+
+- Use `tools/archive_restore_check.py` to verify chunk integrity against manifest metadata.
+- Runbook: `docs/ARCHIVE_RESTORE.md`.
+
 ## Next steps
 
 - add explicit backoff scheduling metadata and jitter
-- add restore/integrity validation tooling
+- wire optional scheduled restore-check jobs
 
 ## Security notes
 

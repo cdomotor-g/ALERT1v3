@@ -80,6 +80,9 @@
   - S3-compatible upload attempts for pending chunks (when enabled)
   - manifest state transitions (`pending`/`uploaded`/`failed`) with retry counts
   - upload result summary included in run output
+- Archive restore validation:
+  - `tools/archive_restore_check.py` integrity checker
+  - `docs/ARCHIVE_RESTORE.md` runbook
 
 ### Changed
 - Web dashboard (`webui/server.py`) now supports optional host metrics input via `--host-metrics-jsonl` and `/api/host_metrics`.
