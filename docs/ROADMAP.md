@@ -70,3 +70,11 @@
 - [x] Refactor host monitor into a platform-adapter model
 - [x] Add naming/structure conventions for cross-platform sidecars
 - [ ] Add CI smoke checks for key platform paths
+
+## Phase 10 — RF web observability expansion (later)
+
+- [ ] Add richer RF telemetry panel (signal power/noise/lock quality)
+- [ ] Add PSD/spectrum mini-view updates for web UI
+- [ ] Design full web equivalents for waterfall/time sinks
+- [ ] Evaluate transport/performance budget for real-time sink streaming
+- [ ] Add remote RF control safety model (authz + audit trail)

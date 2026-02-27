@@ -64,6 +64,15 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     </div>
 
     <div class='card'>
+      RF now: Freq <span id='rf-freq-now'>-</span> Hz · Gain <span id='rf-gain-now'>-</span> dB · Squelch <span id='rf-sq-now'>-</span> dB<br>
+      RF control (pending/apply on receiver restart):
+      Freq <input id='rf-freq-set' style='width:140px' placeholder='173900000'>
+      Gain <input id='rf-gain-set' style='width:80px' placeholder='-1'>
+      Squelch <input id='rf-sq-set' style='width:80px' placeholder='-33'>
+      <button id='rf-apply'>Save RF config</button> <span id='rf-msg' class='muted'></span>
+    </div>
+
+    <div class='card'>
       Storage: <span id='st-mode' class='muted'>n/a</span> · Used <span id='st-used'>-</span>% · Free <span id='st-free'>-</span> GB · Retention <span id='st-days'>-</span> days
     </div>
 
@@ -110,6 +119,9 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   var detailTop=document.getElementById('detailTop');
   var rxChartEl=document.getElementById('rx-chart');
   var rxChart=(window.echarts && rxChartEl) ? echarts.init(rxChartEl) : null;
+  var rfFreqNow=document.getElementById('rf-freq-now'), rfGainNow=document.getElementById('rf-gain-now'), rfSqNow=document.getElementById('rf-sq-now');
+  var rfFreqSet=document.getElementById('rf-freq-set'), rfGainSet=document.getElementById('rf-gain-set'), rfSqSet=document.getElementById('rf-sq-set');
+  var rfApply=document.getElementById('rf-apply'), rfMsg=document.getElementById('rf-msg');
   var events=[];
   var inlineRow=null;
 
@@ -230,6 +242,23 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     tr.parentNode.insertBefore(inlineRow, tr.nextSibling);
   }
 
+  function renderRfNow(){
+    if(!events.length) return;
+    var ev = events[events.length-1] || {};
+    var rx = g(ev,'rx',{});
+    rfFreqNow.textContent = (rx.center_freq_hz!=null?rx.center_freq_hz:'-');
+    rfGainNow.textContent = (rx.rf_gain_db!=null?rx.rf_gain_db:'-');
+    rfSqNow.textContent = (rx.rf_squelch_db!=null?rx.rf_squelch_db:'-');
+  }
+
+  function loadRfConfig(){
+    fetch('/api/admin/rf_control').then(function(r){return r.json();}).then(function(c){
+      rfFreqSet.value = (c.center_freq_hz!=null?c.center_freq_hz:'');
+      rfGainSet.value = (c.rf_gain_db!=null?c.rf_gain_db:'');
+      rfSqSet.value = (c.rf_squelch_db!=null?c.rf_squelch_db:'');
+    })['catch'](function(){});
+  }
+
   function render(){
     clearInlineDetail();
     rows.innerHTML='';
@@ -251,6 +280,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     count.textContent=String(events.length);
     computeSummary();
     drawRxBars();
+    renderRfNow();
   }
 
   function exportCSV(){
@@ -272,8 +302,20 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   [sensor,minScore,statusFilter,warnOnly,timeMode,detailMode].forEach(function(el){ el.addEventListener('input',render); });
   exportBtn.addEventListener('click',exportCSV);
   resetBtn.addEventListener('click',resetFilters);
+  rfApply.addEventListener('click', function(){
+    var body={
+      center_freq_hz: rfFreqSet.value.trim()==='' ? null : Number(rfFreqSet.value),
+      rf_gain_db: rfGainSet.value.trim()==='' ? null : Number(rfGainSet.value),
+      rf_squelch_db: rfSqSet.value.trim()==='' ? null : Number(rfSqSet.value)
+    };
+    fetch('/api/admin/rf_control',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+      .then(function(r){return r.json();})
+      .then(function(d){ rfMsg.textContent = d.ok ? ' saved (restart receiver to apply)' : ' failed'; })
+      ['catch'](function(){ rfMsg.textContent=' failed'; });
+  });
 
   fetch('/api/events?limit=400').then(function(r){return r.json();}).then(function(d){events=d.events||[]; source.textContent=g(d,'source','n/a'); render();});
+  loadRfConfig();
 
   function renderHost(m){
     document.getElementById('hm-status').textContent = g(m,'status','n/a');
@@ -423,6 +465,27 @@ Y Max: <input id='ymax' style='width:90px' placeholder='auto'>
 </script></div></body></html>"""
 
 
+def load_rf_control(path='config/rf_control.json'):
+    p = Path(path)
+    if not p.exists():
+        return {'center_freq_hz': 173900000.0, 'rf_gain_db': -1.0, 'rf_squelch_db': -33.0}
+    try:
+        d = json.loads(p.read_text(encoding='utf-8'))
+        return {
+            'center_freq_hz': d.get('center_freq_hz', 173900000.0),
+            'rf_gain_db': d.get('rf_gain_db', -1.0),
+            'rf_squelch_db': d.get('rf_squelch_db', -33.0),
+        }
+    except Exception:
+        return {'center_freq_hz': 173900000.0, 'rf_gain_db': -1.0, 'rf_squelch_db': -33.0}
+
+
+def save_rf_control(cfg: dict, path='config/rf_control.json'):
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(cfg, indent=2) + '\n', encoding='utf-8')
+
+
 def load_storage_policy(path='config/storage_policy.json'):
     p = Path(path)
     if not p.exists():
@@ -564,7 +627,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urlparse(self.path)
-        if parsed.path == '/api/admin/storage_policy':
+        if parsed.path in ['/api/admin/storage_policy', '/api/admin/rf_control']:
             try:
                 length = int(self.headers.get('Content-Length', '0'))
                 raw = self.rfile.read(length) if length > 0 else b'{}'
@@ -572,22 +635,32 @@ class Handler(BaseHTTPRequestHandler):
                 if not isinstance(body, dict):
                     raise ValueError('body must be object')
 
-                current = load_storage_policy()
+                if parsed.path == '/api/admin/storage_policy':
+                    current = load_storage_policy()
+                    merged = {
+                        'localRetentionDays': body.get('localRetentionDays', current.get('localRetentionDays', 2)),
+                        'maxLocalMb': body.get('maxLocalMb', current.get('maxLocalMb', 1024)),
+                        'thresholds': {
+                            'warnDiskPercent': (body.get('thresholds') or {}).get('warnDiskPercent', (current.get('thresholds') or {}).get('warnDiskPercent', 85)),
+                            'criticalDiskPercent': (body.get('thresholds') or {}).get('criticalDiskPercent', (current.get('thresholds') or {}).get('criticalDiskPercent', 92)),
+                            'emergencyDiskPercent': (body.get('thresholds') or {}).get('emergencyDiskPercent', (current.get('thresholds') or {}).get('emergencyDiskPercent', 96)),
+                        },
+                        'criticalPolicy': {
+                            'criticalRetentionDays': (body.get('criticalPolicy') or {}).get('criticalRetentionDays', (current.get('criticalPolicy') or {}).get('criticalRetentionDays', 1)),
+                            'emergencyRetentionHours': (body.get('criticalPolicy') or {}).get('emergencyRetentionHours', (current.get('criticalPolicy') or {}).get('emergencyRetentionHours', 12)),
+                        },
+                    }
+                    save_storage_policy(merged)
+                    return self._json({'ok': True, 'policy': merged})
+
+                current = load_rf_control()
                 merged = {
-                    'localRetentionDays': body.get('localRetentionDays', current.get('localRetentionDays', 2)),
-                    'maxLocalMb': body.get('maxLocalMb', current.get('maxLocalMb', 1024)),
-                    'thresholds': {
-                        'warnDiskPercent': (body.get('thresholds') or {}).get('warnDiskPercent', (current.get('thresholds') or {}).get('warnDiskPercent', 85)),
-                        'criticalDiskPercent': (body.get('thresholds') or {}).get('criticalDiskPercent', (current.get('thresholds') or {}).get('criticalDiskPercent', 92)),
-                        'emergencyDiskPercent': (body.get('thresholds') or {}).get('emergencyDiskPercent', (current.get('thresholds') or {}).get('emergencyDiskPercent', 96)),
-                    },
-                    'criticalPolicy': {
-                        'criticalRetentionDays': (body.get('criticalPolicy') or {}).get('criticalRetentionDays', (current.get('criticalPolicy') or {}).get('criticalRetentionDays', 1)),
-                        'emergencyRetentionHours': (body.get('criticalPolicy') or {}).get('emergencyRetentionHours', (current.get('criticalPolicy') or {}).get('emergencyRetentionHours', 12)),
-                    },
+                    'center_freq_hz': body.get('center_freq_hz', current.get('center_freq_hz', 173900000.0)),
+                    'rf_gain_db': body.get('rf_gain_db', current.get('rf_gain_db', -1.0)),
+                    'rf_squelch_db': body.get('rf_squelch_db', current.get('rf_squelch_db', -33.0)),
                 }
-                save_storage_policy(merged)
-                return self._json({'ok': True, 'policy': merged})
+                save_rf_control(merged)
+                return self._json({'ok': True, 'rf_control': merged})
             except Exception as e:
                 return self._json({'ok': False, 'error': str(e)}, code=400)
 
@@ -624,6 +697,9 @@ class Handler(BaseHTTPRequestHandler):
 
         if parsed.path == '/api/admin/storage_policy':
             return self._json(load_storage_policy())
+
+        if parsed.path == '/api/admin/rf_control':
+            return self._json(load_rf_control())
 
         if parsed.path == '/api/events':
             q = parse_qs(parsed.query)
