@@ -70,7 +70,11 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
       Freq <input id='rf-freq-set' style='width:140px' placeholder='173900000'>
       Gain <input id='rf-gain-set' style='width:80px' placeholder='-1'>
       Squelch <input id='rf-sq-set' style='width:80px' placeholder='-33'>
-      <button id='rf-apply'>Save RF config</button> <span id='rf-msg' class='muted'></span>
+      <button id='rf-apply'>Save RF config</button>
+      <button id='rx-start'>Start receiver</button>
+      <button id='rx-stop'>Stop receiver</button>
+      <button id='rx-restart'>Restart receiver</button>
+      <span id='rf-msg' class='muted'></span>
     </div>
 
     <div class='card'>
@@ -124,6 +128,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   var rfFreqNow=document.getElementById('rf-freq-now'), rfGainNow=document.getElementById('rf-gain-now'), rfSqNow=document.getElementById('rf-sq-now');
   var rfFreqSet=document.getElementById('rf-freq-set'), rfGainSet=document.getElementById('rf-gain-set'), rfSqSet=document.getElementById('rf-sq-set');
   var rfApply=document.getElementById('rf-apply'), rfMsg=document.getElementById('rf-msg');
+  var rxStart=document.getElementById('rx-start'), rxStop=document.getElementById('rx-stop'), rxRestart=document.getElementById('rx-restart');
   var events=[];
   var inlineRow=null;
 
@@ -315,6 +320,16 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
       .then(function(d){ rfMsg.textContent = d.ok ? ' saved (restart receiver to apply)' : ' failed'; })
       ['catch'](function(){ rfMsg.textContent=' failed'; });
   });
+
+  function receiverAction(action){
+    fetch('/api/admin/receiver_action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:action})})
+      .then(function(r){return r.json();})
+      .then(function(d){ rfMsg.textContent = d.ok ? (' receiver '+action+' ok') : (' receiver '+action+' failed'); })
+      ['catch'](function(){ rfMsg.textContent=' receiver '+action+' failed'; });
+  }
+  rxStart.addEventListener('click', function(){ receiverAction('start'); });
+  rxStop.addEventListener('click', function(){ receiverAction('stop'); });
+  rxRestart.addEventListener('click', function(){ receiverAction('restart'); });
 
   fetch('/api/events?limit=400').then(function(r){return r.json();}).then(function(d){events=d.events||[]; source.textContent=g(d,'source','n/a'); render();});
   loadRfConfig();
@@ -668,7 +683,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urlparse(self.path)
-        if parsed.path in ['/api/admin/storage_policy', '/api/admin/rf_control']:
+        if parsed.path in ['/api/admin/storage_policy', '/api/admin/rf_control', '/api/admin/receiver_action']:
             try:
                 length = int(self.headers.get('Content-Length', '0'))
                 raw = self.rfile.read(length) if length > 0 else b'{}'
@@ -694,14 +709,23 @@ class Handler(BaseHTTPRequestHandler):
                     save_storage_policy(merged)
                     return self._json({'ok': True, 'policy': merged})
 
-                current = load_rf_control()
-                merged = {
-                    'center_freq_hz': body.get('center_freq_hz', current.get('center_freq_hz', 173900000.0)),
-                    'rf_gain_db': body.get('rf_gain_db', current.get('rf_gain_db', -1.0)),
-                    'rf_squelch_db': body.get('rf_squelch_db', current.get('rf_squelch_db', -33.0)),
-                }
-                save_rf_control(merged)
-                return self._json({'ok': True, 'rf_control': merged})
+                if parsed.path == '/api/admin/rf_control':
+                    current = load_rf_control()
+                    merged = {
+                        'center_freq_hz': body.get('center_freq_hz', current.get('center_freq_hz', 173900000.0)),
+                        'rf_gain_db': body.get('rf_gain_db', current.get('rf_gain_db', -1.0)),
+                        'rf_squelch_db': body.get('rf_squelch_db', current.get('rf_squelch_db', -33.0)),
+                    }
+                    save_rf_control(merged)
+                    return self._json({'ok': True, 'rf_control': merged})
+
+                action = str(body.get('action', '')).strip().lower()
+                if action not in ('start', 'stop', 'restart'):
+                    return self._json({'ok': False, 'error': 'invalid action'}, code=400)
+                cp = subprocess.run(['sudo', 'systemctl', action, 'fwlab-receiver.service'], capture_output=True, text=True)
+                if cp.returncode != 0:
+                    return self._json({'ok': False, 'error': cp.stderr.strip() or cp.stdout.strip()}, code=500)
+                return self._json({'ok': True, 'action': action})
             except Exception as e:
                 return self._json({'ok': False, 'error': str(e)}, code=400)
 
