@@ -3,6 +3,7 @@ import argparse
 import gzip
 import hashlib
 import json
+import os
 import time
 from pathlib import Path
 
@@ -88,6 +89,7 @@ def chunk_source_file(src: Path, state_dir: Path, max_lines: int, max_bytes: int
                 'last_ts': last_ts,
                 'status': 'pending',
                 'created_at': int(time.time()),
+                'retry_count': 0,
             }
         else:
             entry = {
@@ -98,6 +100,7 @@ def chunk_source_file(src: Path, state_dir: Path, max_lines: int, max_bytes: int
                 'last_ts': last_ts,
                 'status': 'pending',
                 'created_at': int(time.time()),
+                'retry_count': 0,
             }
 
         created.append(entry)
@@ -116,6 +119,86 @@ def chunk_source_file(src: Path, state_dir: Path, max_lines: int, max_bytes: int
 
     flush_chunk()
     return created
+
+
+def build_s3_client(policy):
+    try:
+        import boto3  # type: ignore
+    except Exception as e:
+        raise RuntimeError(f'boto3 unavailable: {e}')
+
+    endpoint = policy.get('endpoint') or None
+    region = policy.get('region', 'auto')
+    if region == 'auto':
+        region = None
+
+    session = boto3.session.Session()
+    return session.client('s3', endpoint_url=endpoint, region_name=region)
+
+
+def object_key_for(entry, prefix):
+    base = Path(entry.get('chunk_path', '')).name
+    first_ts = (entry.get('first_ts') or '').replace(':', '').replace('-', '')
+    return f"{prefix.strip('/')}/{first_ts or 'unknown'}/{base}"
+
+
+def try_upload_pending(manifest, policy, dry_run):
+    upload_cfg = policy.get('upload', {})
+    max_retries = int(upload_cfg.get('maxRetries', 5))
+    timeout_seconds = int(upload_cfg.get('timeoutSeconds', 60))
+    _ = timeout_seconds  # reserved for future transport tuning
+
+    if dry_run:
+        return {'attempted': 0, 'uploaded': 0, 'failed': 0, 'skipped': 0}
+
+    if not policy.get('enabled', False):
+        return {'attempted': 0, 'uploaded': 0, 'failed': 0, 'skipped': 0, 'note': 'archive disabled in policy'}
+
+    bucket = policy.get('bucket', '')
+    prefix = policy.get('prefix', 'fwlab/events')
+    if not bucket:
+        return {'attempted': 0, 'uploaded': 0, 'failed': 0, 'skipped': 0, 'note': 'bucket not configured'}
+
+    try:
+        s3 = build_s3_client(policy)
+    except Exception as e:
+        return {'attempted': 0, 'uploaded': 0, 'failed': 0, 'skipped': 0, 'note': str(e)}
+
+    stats = {'attempted': 0, 'uploaded': 0, 'failed': 0, 'skipped': 0}
+
+    for entry in manifest.get('entries', []):
+        st = entry.get('status', 'pending')
+        if st == 'uploaded':
+            stats['skipped'] += 1
+            continue
+        if int(entry.get('retry_count', 0)) >= max_retries:
+            stats['skipped'] += 1
+            continue
+
+        chunk_path = Path(entry.get('chunk_path', ''))
+        if not chunk_path.exists():
+            entry['status'] = 'failed'
+            entry['last_error'] = 'chunk missing'
+            entry['retry_count'] = int(entry.get('retry_count', 0)) + 1
+            stats['failed'] += 1
+            continue
+
+        key = object_key_for(entry, prefix)
+        stats['attempted'] += 1
+        try:
+            s3.upload_file(str(chunk_path), bucket, key)
+            entry['status'] = 'uploaded'
+            entry['uploaded_at'] = int(time.time())
+            entry['object_key'] = key
+            entry.pop('last_error', None)
+            stats['uploaded'] += 1
+        except Exception as e:
+            entry['status'] = 'failed'
+            entry['last_error'] = str(e)
+            entry['retry_count'] = int(entry.get('retry_count', 0)) + 1
+            stats['failed'] += 1
+
+    return stats
 
 
 def main():
@@ -149,8 +232,11 @@ def main():
 
     if not args.dry_run:
         manifest.setdefault('entries', []).extend(new_entries)
+        upload_stats = try_upload_pending(manifest, policy, dry_run=False)
         save_json(manifest_path, manifest)
         save_json(source_state_path, {'processed_files': sorted(done)})
+    else:
+        upload_stats = try_upload_pending(manifest, policy, dry_run=True)
 
     print(json.dumps({
         'schema': 'alert.archive.uploader.run.v1',
@@ -160,6 +246,7 @@ def main():
         'new_entries': len(new_entries),
         'manifest': str(manifest_path),
         'source_state': str(source_state_path),
+        'upload': upload_stats,
     }))
 
 

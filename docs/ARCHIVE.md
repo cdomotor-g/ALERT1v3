@@ -33,10 +33,28 @@ State outputs:
 - `<stateDir>/manifest.json`
 - `<stateDir>/source_state.json`
 
+## Upload worker behavior
+
+When `enabled=true` and bucket settings are configured, uploader attempts to send pending chunks to S3-compatible storage.
+
+Manifest status flow:
+- `pending` -> `uploaded` (success)
+- `pending` -> `failed` (error, increments `retry_count`)
+
+Retry model:
+- retries are bounded by `upload.maxRetries`
+- failed entries are retried in later runs until cap reached
+
+## Credentials
+
+Use environment-based credentials (do not commit secrets):
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- optional: `AWS_SESSION_TOKEN`
+
 ## Next steps
 
-- add S3-compatible upload execution (R2/B2/S3)
-- add retry loop and backoff state transitions
+- add explicit backoff scheduling metadata and jitter
 - add restore/integrity validation tooling
 
 ## Security notes

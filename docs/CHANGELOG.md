@@ -76,6 +76,10 @@
   - source JSONL files are chunked/compressed by policy limits
   - manifest entries include first/last ts and event counts
   - dry-run mode does not mutate archive state
+- Archive uploader worker behavior:
+  - S3-compatible upload attempts for pending chunks (when enabled)
+  - manifest state transitions (`pending`/`uploaded`/`failed`) with retry counts
+  - upload result summary included in run output
 
 ### Changed
 - Web dashboard (`webui/server.py`) now supports optional host metrics input via `--host-metrics-jsonl` and `/api/host_metrics`.
