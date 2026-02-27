@@ -18,18 +18,20 @@ Key fields:
 
 `tools/archive_uploader.py` currently provides:
 - discovery of new `rx_events_*.jsonl`
-- compression to chunk artifacts (`.jsonl.gz`) in state dir
+- chunked compression to upload artifacts (`.jsonl.gz`) using policy limits
 - manifest tracking for pending upload entries
+- processed source file tracking via `source_state.json`
 
 ### Run
 
 ```bash
-python3 tools/archive_uploader.py --dry-run
-python3 tools/archive_uploader.py
+python3 tools/archive_uploader.py --dry-run   # planning only, no state mutation
+python3 tools/archive_uploader.py             # create chunks + update manifest/state
 ```
 
-Manifest output:
+State outputs:
 - `<stateDir>/manifest.json`
+- `<stateDir>/source_state.json`
 
 ## Next steps
 

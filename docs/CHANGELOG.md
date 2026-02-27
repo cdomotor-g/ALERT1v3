@@ -72,6 +72,10 @@
   - `config/archive_policy.json`
   - `tools/archive_uploader.py`
   - `docs/ARCHIVE.md`
+- Archive chunker behavior:
+  - source JSONL files are chunked/compressed by policy limits
+  - manifest entries include first/last ts and event counts
+  - dry-run mode does not mutate archive state
 
 ### Changed
 - Web dashboard (`webui/server.py`) now supports optional host metrics input via `--host-metrics-jsonl` and `/api/host_metrics`.
