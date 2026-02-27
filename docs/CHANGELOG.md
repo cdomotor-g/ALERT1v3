@@ -86,6 +86,7 @@
 - Trends source mode:
   - `/trends` can query local or archive source
   - `/api/trends` supports `source=local|archive`
+  - `/api/sensors` provides source-aware sensor ID discovery
 - Archive operationalization:
   - systemd units for uploader service/timer
   - `fwlabctl archive-run` operation

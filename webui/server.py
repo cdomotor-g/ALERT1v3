@@ -448,7 +448,9 @@ TRENDS_HTML = """<!doctype html><html><head><meta charset='utf-8'><title>FW-LAB 
 <body><div class='page'>
 <h2 style='margin-top:0'>FW-LAB Sensor Trends</h2>
 <div class='card'><strong>Navigation:</strong> <a href='/'>Dashboard</a> · <a href='/events'>Events</a> · <a href='/trends'>Trends</a> · <a href='/admin'>Admin</a><br><br>
-Sensor ID: <input id='sensor' style='width:120px' placeholder='e.g. 4099'>
+Sensor ID: <input id='sensor' list='sensorList' style='width:120px' placeholder='e.g. 4099'>
+<datalist id='sensorList'></datalist>
+<button id='refreshSensors'>Sensors</button>
 Window: <select id='window'><option value='15m'>15m</option><option value='1h'>1h</option><option value='6h'>6h</option><option value='24h' selected>24h</option></select>
 Source: <select id='sourceMode'><option value='local' selected>local</option><option value='archive'>archive</option></select>
 Time: <select id='timeMode'><option value='local' selected>local</option><option value='zulu'>zulu</option></select>
@@ -460,6 +462,7 @@ Y Max: <input id='ymax' style='width:90px' placeholder='auto'>
 <script>
 (function(){
   var sensor=document.getElementById('sensor'), win=document.getElementById('window'), sourceMode=document.getElementById('sourceMode'), timeMode=document.getElementById('timeMode'), msg=document.getElementById('msg');
+  var sensorList=document.getElementById('sensorList'), refreshSensors=document.getElementById('refreshSensors');
   var ymin=document.getElementById('ymin'), ymax=document.getElementById('ymax');
   var latest=document.getElementById('latest'), minv=document.getElementById('min'), maxv=document.getElementById('max'), avgv=document.getElementById('avg');
   var chart = echarts.init(document.getElementById('chart'));
@@ -495,9 +498,20 @@ Y Max: <input id='ymax' style='width:90px' placeholder='auto'>
       draw(pts);
     }).catch(function(){ msg.textContent=' failed'; draw([]); }); }
 
+  function loadSensors(){
+    fetch('/api/sensors?source='+encodeURIComponent(sourceMode.value)).then(function(r){return r.json();}).then(function(d){
+      var ids=d.sensor_ids||[];
+      sensorList.innerHTML='';
+      ids.forEach(function(id){ var o=document.createElement('option'); o.value=String(id); sensorList.appendChild(o); });
+      msg.textContent=' sensors='+ids.length;
+    })['catch'](function(){});
+  }
+
   document.getElementById('load').addEventListener('click',load);
   document.getElementById('resetZoom').addEventListener('click',function(){ draw(lastPoints); });
   timeMode.addEventListener('input',function(){ draw(lastPoints); });
+  sourceMode.addEventListener('input',function(){ loadSensors(); });
+  refreshSensors.addEventListener('click',function(){ loadSensors(); });
   ymin.addEventListener('change',function(){ draw(lastPoints); });
   ymax.addEventListener('change',function(){ draw(lastPoints); });
 
@@ -508,6 +522,7 @@ Y Max: <input id='ymax' style='width:90px' placeholder='auto'>
   if(qpSensor){ sensor.value = qpSensor; }
   if(qpWindow && ['15m','1h','6h','24h'].indexOf(qpWindow) >= 0){ win.value = qpWindow; }
   if(qpSource && ['local','archive'].indexOf(qpSource) >= 0){ sourceMode.value = qpSource; }
+  loadSensors();
   if(sensor.value.trim()){ load(); }
   window.addEventListener('resize', function(){ chart.resize(); });
 })();
@@ -638,6 +653,31 @@ def _archive_manifest(path='rf_log/archive_state/manifest.json'):
         return data.get('entries', []) if isinstance(data, dict) else []
     except Exception:
         return []
+
+
+def sensor_ids_from_archive(limit_entries: int = 200):
+    ids = set()
+    entries = [e for e in _archive_manifest() if e.get('status') == 'uploaded' and e.get('chunk_path')]
+    for ent in entries[-max(1, limit_entries):]:
+        cp = Path(ent.get('chunk_path'))
+        if not cp.exists():
+            continue
+        try:
+            with gzip.open(cp, 'rt', encoding='utf-8', errors='replace') as gz:
+                for line in gz:
+                    if not line.strip():
+                        continue
+                    try:
+                        ev = json.loads(line)
+                    except Exception:
+                        continue
+                    de = ev.get('decode') or {}
+                    sid = de.get('sensor_id')
+                    if sid is not None:
+                        ids.add(str(sid))
+        except Exception:
+            continue
+    return sorted(ids)
 
 
 def trends_from_archive(sensor_id: str, win: str, limit: int):
@@ -853,6 +893,21 @@ class Handler(BaseHTTPRequestHandler):
             self.store.poll_new()
             events = list(self.store.events)[-limit:]
             return self._json({'events': events, 'count': len(self.store.events), 'source': str(self.store.path)})
+
+        if parsed.path == '/api/sensors':
+            q = parse_qs(parsed.query)
+            source_mode = (q.get('source', ['local'])[0] or 'local').strip().lower()
+            if source_mode == 'archive':
+                return self._json({'source_mode': 'archive', 'sensor_ids': sensor_ids_from_archive()})
+
+            self.store.poll_new()
+            ids = set()
+            for ev in list(self.store.events):
+                de = ev.get('decode') or {}
+                sid = de.get('sensor_id')
+                if sid is not None:
+                    ids.add(str(sid))
+            return self._json({'source_mode': 'local', 'sensor_ids': sorted(ids)})
 
         if parsed.path == '/api/trends':
             q = parse_qs(parsed.query)
