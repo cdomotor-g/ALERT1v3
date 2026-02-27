@@ -45,6 +45,7 @@ Current goals:
 - Architecture vision: `docs/ARCHITECTURE_VISION.md`
 - Components: `docs/COMPONENTS.md`
 - Data model/contracts: `docs/DATA_MODEL.md`
+- Archive pipeline: `docs/ARCHIVE.md`
 - Roadmap and milestones: `docs/ROADMAP.md`
 - Versioning + naming policy: `docs/VERSIONING.md`
 - Change log: `docs/CHANGELOG.md`

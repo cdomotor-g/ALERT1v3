@@ -68,6 +68,10 @@
   - decode events include `rx.center_freq_hz`, `rx.rf_gain_db`, `rx.rf_squelch_db`
 - Admin configuration scaffold:
   - `/admin` page and `/api/admin/storage_policy` (GET/POST)
+- DCS archive scaffold:
+  - `config/archive_policy.json`
+  - `tools/archive_uploader.py`
+  - `docs/ARCHIVE.md`
 
 ### Changed
 - Web dashboard (`webui/server.py`) now supports optional host metrics input via `--host-metrics-jsonl` and `/api/host_metrics`.

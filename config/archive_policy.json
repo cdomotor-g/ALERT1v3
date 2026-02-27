@@ -1,0 +1,22 @@
+{
+  "enabled": false,
+  "provider": "s3-compatible",
+  "endpoint": "",
+  "region": "auto",
+  "bucket": "",
+  "prefix": "fwlab/events",
+  "chunk": {
+    "maxLines": 50000,
+    "maxBytes": 20971520,
+    "compression": "gzip"
+  },
+  "upload": {
+    "maxRetries": 5,
+    "backoffSeconds": 5,
+    "timeoutSeconds": 60
+  },
+  "sourceRoots": [
+    "/home/cdomotor/rf_log"
+  ],
+  "stateDir": "/home/cdomotor/.openclaw/workspace/projects/ALERT1v3/rf_log/archive_state"
+}
