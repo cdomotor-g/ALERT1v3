@@ -41,7 +41,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
 <body>
 <div class='page'>
   <h2 style='margin-top:0'>FW-LAB Live Dashboard</h2>
-  <div class='card' style='padding:.45rem .8rem'><a href='/trends' style='color:#7fc8ff'>Open sensor trends</a> · <a href='/admin' style='color:#7fc8ff'>Admin config</a></div>
+  <div class='card' style='padding:.45rem .8rem'><a href='/events' style='color:#7fc8ff'>Open events table</a> · <a href='/trends' style='color:#7fc8ff'>Open sensor trends</a> · <a href='/admin' style='color:#7fc8ff'>Admin config</a></div>
 
   <div class='sticky-wrap'>
     <div class='card'>
@@ -87,6 +87,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     </div>
   </div>
 
+  <div id='data-section'>
   <div class='table-wrap'>
     <div class='table-controls'>
       <span class='muted'>Table controls:</span>
@@ -101,6 +102,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     </div>
     <table><thead><tr><th>Time</th><th>Status</th><th>Score</th><th>Conf</th><th>Errs</th><th>Sensor</th><th>Format</th><th>Data</th><th>Summary</th></tr></thead><tbody id='rows'></tbody></table>
   </div>
+  </div>
 </div>
 
 <script>
@@ -109,6 +111,9 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   function escCSV(v){ return ('"'+String(v).replace(/"/g,'""')+'"'); }
 
   var rows=document.getElementById('rows');
+  var dataSection=document.getElementById('data-section');
+  var isEventsPage = (window.location.pathname === '/events');
+  if(dataSection && !isEventsPage){ dataSection.style.display='none'; }
   var status=document.getElementById('status');
   var rxState=document.getElementById('rx-state');
   var count=document.getElementById('count');
@@ -493,7 +498,7 @@ Y Max: <input id='ymax' style='width:90px' placeholder='auto'>
 def load_rf_control(path='config/rf_control.json'):
     p = Path(path)
     if not p.exists():
-        return {'center_freq_hz': 173900000.0, 'rf_gain_db': -1.0, 'rf_squelch_db': -33.0}
+        return {'center_freq_hz': 173900000.0, 'rf_gain_db': 40.0, 'rf_squelch_db': -33.0}
     try:
         d = json.loads(p.read_text(encoding='utf-8'))
         return {
@@ -502,7 +507,7 @@ def load_rf_control(path='config/rf_control.json'):
             'rf_squelch_db': d.get('rf_squelch_db', -33.0),
         }
     except Exception:
-        return {'center_freq_hz': 173900000.0, 'rf_gain_db': -1.0, 'rf_squelch_db': -33.0}
+        return {'center_freq_hz': 173900000.0, 'rf_gain_db': 40.0, 'rf_squelch_db': -33.0}
 
 
 def save_rf_control(cfg: dict, path='config/rf_control.json'):
@@ -713,7 +718,7 @@ class Handler(BaseHTTPRequestHandler):
                     current = load_rf_control()
                     merged = {
                         'center_freq_hz': body.get('center_freq_hz', current.get('center_freq_hz', 173900000.0)),
-                        'rf_gain_db': body.get('rf_gain_db', current.get('rf_gain_db', -1.0)),
+                        'rf_gain_db': body.get('rf_gain_db', current.get('rf_gain_db', 40.0)),
                         'rf_squelch_db': body.get('rf_squelch_db', current.get('rf_squelch_db', -33.0)),
                     }
                     save_rf_control(merged)
@@ -733,7 +738,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
-        if parsed.path == '/':
+        if parsed.path in ['/', '/events']:
             payload = HTML.encode('utf-8')
             self.send_response(HTTPStatus.OK)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
