@@ -24,9 +24,10 @@ input,select,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;bo
 .sticky-wrap{position:sticky;top:0;z-index:50;background:#10151c;padding-top:.6rem}
 
 .table-wrap{max-height:58vh;overflow:auto;border:1px solid #243243;border-radius:8px;background:#121922}
+.table-controls{position:sticky;top:0;z-index:8;background:#17212b;padding:.6rem .8rem;border-bottom:1px solid #243243}
 table{width:100%;border-collapse:collapse}
 th,td{border-bottom:1px solid #243243;padding:.4rem}
-thead th{position:sticky;top:0;background:#17212b;z-index:5}
+thead th{position:sticky;top:44px;background:#17212b;z-index:5}
 tr.ok{background:rgba(75,160,98,.10)}
 tr.warn{background:rgba(220,170,80,.12)}
 tr.error{background:rgba(200,80,80,.14)}
@@ -72,19 +73,18 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     </div>
   </div>
 
-  <div class='card'>
-    <span class='muted'>Table controls:</span>
-    Sensor: <input id='sensor' placeholder='sensor id' style='width:90px'>
-    · Min score: <input id='minScore' type='number' min='0' max='1' step='0.05' placeholder='0.0' style='width:72px'>
-    · Status: <select id='statusFilter'><option value=''>all</option><option value='ok'>ok</option><option value='warn'>warn</option><option value='error'>error</option></select>
-    · <label><input type='checkbox' id='warnOnly'> warn/error only</label>
-    · Time: <select id='timeMode'><option value='local' selected>local</option><option value='zulu'>zulu</option></select>
-    · Detail: <select id='detailMode'><option value='top'>top</option><option value='inline' selected>inline</option></select>
-    · <button id='resetBtn'>Reset filters</button>
-    · <button id='exportBtn'>Export filtered CSV</button>
-  </div>
-
   <div class='table-wrap'>
+    <div class='table-controls'>
+      <span class='muted'>Table controls:</span>
+      Sensor: <input id='sensor' placeholder='sensor id' style='width:90px'>
+      · Min score: <input id='minScore' type='number' min='0' max='1' step='0.05' placeholder='0.0' style='width:72px'>
+      · Status: <select id='statusFilter'><option value=''>all</option><option value='ok'>ok</option><option value='warn'>warn</option><option value='error'>error</option></select>
+      · <label><input type='checkbox' id='warnOnly'> warn/error only</label>
+      · Time: <select id='timeMode'><option value='local' selected>local</option><option value='zulu'>zulu</option></select>
+      · Detail: <select id='detailMode'><option value='top'>top</option><option value='inline' selected>inline</option></select>
+      · <button id='resetBtn'>Reset filters</button>
+      · <button id='exportBtn'>Export filtered CSV</button>
+    </div>
     <table><thead><tr><th>Time</th><th>Status</th><th>Score</th><th>Conf</th><th>Errs</th><th>Sensor</th><th>Format</th><th>Data</th><th>Summary</th></tr></thead><tbody id='rows'></tbody></table>
   </div>
 </div>
