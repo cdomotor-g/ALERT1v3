@@ -25,10 +25,9 @@ input,select,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;bo
 .sticky-wrap{position:sticky;top:0;z-index:50;background:#10151c;padding-top:.6rem}
 
 .table-wrap{max-height:58vh;overflow:auto;border:1px solid #243243;border-radius:8px;background:#121922}
-.table-controls{position:sticky;top:0;z-index:8;background:#17212b;padding:.6rem .8rem;border-bottom:1px solid #243243}
 table{width:100%;border-collapse:collapse}
 th,td{border-bottom:1px solid #243243;padding:.4rem}
-thead th{position:sticky;top:44px;background:#17212b;z-index:5}
+thead th{position:sticky;top:0;background:#17212b;z-index:5}
 tr.ok{background:rgba(75,160,98,.10)}
 tr.warn{background:rgba(220,170,80,.12)}
 tr.error{background:rgba(200,80,80,.14)}
@@ -41,7 +40,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
 <body>
 <div class='page'>
   <h2 style='margin-top:0'>FW-LAB Live Dashboard</h2>
-  <div class='card' style='padding:.45rem .8rem'><a href='/events' style='color:#7fc8ff'>Open events table</a> · <a href='/trends' style='color:#7fc8ff'>Open sensor trends</a> · <a href='/admin' style='color:#7fc8ff'>Admin config</a></div>
+  <div class='card' style='padding:.45rem .8rem'><strong>Navigation:</strong> <a href='/' style='color:#7fc8ff'>Dashboard</a> · <a href='/events' style='color:#7fc8ff'>Events</a> · <a href='/trends' style='color:#7fc8ff'>Trends</a> · <a href='/admin' style='color:#7fc8ff'>Admin</a></div>
 
   <div class='sticky-wrap'>
     <div class='card'>
@@ -55,7 +54,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
       <div class='card'><div class='muted small'>Decode rate (/min)</div><div id='sum-rate'>-</div></div>
     </div>
 
-    <div class='card'>
+    <div id='rx-section' class='card'>
       <div class='muted small'>Rx packets per 2 min (last 30 min)</div>
       <div id='rx-chart' style='height:150px'></div>
     </div>
@@ -64,7 +63,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
       Host metrics: <span id='hm-status' class='muted'>n/a</span> · CPU <span id='hm-cpu'>-</span>% · RAM <span id='hm-mem'>-</span>% · Disk <span id='hm-disk'>-</span>% · Temp <span id='hm-temp'>-</span>°C · Load/core <span id='hm-load'>-</span> · Breaches <span id='hm-breach'>0</span>
     </div>
 
-    <div class='card'>
+    <div id='rf-controls-section' class='card'>
       RF now: Freq <span id='rf-freq-now'>-</span> Hz · Gain <span id='rf-gain-now'>-</span> dB · Squelch <span id='rf-sq-now'>-</span> dB<br>
       RF control (pending/apply on receiver restart):
       Freq <input id='rf-freq-set' style='width:140px' placeholder='173900000'>
@@ -88,18 +87,18 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   </div>
 
   <div id='data-section'>
+  <div id='table-controls-card' class='card'>
+    <span class='muted'>Table controls:</span>
+    Sensor: <input id='sensor' placeholder='sensor id' style='width:90px'>
+    · Min score: <input id='minScore' type='number' min='0' max='1' step='0.05' placeholder='0.0' style='width:72px'>
+    · Status: <select id='statusFilter'><option value=''>all</option><option value='ok'>ok</option><option value='warn'>warn</option><option value='error'>error</option></select>
+    · <label><input type='checkbox' id='warnOnly'> warn/error only</label>
+    · Time: <select id='timeMode'><option value='local' selected>local</option><option value='zulu'>zulu</option></select>
+    · Detail: <select id='detailMode'><option value='top' selected>top</option><option value='inline'>inline</option></select>
+    · <button id='resetBtn'>Reset filters</button>
+    · <button id='exportBtn'>Export filtered CSV</button>
+  </div>
   <div class='table-wrap'>
-    <div class='table-controls'>
-      <span class='muted'>Table controls:</span>
-      Sensor: <input id='sensor' placeholder='sensor id' style='width:90px'>
-      · Min score: <input id='minScore' type='number' min='0' max='1' step='0.05' placeholder='0.0' style='width:72px'>
-      · Status: <select id='statusFilter'><option value=''>all</option><option value='ok'>ok</option><option value='warn'>warn</option><option value='error'>error</option></select>
-      · <label><input type='checkbox' id='warnOnly'> warn/error only</label>
-      · Time: <select id='timeMode'><option value='local' selected>local</option><option value='zulu'>zulu</option></select>
-      · Detail: <select id='detailMode'><option value='top'>top</option><option value='inline' selected>inline</option></select>
-      · <button id='resetBtn'>Reset filters</button>
-      · <button id='exportBtn'>Export filtered CSV</button>
-    </div>
     <table><thead><tr><th>Time</th><th>Status</th><th>Score</th><th>Conf</th><th>Errs</th><th>Sensor</th><th>Format</th><th>Data</th><th>Summary</th></tr></thead><tbody id='rows'></tbody></table>
   </div>
   </div>
@@ -112,8 +111,14 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
 
   var rows=document.getElementById('rows');
   var dataSection=document.getElementById('data-section');
+  var tableControlsCard=document.getElementById('table-controls-card');
+  var rxSection=document.getElementById('rx-section');
+  var rfControlsSection=document.getElementById('rf-controls-section');
   var isEventsPage = (window.location.pathname === '/events');
   if(dataSection && !isEventsPage){ dataSection.style.display='none'; }
+  if(tableControlsCard && !isEventsPage){ tableControlsCard.style.display='none'; }
+  if(rxSection && isEventsPage){ rxSection.style.display='none'; }
+  if(rfControlsSection && isEventsPage){ rfControlsSection.style.display='none'; }
   var status=document.getElementById('status');
   var rxState=document.getElementById('rx-state');
   var count=document.getElementById('count');
@@ -128,6 +133,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   var exportBtn=document.getElementById('exportBtn');
   var detailText=document.getElementById('detailText');
   var detailTop=document.getElementById('detailTop');
+  if(detailTop && !isEventsPage){ detailTop.style.display='none'; }
   var rxChartEl=document.getElementById('rx-chart');
   var rxChart=(window.echarts && rxChartEl) ? echarts.init(rxChartEl) : null;
   var rfFreqNow=document.getElementById('rf-freq-now'), rfGainNow=document.getElementById('rf-gain-now'), rfSqNow=document.getElementById('rf-sq-now');
@@ -136,6 +142,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   var rxStart=document.getElementById('rx-start'), rxStop=document.getElementById('rx-stop'), rxRestart=document.getElementById('rx-restart');
   var events=[];
   var inlineRow=null;
+  var selectedDetailKey='';
 
   function fmtTs(ts){
     if(!ts) return '';
@@ -238,14 +245,22 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   }
 
   function showDetail(tr, evt){
+    var key = String(g(evt,'ts','')) + '|' + String(g(g(evt,'decode',{}),'sensor_id','')) + '|' + String(g(g(evt,'decode',{}),'data_val',''));
+    if(selectedDetailKey === key){
+      selectedDetailKey = '';
+      clearInlineDetail();
+      if(detailTop){ detailTop.style.display='none'; }
+      return;
+    }
+    selectedDetailKey = key;
+
     var text=detailPayload(evt);
     if(detailMode.value==='top'){
       clearInlineDetail();
-      detailTop.style.display='block';
-      detailText.textContent=text;
+      if(detailTop){ detailTop.style.display='block'; detailText.textContent=text; }
       return;
     }
-    detailTop.style.display='none';
+    if(detailTop){ detailTop.style.display='none'; }
     clearInlineDetail();
     inlineRow=document.createElement('tr'); inlineRow.className='inline-detail';
     var td=document.createElement('td'); td.colSpan=9;
@@ -391,7 +406,7 @@ ADMIN_HTML = """<!doctype html><html><head><meta charset='utf-8'><title>FW-LAB A
 <style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}a{color:#7fc8ff}.row{margin:.35rem 0}</style></head>
 <body><div class='page'>
 <h2 style='margin-top:0'>FW-LAB Admin</h2>
-<div class='card'><a href='/'>Dashboard</a> · <a href='/trends'>Trends</a> · <a href='/admin'>Admin</a></div>
+<div class='card'><strong>Navigation:</strong> <a href='/'>Dashboard</a> · <a href='/events'>Events</a> · <a href='/trends'>Trends</a> · <a href='/admin'>Admin</a></div>
 <div class='card'>
   <div class='row'>Local retention days: <input id='localDays' type='number' step='0.1'></div>
   <div class='row'>Max local MB: <input id='maxMb' type='number' step='1'></div>
@@ -431,7 +446,7 @@ TRENDS_HTML = """<!doctype html><html><head><meta charset='utf-8'><title>FW-LAB 
 <style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,select,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}a{color:#7fc8ff}#chart{height:420px}</style></head>
 <body><div class='page'>
 <h2 style='margin-top:0'>FW-LAB Sensor Trends</h2>
-<div class='card'><a href='/'>Dashboard</a> · <a href='/trends'>Trends</a><br><br>
+<div class='card'><strong>Navigation:</strong> <a href='/'>Dashboard</a> · <a href='/events'>Events</a> · <a href='/trends'>Trends</a> · <a href='/admin'>Admin</a><br><br>
 Sensor ID: <input id='sensor' style='width:120px' placeholder='e.g. 4099'>
 Window: <select id='window'><option value='15m'>15m</option><option value='1h'>1h</option><option value='6h'>6h</option><option value='24h' selected>24h</option></select>
 Time: <select id='timeMode'><option value='local' selected>local</option><option value='zulu'>zulu</option></select>
