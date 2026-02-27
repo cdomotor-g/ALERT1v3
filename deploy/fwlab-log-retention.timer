@@ -1,10 +1,10 @@
 [Unit]
-Description=Run FW-LAB log retention daily
+Description=Run FW-LAB log retention hourly
 
 [Timer]
-OnCalendar=daily
+OnCalendar=hourly
 Persistent=true
-RandomizedDelaySec=10m
+RandomizedDelaySec=5m
 Unit=fwlab-log-retention.service
 
 [Install]

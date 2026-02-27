@@ -37,7 +37,7 @@ python3 tools/log_retention.py --days 14 --max-mb 1024 --dry-run
 
 Installed units:
 - `fwlab-log-retention.service`
-- `fwlab-log-retention.timer`
+- `fwlab-log-retention.timer` (hourly)
 
 Control via:
 

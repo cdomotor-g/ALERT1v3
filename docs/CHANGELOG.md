@@ -61,6 +61,7 @@
   - new `config/storage_policy.json` (2-day default local retention)
   - retention engine supports warn/critical/emergency disk modes
   - web UI storage status card via `/api/storage_status`
+  - retention timer tuned to hourly for faster low-disk mitigation
 - Dashboard updates:
   - default drilldown mode set to inline
   - Rx packet micro bar chart (last 30m) in top summary
