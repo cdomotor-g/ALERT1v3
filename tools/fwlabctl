@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SERVICES=(fwlab-webui.service fwlab-host-monitor.service)
+SERVICES=(fwlab-webui.service fwlab-host-monitor.service fwlab-receiver.service)
 TIMER=fwlab-log-retention.timer
 RETENTION_SERVICE=fwlab-log-retention.service
 
@@ -11,10 +11,11 @@ case "$cmd" in
   install)
     sudo cp deploy/fwlab-webui.service /etc/systemd/system/fwlab-webui.service
     sudo cp deploy/fwlab-host-monitor.service /etc/systemd/system/fwlab-host-monitor.service
+    sudo cp deploy/fwlab-receiver.service /etc/systemd/system/fwlab-receiver.service
     sudo cp deploy/fwlab-log-retention.service /etc/systemd/system/fwlab-log-retention.service
     sudo cp deploy/fwlab-log-retention.timer /etc/systemd/system/fwlab-log-retention.timer
-    sudo chmod 644 /etc/systemd/system/fwlab-webui.service /etc/systemd/system/fwlab-host-monitor.service /etc/systemd/system/fwlab-log-retention.service /etc/systemd/system/fwlab-log-retention.timer
-    sudo chmod +x tools/start_webui.sh tools/start_host_monitor.sh tools/host_monitor.py tools/log_retention.py
+    sudo chmod 644 /etc/systemd/system/fwlab-webui.service /etc/systemd/system/fwlab-host-monitor.service /etc/systemd/system/fwlab-receiver.service /etc/systemd/system/fwlab-log-retention.service /etc/systemd/system/fwlab-log-retention.timer
+    sudo chmod +x tools/start_webui.sh tools/start_host_monitor.sh tools/start_receiver.sh tools/host_monitor.py tools/log_retention.py
     sudo systemctl daemon-reload
     echo "Installed service units."
     ;;
@@ -41,7 +42,7 @@ case "$cmd" in
     sudo systemctl status --no-pager "$RETENTION_SERVICE"
     ;;
   logs)
-    journalctl -u fwlab-webui.service -u fwlab-host-monitor.service -f
+    journalctl -u fwlab-webui.service -u fwlab-host-monitor.service -u fwlab-receiver.service -f
     ;;
   *)
     echo "Usage: $0 {install|enable|start|stop|restart|disable|status|logs|retention-run}" >&2

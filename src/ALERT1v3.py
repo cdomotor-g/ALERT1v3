@@ -47,6 +47,7 @@ import ALERT1v3_epy_block_1 as epy_block_1  # embedded python block
 import ALERT1v3_epy_block_2 as epy_block_2  # embedded python block
 import osmosdr
 import time
+import json
 
 
 
@@ -103,6 +104,21 @@ class ALERT1v3(gr.top_block, Qt.QWidget):
         self.log_base_path = log_base_path = '/home/cdomotor/rf_log'
         self.demod_rate = demod_rate = samp_rate/decimation
         self.center_freq = center_freq = 173.9e6
+
+        # Optional runtime RF control override (saved by web admin)
+        try:
+            rf_cfg_path = '/home/cdomotor/.openclaw/workspace/projects/ALERT1v3/config/rf_control.json'
+            if os.path.exists(rf_cfg_path):
+                with open(rf_cfg_path, 'r', encoding='utf-8') as f:
+                    _rf = json.load(f)
+                center_freq = float(_rf.get('center_freq_hz', center_freq))
+                rfGain = float(_rf.get('rf_gain_db', rfGain))
+                rf_squelch = float(_rf.get('rf_squelch_db', rf_squelch))
+                self.center_freq = center_freq
+                self.rfGain = rfGain
+                self.rf_squelch = rf_squelch
+        except Exception:
+            pass
 
         ##################################################
         # Blocks

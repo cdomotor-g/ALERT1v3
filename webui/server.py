@@ -3,6 +3,7 @@ import argparse
 import json
 import time
 import shutil
+import subprocess
 from datetime import datetime
 from collections import deque
 from http import HTTPStatus
@@ -44,7 +45,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
 
   <div class='sticky-wrap'>
     <div class='card'>
-      Status: <span id='status'>starting</span> · Events loaded: <span id='count'>0</span> · Source: <span id='source' class='muted'>n/a</span>
+      Status: <span id='status'>starting</span> · Receiver: <span id='rx-state' class='muted'>unknown</span> · Events loaded: <span id='count'>0</span> · Source: <span id='source' class='muted'>n/a</span>
     </div>
 
     <div class='grid'>
@@ -105,6 +106,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
 
   var rows=document.getElementById('rows');
   var status=document.getElementById('status');
+  var rxState=document.getElementById('rx-state');
   var count=document.getElementById('count');
   var source=document.getElementById('source');
   var sensor=document.getElementById('sensor');
@@ -328,6 +330,13 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     document.getElementById('hm-breach').textContent = String((g(m,'breaches',[])||[]).length);
   }
   function pollHost(){ fetch('/api/host_metrics').then(function(r){return r.json();}).then(function(d){ renderHost(g(d,'event',null)); })['catch'](function(){}); }
+  function pollReceiver(){
+    fetch('/api/receiver_status').then(function(r){return r.json();}).then(function(d){
+      rxState.textContent = d.state || 'unknown';
+      rxState.className = (d.state==='online') ? 'good' : ((d.state==='stale') ? 'warn' : 'bad');
+    })['catch'](function(){});
+  }
+
   function pollStorage(){
     fetch('/api/storage_status').then(function(r){return r.json();}).then(function(d){
       var mode=(d.mode||'n/a');
@@ -340,6 +349,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     })['catch'](function(){});
   }
   pollHost(); setInterval(pollHost,3000);
+  pollReceiver(); setInterval(pollReceiver,5000);
   pollStorage(); setInterval(pollStorage,10000);
 
   var es=new EventSource('/api/live');
@@ -534,6 +544,37 @@ def storage_status():
         'effective_days': round(effective_days, 3),
         'policy_days': local_days,
     }
+
+
+def receiver_status(store: 'EventStore'):
+    running = False
+    try:
+        out = subprocess.check_output("pgrep -af 'python3 .*ALERT1v3.py'", shell=True, text=True)
+        running = bool(out.strip())
+    except Exception:
+        running = False
+
+    state = 'offline'
+    last_ts = None
+    age_s = None
+    if store and store.events:
+        ev = store.events[-1]
+        last_ts = ev.get('ts')
+        dt = parse_ts(last_ts) if last_ts else None
+        if dt:
+            age_s = (time.time() - dt.timestamp())
+
+    if running:
+        if age_s is None:
+            state = 'online'
+        elif age_s <= 20:
+            state = 'online'
+        elif age_s <= 120:
+            state = 'stale'
+        else:
+            state = 'online_no_data'
+
+    return {'state': state, 'running': running, 'last_event_ts': last_ts, 'last_event_age_s': round(age_s,3) if age_s is not None else None}
 
 
 def parse_ts(ts: str):
@@ -743,6 +784,10 @@ class Handler(BaseHTTPRequestHandler):
 
         if parsed.path == '/api/storage_status':
             return self._json(storage_status())
+
+        if parsed.path == '/api/receiver_status':
+            self.store.poll_new()
+            return self._json(receiver_status(self.store))
 
         if parsed.path == '/api/host_metrics':
             if not self.host_metrics_store:
