@@ -18,7 +18,7 @@ body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}
 .card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}
 .muted{color:#93a6b8}
 input,select,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}
-.grid{display:grid;grid-template-columns:repeat(5,minmax(170px,1fr));gap:.6rem;margin-bottom:.8rem}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:.6rem;margin-bottom:.8rem}
 .good{color:#6dd17c}.warn{color:#f2c14e}.bad{color:#f36f6f}
 
 .sticky-wrap{position:sticky;top:0;z-index:50;background:#10151c;padding-top:.6rem}
@@ -33,7 +33,9 @@ tr.error{background:rgba(200,80,80,.14)}
 tr.inline-detail td{background:#0f141a}
 pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;border-radius:6px;border:1px solid #2a3948;max-height:240px;overflow:auto}
 .small{font-size:.9em}
-</style></head>
+</style>
+<script src='https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js'></script>
+</head>
 <body>
 <div class='page'>
   <h2 style='margin-top:0'>FW-LAB Live Dashboard</h2>
@@ -57,7 +59,11 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
       <div class='card'><div class='muted small'>Confidence (5m avg)</div><div id='sum-conf'>-</div></div>
       <div class='card'><div class='muted small'>Errors (5m)</div><div id='sum-errs'>-</div></div>
       <div class='card'><div class='muted small'>Decode rate (/min)</div><div id='sum-rate'>-</div></div>
-      <div class='card'><div class='muted small'>Rx packets (last 30m)</div><canvas id='rx-bars' height='56'></canvas></div>
+    </div>
+
+    <div class='card'>
+      <div class='muted small'>Rx packets per 2 min (last 30 min)</div>
+      <div id='rx-chart' style='height:150px'></div>
     </div>
 
     <div class='card'>
@@ -98,7 +104,8 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   var exportBtn=document.getElementById('exportBtn');
   var detailText=document.getElementById('detailText');
   var detailTop=document.getElementById('detailTop');
-  var rxBars=document.getElementById('rx-bars');
+  var rxChartEl=document.getElementById('rx-chart');
+  var rxChart=(window.echarts && rxChartEl) ? echarts.init(rxChartEl) : null;
   var events=[];
   var inlineRow=null;
 
@@ -113,18 +120,21 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   function classForStatus(s){ if(s==='ok') return 'good'; if(s==='warn') return 'warn'; return 'bad'; }
 
   function drawRxBars(){
-    if(!rxBars || !rxBars.getContext) return;
-    var ctx = rxBars.getContext('2d');
-    var w = rxBars.clientWidth || 220;
-    var h = rxBars.height || 56;
-    if(rxBars.width !== w) rxBars.width = w;
-    ctx.clearRect(0,0,w,h);
-
+    if(!rxChart) return;
     var bins = 15; // 15 x 2min = 30min window
     var counts = new Array(bins).fill(0);
+    var labels = new Array(bins);
     var now = Date.now();
     var windowMs = 30*60*1000;
     var binMs = windowMs / bins;
+
+    for(var b=0;b<bins;b++){
+      var ageStartMin = Math.round(((bins-b)*binMs)/60000);
+      var ageEndMin = Math.round((((bins-b)-1)*binMs)/60000);
+      labels[b] = '-' + ageStartMin + 'm';
+      if (b === bins-1) labels[b] = 'now';
+    }
+
     for(var i=0;i<events.length;i++){
       var t = Date.parse(g(events[i],'ts',''));
       if(!isFinite(t)) continue;
@@ -134,16 +144,14 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
       if(idx>=0 && idx<bins) counts[idx]++;
     }
 
-    var maxv = 1;
-    for(var j=0;j<counts.length;j++) if(counts[j]>maxv) maxv=counts[j];
-    var bw = Math.max(2, Math.floor((w-6) / bins) - 1);
-    for(var k=0;k<bins;k++){
-      var x = 3 + k*(bw+1);
-      var bh = Math.round((counts[k]/maxv) * (h-8));
-      var y = h - 4 - bh;
-      ctx.fillStyle = '#7fc8ff';
-      ctx.fillRect(x,y,bw,bh);
-    }
+    rxChart.setOption({
+      animation:false,
+      grid:{left:36,right:12,top:18,bottom:24},
+      xAxis:{type:'category',data:labels,axisLabel:{color:'#b6c2cf',fontSize:10},axisLine:{lineStyle:{color:'#2a3948'}}},
+      yAxis:{type:'value',minInterval:1,axisLabel:{color:'#b6c2cf',fontSize:10},splitLine:{lineStyle:{color:'#2a3948'}}},
+      tooltip:{trigger:'axis'},
+      series:[{type:'bar',data:counts,itemStyle:{color:'#7fc8ff'},barMaxWidth:14}]
+    }, true);
   }
 
   function computeSummary(){
@@ -299,6 +307,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     }catch(e){}
   };
   es.onerror=function(){ status.textContent='reconnecting'; };
+  window.addEventListener('resize', function(){ if(rxChart) rxChart.resize(); });
 })();
 </script></body></html>"""
 
