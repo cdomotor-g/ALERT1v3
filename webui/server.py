@@ -44,14 +44,6 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   <div class='sticky-wrap'>
     <div class='card'>
       Status: <span id='status'>starting</span> · Events loaded: <span id='count'>0</span> · Source: <span id='source' class='muted'>n/a</span>
-      · Sensor: <input id='sensor' placeholder='sensor id' style='width:90px'>
-      · Min score: <input id='minScore' type='number' min='0' max='1' step='0.05' placeholder='0.0' style='width:72px'>
-      · Status: <select id='statusFilter'><option value=''>all</option><option value='ok'>ok</option><option value='warn'>warn</option><option value='error'>error</option></select>
-      · <label><input type='checkbox' id='warnOnly'> warn/error only</label>
-      · Time: <select id='timeMode'><option value='local' selected>local</option><option value='zulu'>zulu</option></select>
-      · Detail: <select id='detailMode'><option value='top'>top</option><option value='inline' selected>inline</option></select>
-      · <button id='resetBtn'>Reset filters</button>
-      · <button id='exportBtn'>Export filtered CSV</button>
     </div>
 
     <div class='grid'>
@@ -78,6 +70,18 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
       <div class='muted'>Drill-down (click a row)</div>
       <pre id='detailText'>No event selected.</pre>
     </div>
+  </div>
+
+  <div class='card'>
+    <span class='muted'>Table controls:</span>
+    Sensor: <input id='sensor' placeholder='sensor id' style='width:90px'>
+    · Min score: <input id='minScore' type='number' min='0' max='1' step='0.05' placeholder='0.0' style='width:72px'>
+    · Status: <select id='statusFilter'><option value=''>all</option><option value='ok'>ok</option><option value='warn'>warn</option><option value='error'>error</option></select>
+    · <label><input type='checkbox' id='warnOnly'> warn/error only</label>
+    · Time: <select id='timeMode'><option value='local' selected>local</option><option value='zulu'>zulu</option></select>
+    · Detail: <select id='detailMode'><option value='top'>top</option><option value='inline' selected>inline</option></select>
+    · <button id='resetBtn'>Reset filters</button>
+    · <button id='exportBtn'>Export filtered CSV</button>
   </div>
 
   <div class='table-wrap'>
