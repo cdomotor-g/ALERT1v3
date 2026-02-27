@@ -98,6 +98,9 @@
 - Internal naming cleanup migration:
   - canonical runtime/modules renamed to `fwlab_*`
   - legacy `ALERT1v3*` wrappers preserved for compatibility
+- Remote access governance artifacts:
+  - `docs/REMOTE_ACCESS_ACCESS.md`
+  - `tools/remote_access_check.py`
 
 ### Changed
 - Web dashboard (`webui/server.py`) now supports optional host metrics input via `--host-metrics-jsonl` and `/api/host_metrics`.

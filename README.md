@@ -39,6 +39,7 @@ Current goals:
 - Sidecar architecture: `docs/SIDECARS.md`
 - Platform support matrix: `docs/PLATFORMS.md`
 - Remote access runbook: `docs/REMOTE_ACCESS.md`
+- Access governance runbook: `docs/REMOTE_ACCESS_ACCESS.md`
 - Packaging/run mode: `docs/PACKAGING.md`
 - Log retention controls: `docs/RETENTION.md`
 - Soak and resilience: `docs/SOAK.md`
