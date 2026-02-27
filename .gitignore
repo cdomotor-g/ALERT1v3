@@ -3,3 +3,4 @@
 rf_log/
 __pycache__/
 *.pyc
+config/archive_env

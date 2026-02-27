@@ -1,0 +1,11 @@
+[Unit]
+Description=Run FW-LAB archive uploader every 10 minutes
+
+[Timer]
+OnCalendar=*:0/10
+Persistent=true
+RandomizedDelaySec=60
+Unit=fwlab-archive-uploader.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,5 @@
+# Copy to config/archive_env and set real values.
+# Do NOT commit config/archive_env.
+AWS_ACCESS_KEY_ID=REPLACE_ME
+AWS_SECRET_ACCESS_KEY=REPLACE_ME
+AWS_DEFAULT_REGION=auto

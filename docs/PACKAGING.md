@@ -16,6 +16,7 @@ This installs and enables:
 - `fwlab-webui.service`
 - `fwlab-host-monitor.service`
 - `fwlab-log-retention.timer` (daily cleanup)
+- `fwlab-archive-uploader.timer` (10-min archive upload run)
 
 ## Operations
 
@@ -25,6 +26,7 @@ This installs and enables:
 ./tools/fwlabctl stop
 ./tools/fwlabctl logs
 ./tools/fwlabctl retention-run
+./tools/fwlabctl archive-run
 ```
 
 ## Environment overrides

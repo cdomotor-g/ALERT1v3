@@ -52,6 +52,17 @@ Use environment-based credentials (do not commit secrets):
 - `AWS_SECRET_ACCESS_KEY`
 - optional: `AWS_SESSION_TOKEN`
 
+Service mode uses:
+- `config/archive_env` (see `config/archive_env.example`)
+
+Copy and edit:
+
+```bash
+cp config/archive_env.example config/archive_env
+# set real credentials
+chmod 600 config/archive_env
+```
+
 ## Restore/integrity validation
 
 - Use `tools/archive_restore_check.py` to verify chunk integrity against manifest metadata.

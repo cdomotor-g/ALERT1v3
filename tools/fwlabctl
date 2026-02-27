@@ -4,6 +4,8 @@ set -euo pipefail
 SERVICES=(fwlab-webui.service fwlab-host-monitor.service fwlab-receiver.service)
 TIMER=fwlab-log-retention.timer
 RETENTION_SERVICE=fwlab-log-retention.service
+ARCHIVE_TIMER=fwlab-archive-uploader.timer
+ARCHIVE_SERVICE=fwlab-archive-uploader.service
 
 cmd="${1:-status}"
 
@@ -14,13 +16,15 @@ case "$cmd" in
     sudo cp deploy/fwlab-receiver.service /etc/systemd/system/fwlab-receiver.service
     sudo cp deploy/fwlab-log-retention.service /etc/systemd/system/fwlab-log-retention.service
     sudo cp deploy/fwlab-log-retention.timer /etc/systemd/system/fwlab-log-retention.timer
-    sudo chmod 644 /etc/systemd/system/fwlab-webui.service /etc/systemd/system/fwlab-host-monitor.service /etc/systemd/system/fwlab-receiver.service /etc/systemd/system/fwlab-log-retention.service /etc/systemd/system/fwlab-log-retention.timer
-    sudo chmod +x tools/start_webui.sh tools/start_host_monitor.sh tools/start_receiver.sh tools/host_monitor.py tools/log_retention.py
+    sudo cp deploy/fwlab-archive-uploader.service /etc/systemd/system/fwlab-archive-uploader.service
+    sudo cp deploy/fwlab-archive-uploader.timer /etc/systemd/system/fwlab-archive-uploader.timer
+    sudo chmod 644 /etc/systemd/system/fwlab-webui.service /etc/systemd/system/fwlab-host-monitor.service /etc/systemd/system/fwlab-receiver.service /etc/systemd/system/fwlab-log-retention.service /etc/systemd/system/fwlab-log-retention.timer /etc/systemd/system/fwlab-archive-uploader.service /etc/systemd/system/fwlab-archive-uploader.timer
+    sudo chmod +x tools/start_webui.sh tools/start_host_monitor.sh tools/start_receiver.sh tools/host_monitor.py tools/log_retention.py tools/archive_uploader.py
     sudo systemctl daemon-reload
     echo "Installed service units."
     ;;
   enable)
-    sudo systemctl enable --now "${SERVICES[@]}" "$TIMER"
+    sudo systemctl enable --now "${SERVICES[@]}" "$TIMER" "$ARCHIVE_TIMER"
     ;;
   start)
     sudo systemctl start "${SERVICES[@]}"
@@ -32,20 +36,24 @@ case "$cmd" in
     sudo systemctl restart "${SERVICES[@]}"
     ;;
   disable)
-    sudo systemctl disable --now "${SERVICES[@]}" "$TIMER" || true
+    sudo systemctl disable --now "${SERVICES[@]}" "$TIMER" "$ARCHIVE_TIMER" || true
     ;;
   status)
-    sudo systemctl status --no-pager "${SERVICES[@]}" "$TIMER" "$RETENTION_SERVICE"
+    sudo systemctl status --no-pager "${SERVICES[@]}" "$TIMER" "$RETENTION_SERVICE" "$ARCHIVE_TIMER" "$ARCHIVE_SERVICE"
     ;;
   retention-run)
     sudo systemctl start "$RETENTION_SERVICE"
     sudo systemctl status --no-pager "$RETENTION_SERVICE"
     ;;
+  archive-run)
+    sudo systemctl start "$ARCHIVE_SERVICE"
+    sudo systemctl status --no-pager "$ARCHIVE_SERVICE"
+    ;;
   logs)
-    journalctl -u fwlab-webui.service -u fwlab-host-monitor.service -u fwlab-receiver.service -f
+    journalctl -u fwlab-webui.service -u fwlab-host-monitor.service -u fwlab-receiver.service -u fwlab-archive-uploader.service -f
     ;;
   *)
-    echo "Usage: $0 {install|enable|start|stop|restart|disable|status|logs|retention-run}" >&2
+    echo "Usage: $0 {install|enable|start|stop|restart|disable|status|logs|retention-run|archive-run}" >&2
     exit 1
     ;;
 esac

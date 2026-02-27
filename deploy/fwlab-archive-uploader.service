@@ -1,0 +1,12 @@
+[Unit]
+Description=FW-LAB Archive Uploader
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=cdomotor
+Group=cdomotor
+WorkingDirectory=/home/cdomotor/.openclaw/workspace/projects/ALERT1v3
+EnvironmentFile=-/home/cdomotor/.openclaw/workspace/projects/ALERT1v3/config/archive_env
+ExecStart=/usr/bin/python3 /home/cdomotor/.openclaw/workspace/projects/ALERT1v3/tools/archive_uploader.py --policy /home/cdomotor/.openclaw/workspace/projects/ALERT1v3/config/archive_policy.json

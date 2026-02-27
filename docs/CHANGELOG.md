@@ -86,6 +86,10 @@
 - Trends source mode:
   - `/trends` can query local or archive source
   - `/api/trends` supports `source=local|archive`
+- Archive operationalization:
+  - systemd units for uploader service/timer
+  - `fwlabctl archive-run` operation
+  - `config/archive_env.example` for credential injection
 
 ### Changed
 - Web dashboard (`webui/server.py`) now supports optional host metrics input via `--host-metrics-jsonl` and `/api/host_metrics`.
