@@ -20,10 +20,19 @@ Some runtime files still include `ALERT1v3` in filenames and class IDs (e.g. `sr
 
 This is currently intentional for compatibility while we stabilize features.
 
-## Planned cleanup
+## Migration status
 
-A dedicated refactor will rename internal artifacts to neutral names (e.g. `ALERT.grc`, `alert_epy_block_*`) once compatibility risks are lower.
+Internal runtime artifacts now have canonical neutral names with compatibility wrappers:
 
-Until then:
-- docs and roadmap use **ALERT** and semantic milestones,
-- code references may still include `ALERT1v3`.
+- `src/fwlab_receiver.py` (canonical runtime entrypoint)
+- `src/fwlab_epy_logger.py`
+- `src/fwlab_epy_decoder.py`
+- `src/fwlab_epy_mqtt.py`
+
+Legacy compatibility wrappers retained:
+- `src/ALERT1v3.py`
+- `src/ALERT1v3_epy_block_0.py`
+- `src/ALERT1v3_epy_block_1.py`
+- `src/ALERT1v3_epy_block_2.py`
+
+This allows safe migration while preserving existing flowgraph/module references.

@@ -2,4 +2,4 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-exec python3 "$ROOT/src/ALERT1v3.py"
+exec python3 "$ROOT/src/fwlab_receiver.py"

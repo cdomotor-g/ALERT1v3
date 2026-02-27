@@ -95,6 +95,9 @@
 - Resilience tooling/documentation:
   - `tools/resilience_check.py`
   - `docs/RESILIENCE.md`
+- Internal naming cleanup migration:
+  - canonical runtime/modules renamed to `fwlab_*`
+  - legacy `ALERT1v3*` wrappers preserved for compatibility
 
 ### Changed
 - Web dashboard (`webui/server.py`) now supports optional host metrics input via `--host-metrics-jsonl` and `/api/host_metrics`.
