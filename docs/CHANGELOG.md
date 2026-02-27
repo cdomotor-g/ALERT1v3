@@ -83,6 +83,9 @@
 - Archive restore validation:
   - `tools/archive_restore_check.py` integrity checker
   - `docs/ARCHIVE_RESTORE.md` runbook
+- Trends source mode:
+  - `/trends` can query local or archive source
+  - `/api/trends` supports `source=local|archive`
 
 ### Changed
 - Web dashboard (`webui/server.py`) now supports optional host metrics input via `--host-metrics-jsonl` and `/api/host_metrics`.

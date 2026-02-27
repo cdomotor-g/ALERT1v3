@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import gzip
 import time
 import shutil
 import subprocess
@@ -449,6 +450,7 @@ TRENDS_HTML = """<!doctype html><html><head><meta charset='utf-8'><title>FW-LAB 
 <div class='card'><strong>Navigation:</strong> <a href='/'>Dashboard</a> · <a href='/events'>Events</a> · <a href='/trends'>Trends</a> · <a href='/admin'>Admin</a><br><br>
 Sensor ID: <input id='sensor' style='width:120px' placeholder='e.g. 4099'>
 Window: <select id='window'><option value='15m'>15m</option><option value='1h'>1h</option><option value='6h'>6h</option><option value='24h' selected>24h</option></select>
+Source: <select id='sourceMode'><option value='local' selected>local</option><option value='archive'>archive</option></select>
 Time: <select id='timeMode'><option value='local' selected>local</option><option value='zulu'>zulu</option></select>
 Y Min: <input id='ymin' style='width:90px' placeholder='auto'>
 Y Max: <input id='ymax' style='width:90px' placeholder='auto'>
@@ -457,7 +459,7 @@ Y Max: <input id='ymax' style='width:90px' placeholder='auto'>
 <div class='card'><div id='chart'></div></div>
 <script>
 (function(){
-  var sensor=document.getElementById('sensor'), win=document.getElementById('window'), timeMode=document.getElementById('timeMode'), msg=document.getElementById('msg');
+  var sensor=document.getElementById('sensor'), win=document.getElementById('window'), sourceMode=document.getElementById('sourceMode'), timeMode=document.getElementById('timeMode'), msg=document.getElementById('msg');
   var ymin=document.getElementById('ymin'), ymax=document.getElementById('ymax');
   var latest=document.getElementById('latest'), minv=document.getElementById('min'), maxv=document.getElementById('max'), avgv=document.getElementById('avg');
   var chart = echarts.init(document.getElementById('chart'));
@@ -483,9 +485,9 @@ Y Max: <input id='ymax' style='width:90px' placeholder='auto'>
   }
 
   function load(){ var sid=sensor.value.trim(); if(!sid){ msg.textContent=' enter sensor id'; return; } msg.textContent=' loading...';
-    fetch('/api/trends?sensor_id='+encodeURIComponent(sid)+'&window='+encodeURIComponent(win.value)+'&limit=12000').then(function(r){return r.json();}).then(function(d){
+    fetch('/api/trends?sensor_id='+encodeURIComponent(sid)+'&window='+encodeURIComponent(win.value)+'&source='+encodeURIComponent(sourceMode.value)+'&limit=12000').then(function(r){return r.json();}).then(function(d){
       var pts = d.points||[];
-      msg.textContent=' points='+pts.length;
+      msg.textContent=' source='+ (d.source_mode||sourceMode.value) +' points='+pts.length;
       latest.textContent=(d.stats && d.stats.latest!=null)?d.stats.latest:'-';
       minv.textContent=(d.stats && d.stats.min!=null)?d.stats.min:'-';
       maxv.textContent=(d.stats && d.stats.max!=null)?d.stats.max:'-';
@@ -502,8 +504,10 @@ Y Max: <input id='ymax' style='width:90px' placeholder='auto'>
   var params = new URLSearchParams(window.location.search);
   var qpSensor = params.get('sensor_id');
   var qpWindow = params.get('window');
+  var qpSource = params.get('source');
   if(qpSensor){ sensor.value = qpSensor; }
   if(qpWindow && ['15m','1h','6h','24h'].indexOf(qpWindow) >= 0){ win.value = qpWindow; }
+  if(qpSource && ['local','archive'].indexOf(qpSource) >= 0){ sourceMode.value = qpSource; }
   if(sensor.value.trim()){ load(); }
   window.addEventListener('resize', function(){ chart.resize(); });
 })();
@@ -623,6 +627,62 @@ def parse_ts(ts: str):
 
 def window_seconds(w: str) -> int:
     return {'15m': 900, '1h': 3600, '6h': 21600, '24h': 86400}.get(w, 3600)
+
+
+def _archive_manifest(path='rf_log/archive_state/manifest.json'):
+    p = Path(path)
+    if not p.exists():
+        return []
+    try:
+        data = json.loads(p.read_text(encoding='utf-8'))
+        return data.get('entries', []) if isinstance(data, dict) else []
+    except Exception:
+        return []
+
+
+def trends_from_archive(sensor_id: str, win: str, limit: int):
+    cutoff = time.time() - window_seconds(win)
+    entries = [e for e in _archive_manifest() if e.get('status') == 'uploaded' and e.get('chunk_path')]
+    entries = sorted(entries, key=lambda e: e.get('first_ts') or '')
+
+    points = []
+    src = 'archive:none'
+    for ent in entries:
+        cp = Path(ent.get('chunk_path'))
+        if not cp.exists():
+            continue
+        src = str(cp)
+        try:
+            with gzip.open(cp, 'rt', encoding='utf-8', errors='replace') as gz:
+                for line in gz:
+                    if not line.strip():
+                        continue
+                    try:
+                        ev = json.loads(line)
+                    except Exception:
+                        continue
+                    de = ev.get('decode') or {}
+                    if str(de.get('sensor_id', '')) != sensor_id:
+                        continue
+                    ts = ev.get('ts', '')
+                    dt = parse_ts(ts)
+                    if not dt or dt.timestamp() < cutoff:
+                        continue
+                    v = de.get('data_val')
+                    if isinstance(v, (int, float)):
+                        points.append({'ts': ts, 'value': float(v)})
+        except Exception:
+            continue
+
+    points = sorted(points, key=lambda p: p['ts'])[-limit:]
+    vals = [p['value'] for p in points]
+    stats = {
+        'latest': vals[-1] if vals else None,
+        'min': min(vals) if vals else None,
+        'max': max(vals) if vals else None,
+        'avg': round(sum(vals)/len(vals), 3) if vals else None,
+    }
+    return {'points': points, 'stats': stats, 'source': src}
 
 
 class EventStore:
@@ -798,8 +858,13 @@ class Handler(BaseHTTPRequestHandler):
             q = parse_qs(parsed.query)
             sensor_id = (q.get('sensor_id', [''])[0] or '').strip()
             win = q.get('window', ['24h'])[0]
+            source_mode = (q.get('source', ['local'])[0] or 'local').strip().lower()
             limit = int(q.get('limit', ['2000'])[0])
             limit = max(100, min(limit, 10000))
+
+            if source_mode == 'archive':
+                res = trends_from_archive(sensor_id, win, limit)
+                return self._json({'sensor_id': sensor_id, 'window': win, 'source_mode': 'archive', 'points': res['points'], 'stats': res['stats'], 'source': res['source']})
 
             self.store.poll_new()
             cutoff = time.time() - window_seconds(win)
@@ -824,7 +889,7 @@ class Handler(BaseHTTPRequestHandler):
                 'max': max(vals) if vals else None,
                 'avg': round(sum(vals)/len(vals), 3) if vals else None,
             }
-            return self._json({'sensor_id': sensor_id, 'window': win, 'points': points, 'stats': stats, 'source': str(self.store.path)})
+            return self._json({'sensor_id': sensor_id, 'window': win, 'source_mode': 'local', 'points': points, 'stats': stats, 'source': str(self.store.path)})
 
         if parsed.path == '/api/storage_status':
             return self._json(storage_status())
