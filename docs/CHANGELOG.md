@@ -104,6 +104,10 @@
   - `config/access_policy.json`
   - `tools/remote_access_check.py`
   - admin action audit log (`rf_log/audit/admin_actions.jsonl`)
+- DataViewer expansion baseline:
+  - trends metric modes (`raw` / `delta` / `ror`)
+  - optional threshold filtering in trends query
+  - saved trend views API + config (`/api/views`, `config/saved_views.json`)
 
 ### Changed
 - Web dashboard (`webui/server.py`) now supports optional host metrics input via `--host-metrics-jsonl` and `/api/host_metrics`.

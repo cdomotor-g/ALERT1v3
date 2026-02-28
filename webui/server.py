@@ -453,16 +453,23 @@ Sensor ID: <input id='sensor' list='sensorList' style='width:120px' placeholder=
 <button id='refreshSensors'>Sensors</button>
 Window: <select id='window'><option value='15m'>15m</option><option value='1h'>1h</option><option value='6h'>6h</option><option value='24h' selected>24h</option></select>
 Source: <select id='sourceMode'><option value='local' selected>local</option><option value='archive'>archive</option></select>
+Metric: <select id='metricMode'><option value='raw' selected>raw</option><option value='delta'>delta</option><option value='ror'>rate/min</option></select>
+Threshold ≥ <input id='threshold' style='width:90px' placeholder='off'>
 Time: <select id='timeMode'><option value='local' selected>local</option><option value='zulu'>zulu</option></select>
 Y Min: <input id='ymin' style='width:90px' placeholder='auto'>
 Y Max: <input id='ymax' style='width:90px' placeholder='auto'>
-<button id='load'>Load</button> <button id='resetZoom'>Reset zoom</button> <span id='msg'></span></div>
+<button id='load'>Load</button> <button id='resetZoom'>Reset zoom</button>
+View name <input id='viewName' style='width:120px' placeholder='optional'>
+<button id='saveView'>Save view</button>
+<select id='savedViews'><option value=''>saved views</option></select>
+<span id='msg'></span></div>
 <div class='card'>Latest: <span id='latest'>-</span> · Min: <span id='min'>-</span> · Max: <span id='max'>-</span> · Avg: <span id='avg'>-</span></div>
 <div class='card'><div id='chart'></div></div>
 <script>
 (function(){
-  var sensor=document.getElementById('sensor'), win=document.getElementById('window'), sourceMode=document.getElementById('sourceMode'), timeMode=document.getElementById('timeMode'), msg=document.getElementById('msg');
+  var sensor=document.getElementById('sensor'), win=document.getElementById('window'), sourceMode=document.getElementById('sourceMode'), metricMode=document.getElementById('metricMode'), threshold=document.getElementById('threshold'), timeMode=document.getElementById('timeMode'), msg=document.getElementById('msg');
   var sensorList=document.getElementById('sensorList'), refreshSensors=document.getElementById('refreshSensors');
+  var viewName=document.getElementById('viewName'), saveView=document.getElementById('saveView'), savedViews=document.getElementById('savedViews');
   var ymin=document.getElementById('ymin'), ymax=document.getElementById('ymax');
   var latest=document.getElementById('latest'), minv=document.getElementById('min'), maxv=document.getElementById('max'), avgv=document.getElementById('avg');
   var chart = echarts.init(document.getElementById('chart'));
@@ -488,9 +495,12 @@ Y Max: <input id='ymax' style='width:90px' placeholder='auto'>
   }
 
   function load(){ var sid=sensor.value.trim(); if(!sid){ msg.textContent=' enter sensor id'; return; } msg.textContent=' loading...';
-    fetch('/api/trends?sensor_id='+encodeURIComponent(sid)+'&window='+encodeURIComponent(win.value)+'&source='+encodeURIComponent(sourceMode.value)+'&limit=12000').then(function(r){return r.json();}).then(function(d){
+    var thr = threshold.value.trim();
+    var q = '/api/trends?sensor_id='+encodeURIComponent(sid)+'&window='+encodeURIComponent(win.value)+'&source='+encodeURIComponent(sourceMode.value)+'&metric='+encodeURIComponent(metricMode.value)+'&limit=12000';
+    if(thr!=='') q += '&threshold=' + encodeURIComponent(thr);
+    fetch(q).then(function(r){return r.json();}).then(function(d){
       var pts = d.points||[];
-      msg.textContent=' source='+ (d.source_mode||sourceMode.value) +' points='+pts.length;
+      msg.textContent=' source='+ (d.source_mode||sourceMode.value) +' metric='+ (d.metric||metricMode.value) +' points='+pts.length;
       latest.textContent=(d.stats && d.stats.latest!=null)?d.stats.latest:'-';
       minv.textContent=(d.stats && d.stats.min!=null)?d.stats.min:'-';
       maxv.textContent=(d.stats && d.stats.max!=null)?d.stats.max:'-';
@@ -507,6 +517,30 @@ Y Max: <input id='ymax' style='width:90px' placeholder='auto'>
     })['catch'](function(){});
   }
 
+  function loadSavedViews(){
+    fetch('/api/views').then(function(r){return r.json();}).then(function(d){
+      var views=d.views||[];
+      savedViews.innerHTML='<option value="">saved views</option>';
+      views.forEach(function(v){
+        var o=document.createElement('option');
+        o.value=JSON.stringify(v);
+        o.textContent=v.name || ('view-'+v.id);
+        savedViews.appendChild(o);
+      });
+    })['catch'](function(){});
+  }
+
+  function applyView(v){
+    if(!v) return;
+    sensor.value = v.sensor_id || '';
+    if(v.window) win.value = v.window;
+    if(v.source) sourceMode.value = v.source;
+    if(v.metric) metricMode.value = v.metric;
+    threshold.value = (v.threshold==null?'':v.threshold);
+    loadSensors();
+    if(sensor.value.trim()) load();
+  }
+
   document.getElementById('load').addEventListener('click',load);
   document.getElementById('resetZoom').addEventListener('click',function(){ draw(lastPoints); });
   timeMode.addEventListener('input',function(){ draw(lastPoints); });
@@ -514,15 +548,38 @@ Y Max: <input id='ymax' style='width:90px' placeholder='auto'>
   refreshSensors.addEventListener('click',function(){ loadSensors(); });
   ymin.addEventListener('change',function(){ draw(lastPoints); });
   ymax.addEventListener('change',function(){ draw(lastPoints); });
+  savedViews.addEventListener('change', function(){
+    if(!savedViews.value) return;
+    try{ applyView(JSON.parse(savedViews.value)); }catch(e){}
+  });
+  saveView.addEventListener('click', function(){
+    var body={
+      name: viewName.value.trim() || ('view-'+Date.now()),
+      sensor_id: sensor.value.trim(),
+      window: win.value,
+      source: sourceMode.value,
+      metric: metricMode.value,
+      threshold: threshold.value.trim()==='' ? null : Number(threshold.value)
+    };
+    fetch('/api/views',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+      .then(function(r){return r.json();})
+      .then(function(d){ msg.textContent = d.ok ? ' view saved' : ' save failed'; loadSavedViews(); })
+      ['catch'](function(){ msg.textContent=' save failed'; });
+  });
 
   var params = new URLSearchParams(window.location.search);
   var qpSensor = params.get('sensor_id');
   var qpWindow = params.get('window');
   var qpSource = params.get('source');
+  var qpMetric = params.get('metric');
+  var qpThreshold = params.get('threshold');
   if(qpSensor){ sensor.value = qpSensor; }
   if(qpWindow && ['15m','1h','6h','24h'].indexOf(qpWindow) >= 0){ win.value = qpWindow; }
   if(qpSource && ['local','archive'].indexOf(qpSource) >= 0){ sourceMode.value = qpSource; }
+  if(qpMetric && ['raw','delta','ror'].indexOf(qpMetric) >= 0){ metricMode.value = qpMetric; }
+  if(qpThreshold){ threshold.value = qpThreshold; }
   loadSensors();
+  loadSavedViews();
   if(sensor.value.trim()){ load(); }
   window.addEventListener('resize', function(){ chart.resize(); });
 })();
@@ -692,6 +749,67 @@ def window_seconds(w: str) -> int:
     return {'15m': 900, '1h': 3600, '6h': 21600, '24h': 86400}.get(w, 3600)
 
 
+def load_saved_views(path='config/saved_views.json'):
+    p = Path(path)
+    if not p.exists():
+        return []
+    try:
+        d = json.loads(p.read_text(encoding='utf-8'))
+        return d.get('views', []) if isinstance(d, dict) else []
+    except Exception:
+        return []
+
+
+def save_saved_views(views, path='config/saved_views.json'):
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps({'views': views}, indent=2) + '\n', encoding='utf-8')
+
+
+def apply_metric(points, metric: str, threshold):
+    metric = (metric or 'raw').lower()
+    if metric == 'raw':
+        out = points
+    elif metric == 'delta':
+        out = []
+        prev = None
+        for p in points:
+            if prev is None:
+                prev = p
+                continue
+            out.append({'ts': p['ts'], 'value': p['value'] - prev['value']})
+            prev = p
+    elif metric == 'ror':
+        out = []
+        prev = None
+        for p in points:
+            if prev is None:
+                prev = p
+                continue
+            dt1 = parse_ts(prev['ts'])
+            dt2 = parse_ts(p['ts'])
+            if not dt1 or not dt2:
+                prev = p
+                continue
+            mins = (dt2.timestamp() - dt1.timestamp()) / 60.0
+            if mins <= 0:
+                prev = p
+                continue
+            out.append({'ts': p['ts'], 'value': (p['value'] - prev['value']) / mins})
+            prev = p
+    else:
+        out = points
+
+    if threshold is None:
+        return out
+    try:
+        t = float(threshold)
+        out = [p for p in out if p['value'] >= t]
+    except Exception:
+        pass
+    return out
+
+
 def _archive_manifest(path='rf_log/archive_state/manifest.json'):
     p = Path(path)
     if not p.exists():
@@ -851,6 +969,29 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urlparse(self.path)
+        if parsed.path == '/api/views':
+            try:
+                length = int(self.headers.get('Content-Length', '0'))
+                raw = self.rfile.read(length) if length > 0 else b'{}'
+                body = json.loads(raw.decode('utf-8'))
+                if not isinstance(body, dict):
+                    raise ValueError('body must be object')
+                views = load_saved_views()
+                view = {
+                    'id': int(time.time() * 1000),
+                    'name': str(body.get('name', 'view')).strip() or 'view',
+                    'sensor_id': str(body.get('sensor_id', '')).strip(),
+                    'window': str(body.get('window', '24h')),
+                    'source': str(body.get('source', 'local')),
+                    'metric': str(body.get('metric', 'raw')),
+                    'threshold': body.get('threshold', None),
+                }
+                views.append(view)
+                save_saved_views(views)
+                return self._json({'ok': True, 'view': view})
+            except Exception as e:
+                return self._json({'ok': False, 'error': str(e)}, code=400)
+
         if parsed.path in ['/api/admin/storage_policy', '/api/admin/rf_control', '/api/admin/receiver_action']:
             if not admin_authorized(self.headers, self.client_address[0] if self.client_address else ''):
                 audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', False, {'error': 'unauthorized'})
@@ -987,17 +1128,30 @@ class Handler(BaseHTTPRequestHandler):
                     ids.add(str(sid))
             return self._json({'source_mode': 'local', 'sensor_ids': sorted(ids)})
 
+        if parsed.path == '/api/views':
+            return self._json({'views': load_saved_views()})
+
         if parsed.path == '/api/trends':
             q = parse_qs(parsed.query)
             sensor_id = (q.get('sensor_id', [''])[0] or '').strip()
             win = q.get('window', ['24h'])[0]
             source_mode = (q.get('source', ['local'])[0] or 'local').strip().lower()
+            metric = (q.get('metric', ['raw'])[0] or 'raw').strip().lower()
+            threshold = q.get('threshold', [None])[0]
             limit = int(q.get('limit', ['2000'])[0])
             limit = max(100, min(limit, 10000))
 
             if source_mode == 'archive':
                 res = trends_from_archive(sensor_id, win, limit)
-                return self._json({'sensor_id': sensor_id, 'window': win, 'source_mode': 'archive', 'points': res['points'], 'stats': res['stats'], 'source': res['source']})
+                points = apply_metric(res['points'], metric, threshold)
+                vals = [p['value'] for p in points]
+                stats = {
+                    'latest': vals[-1] if vals else None,
+                    'min': min(vals) if vals else None,
+                    'max': max(vals) if vals else None,
+                    'avg': round(sum(vals)/len(vals), 3) if vals else None,
+                }
+                return self._json({'sensor_id': sensor_id, 'window': win, 'source_mode': 'archive', 'metric': metric, 'points': points, 'stats': stats, 'source': res['source']})
 
             self.store.poll_new()
             cutoff = time.time() - window_seconds(win)
@@ -1015,6 +1169,7 @@ class Handler(BaseHTTPRequestHandler):
                     points.append({'ts': ts, 'value': float(v)})
 
             points = points[-limit:]
+            points = apply_metric(points, metric, threshold)
             vals = [p['value'] for p in points]
             stats = {
                 'latest': vals[-1] if vals else None,
@@ -1022,7 +1177,7 @@ class Handler(BaseHTTPRequestHandler):
                 'max': max(vals) if vals else None,
                 'avg': round(sum(vals)/len(vals), 3) if vals else None,
             }
-            return self._json({'sensor_id': sensor_id, 'window': win, 'source_mode': 'local', 'points': points, 'stats': stats, 'source': str(self.store.path)})
+            return self._json({'sensor_id': sensor_id, 'window': win, 'source_mode': 'local', 'metric': metric, 'points': points, 'stats': stats, 'source': str(self.store.path)})
 
         if parsed.path == '/api/storage_status':
             return self._json(storage_status())

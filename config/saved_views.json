@@ -1,0 +1,13 @@
+{
+  "views": [
+    {
+      "id": 1772240251676,
+      "name": "test",
+      "sensor_id": "4099",
+      "window": "24h",
+      "source": "local",
+      "metric": "delta",
+      "threshold": null
+    }
+  ]
+}

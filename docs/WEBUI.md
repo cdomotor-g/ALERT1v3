@@ -6,14 +6,18 @@ Dashboard backend: `webui/server.py`.
 - `GET /api/events?limit=200` — recent decoded events
 - `GET /api/live` — SSE live stream
 - `GET /api/host_metrics` — latest host metrics (if configured)
-- `GET /api/trends?sensor_id=<id>&window=1h&source=local|archive&limit=4000` — trend points + stats
+- `GET /api/trends?sensor_id=<id>&window=1h&source=local|archive&metric=raw|delta|ror&threshold=<v>&limit=4000` — trend points + stats
 - `GET /api/sensors?source=local|archive` — discover sensor IDs for trends UI
+- `GET /api/views` — list saved trend views
+- `POST /api/views` — create saved trend view
 
 ## UI features
 - Dedicated trends page: `/trends`
 - Admin config page: `/admin` (storage policy editing scaffold)
 - Sensor trend chart with selectable timeframe (15m/1h/6h/24h)
 - Trends source selector (`local` / `archive`)
+- Metric selector (`raw`, `delta`, `rate/min`) and optional threshold filter
+- Saved view support (save + re-select named view presets)
 - Sensor ID assist list via source-aware sensor discovery endpoint
 - ECharts-powered interaction (zoom/pan slider, toolbox restore/save)
 - Optional manual Y-axis min/max controls
