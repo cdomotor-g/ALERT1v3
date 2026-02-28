@@ -1,0 +1,17 @@
+[Unit]
+Description=FW-LAB Audio WebSocket Bridge
+After=network-online.target fwlab-receiver.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=cdomotor
+Group=cdomotor
+WorkingDirectory=/home/cdomotor/.openclaw/workspace/projects/ALERT1v3
+ExecStart=/usr/bin/python3 /home/cdomotor/.openclaw/workspace/projects/ALERT1v3/tools/audio_ws_bridge.py --host 0.0.0.0 --port 8090 --arecord-device hw:Loopback,1,0 --rate 48000
+Restart=always
+RestartSec=2
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

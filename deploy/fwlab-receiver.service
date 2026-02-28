@@ -13,6 +13,8 @@ Restart=always
 RestartSec=3
 Environment=PYTHONUNBUFFERED=1
 Environment=QT_QPA_PLATFORM=offscreen
+Environment=FWLAB_HEADLESS=0
+Environment=FWLAB_AUDIO_DEVICE=hw:Loopback,0,0
 
 [Install]
 WantedBy=multi-user.target

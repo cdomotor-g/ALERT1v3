@@ -524,12 +524,13 @@ class ALERT1v3(gr.top_block, Qt.QWidget):
         self.blocks_null_sink_2 = blocks.null_sink(gr.sizeof_float*1)
         self.blocks_multiply_const_vxx_0 = blocks.multiply_const_ff(1)
         _headless = os.environ.get('FWLAB_HEADLESS', '0') == '1'
+        _audio_dev = os.environ.get('FWLAB_AUDIO_DEVICE', '').strip()
         if _headless:
             self.audio_sink_1 = blocks.null_sink(gr.sizeof_float*1)
             self.audio_sink_0 = blocks.null_sink(gr.sizeof_float*1)
         else:
-            self.audio_sink_1 = audio.sink(samp_rate_audio, '', True)
-            self.audio_sink_0 = audio.sink(samp_rate_audio, '', False)
+            self.audio_sink_1 = audio.sink(samp_rate_audio, _audio_dev, True)
+            self.audio_sink_0 = audio.sink(samp_rate_audio, _audio_dev, False)
         self.analog_wfm_rcv_0 = analog.wfm_rcv(
         	quad_rate=192000,
         	audio_decimation=4,
