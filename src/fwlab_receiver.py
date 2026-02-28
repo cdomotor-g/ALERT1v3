@@ -529,7 +529,8 @@ class ALERT1v3(gr.top_block, Qt.QWidget):
             self.audio_sink_1 = blocks.null_sink(gr.sizeof_float*1)
             self.audio_sink_0 = blocks.null_sink(gr.sizeof_float*1)
         else:
-            self.audio_sink_1 = audio.sink(samp_rate_audio, _audio_dev, True)
+            # Keep only one real ALSA sink to avoid device contention/asserts.
+            self.audio_sink_1 = blocks.null_sink(gr.sizeof_float*1)
             self.audio_sink_0 = audio.sink(samp_rate_audio, _audio_dev, False)
         self.analog_wfm_rcv_0 = analog.wfm_rcv(
         	quad_rate=192000,

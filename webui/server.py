@@ -621,7 +621,7 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
   var freezeBtn=document.getElementById('freezeBtn'), freezeState=document.getElementById('freezeState');
   var audioBtn=document.getElementById('audioBtn'), audioState=document.getElementById('audioState');
   var paused=false;
-  var audioOn=false, audioCtx=null, audioWs=null, nextPlayTime=0;
+  var audioOn=false, audioEl=null;
   var chart=(window.echarts)?echarts.init(document.getElementById('chart')):null;
   var symchart=(window.echarts)?echarts.init(document.getElementById('symchart')):null;
   var wfchart=(window.echarts)?echarts.init(document.getElementById('wfchart')):null;
@@ -703,38 +703,28 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
 
   function stopAudio(){
     audioOn=false;
-    if(audioWs){ try{ audioWs.close(); }catch(e){} audioWs=null; }
+    if(audioEl){ try{ audioEl.pause(); audioEl.src=''; }catch(e){} }
     if(audioState) audioState.textContent='off';
     if(audioBtn) audioBtn.textContent='Audio ON';
   }
 
   function startAudio(){
     try{
-      var AudioContext = window.AudioContext || window.webkitAudioContext;
-      if(!AudioContext) { if(audioState) audioState.textContent='unsupported'; return; }
-      if(!audioCtx) audioCtx = new AudioContext({sampleRate:48000});
-      if(audioCtx.state==='suspended'){ audioCtx.resume(); }
+      if(!audioEl){
+        audioEl = new Audio();
+        audioEl.autoplay = true;
+        audioEl.preload = 'none';
+        audioEl.onplaying = function(){ audioOn=true; if(audioState) audioState.textContent='on'; if(audioBtn) audioBtn.textContent='Audio OFF'; };
+        audioEl.onpause = function(){ if(!audioOn) return; audioOn=false; if(audioState) audioState.textContent='off'; if(audioBtn) audioBtn.textContent='Audio ON'; };
+        audioEl.onerror = function(){ audioOn=false; if(audioState) audioState.textContent='stream error'; if(audioBtn) audioBtn.textContent='Audio ON'; };
+        audioEl.onstalled = function(){ if(audioState) audioState.textContent='buffering'; };
+      }
       if(audioState) audioState.textContent='connecting';
       if(audioBtn) audioBtn.textContent='Audio...';
-      var proto = (location.protocol==='https:') ? 'wss://' : 'ws://';
-      audioWs = new WebSocket(proto + location.hostname + ':8090');
-      audioWs.binaryType='arraybuffer';
-      audioWs.onopen=function(){ audioOn=true; if(audioState) audioState.textContent='on'; if(audioBtn) audioBtn.textContent='Audio OFF'; if(nextPlayTime < audioCtx.currentTime) nextPlayTime = audioCtx.currentTime + 0.05; };
-      audioWs.onerror=function(){ if(audioState) audioState.textContent='ws error'; if(audioBtn) audioBtn.textContent='Audio ON'; };
-      audioWs.onclose=function(){ if(audioOn) { if(audioState) audioState.textContent='disconnected'; } else { if(audioState) audioState.textContent='off'; } if(audioBtn) audioBtn.textContent='Audio ON'; };
-      audioWs.onmessage=function(ev){
-        if(!audioOn || !audioCtx) return;
-        var i16 = new Int16Array(ev.data);
-        var f32 = new Float32Array(i16.length);
-        for(var i=0;i<i16.length;i++) f32[i] = i16[i] / 32768.0;
-        var buf = audioCtx.createBuffer(1, f32.length, 48000);
-        buf.getChannelData(0).set(f32);
-        var src = audioCtx.createBufferSource(); src.buffer = buf; src.connect(audioCtx.destination);
-        var t = Math.max(nextPlayTime, audioCtx.currentTime + 0.01);
-        src.start(t);
-        nextPlayTime = t + (f32.length / 48000.0);
-      };
-    }catch(e){ if(audioState) audioState.textContent='error'; }
+      audioEl.src = '/api/audio_opus';
+      var p = audioEl.play();
+      if(p && p.catch){ p.catch(function(){ if(audioState) audioState.textContent='blocked'; if(audioBtn) audioBtn.textContent='Audio ON'; }); }
+    }catch(e){ if(audioState) audioState.textContent='error'; if(audioBtn) audioBtn.textContent='Audio ON'; }
   }
 
   if(audioBtn){ audioBtn.addEventListener('click', function(){ if(audioOn) stopAudio(); else startAudio(); }); }
@@ -1277,6 +1267,37 @@ class Handler(BaseHTTPRequestHandler):
                     except Exception:
                         pass
             return self._json({'events': rows, 'count': len(rows)})
+
+        if parsed.path == '/api/audio_opus':
+            self.send_response(HTTPStatus.OK)
+            self.send_header('Content-Type', 'audio/ogg')
+            self.send_header('Cache-Control', 'no-cache')
+            self.send_header('Connection', 'close')
+            self.end_headers()
+            arec = subprocess.Popen([
+                'arecord','-D','hw:Loopback,1,0','-f','S16_LE','-c','1','-r','48000','-t','raw','-q'
+            ], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            ffm = subprocess.Popen([
+                'ffmpeg','-nostdin','-loglevel','error',
+                '-f','s16le','-ac','1','-ar','48000','-i','pipe:0',
+                '-c:a','libopus','-b:a','32k','-vbr','on','-application','voip',
+                '-f','ogg','pipe:1'
+            ], stdin=arec.stdout, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            try:
+                while True:
+                    chunk = ffm.stdout.read(4096)
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+            finally:
+                for p in (ffm, arec):
+                    try:
+                        p.terminate()
+                    except Exception:
+                        pass
+            return
 
         if parsed.path == '/api/events':
             q = parse_qs(parsed.query)
