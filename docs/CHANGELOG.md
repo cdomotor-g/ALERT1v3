@@ -108,6 +108,10 @@
   - trends metric modes (`raw` / `delta` / `ror`)
   - optional threshold filtering in trends query
   - saved trend views API + config (`/api/views`, `config/saved_views.json`)
+- Decoder hardening for false-zero frames:
+  - strict 10-bit word framing checks (start/stop validation)
+  - configurable bit ordering/inversion controls
+  - strict reject path for zero payload/zero sensor-id patterns
 
 ### Changed
 - Web dashboard (`webui/server.py`) now supports optional host metrics input via `--host-metrics-jsonl` and `/api/host_metrics`.

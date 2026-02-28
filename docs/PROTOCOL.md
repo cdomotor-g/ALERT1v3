@@ -91,8 +91,19 @@ Current error taxonomy includes:
 - `timing.hunt_timeout`
 - `pipeline.output_overflow`
 - `framing.length_mismatch`
+- `framing.word_start_stop_mismatch`
 - `decode.invalid_format_id`
+- `decode.zero_payload`
+- `decode.zero_sensor_id`
+- `decode.strict_reject`
 - `signal.bit_balance_extreme`
+
+Decoder framing model (current):
+- 10-bit words parsed as `start + 8 data + stop`
+- configurable start/stop polarity
+- configurable data-bit ordering (`word_lsb_first`)
+- optional input inversion (`invert_bits`)
+- strict mode gate to suppress obviously invalid decodes
 
 ## 5) Next decoder improvements
 
