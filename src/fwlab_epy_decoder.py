@@ -338,8 +338,15 @@ class alert_protocol_decoder(gr.basic_block):
                 if self.bit_buffer[0] != self.start_bit or self.bit_buffer[-1] != self.stop_bit:
                     self.error_total += 1
                     self._window_errors += 1
-                    # Don't spam per-word framing errors into event logs;
-                    # keep this as counter-only and re-hunt.
+                    self._publish_decode_error(
+                        "framing.word_start_stop_mismatch",
+                        "word start/stop bits invalid",
+                        details={
+                            "word_bits": ''.join(str(int(b)) for b in self.bit_buffer),
+                            "expected_start": int(self.start_bit),
+                            "expected_stop": int(self.stop_bit),
+                        },
+                    )
                     self._reset_word_collection()
                     self._publish_stats_if_due()
                     continue
@@ -349,18 +356,18 @@ class alert_protocol_decoder(gr.basic_block):
 
                 if self.word_count == self.FRAME_WORDS:
                     event = self._decode_message_bits(self.message_bits)
+                    self._publish_event(event)
+                    self.frames_total += 1
 
-                    # In strict mode, suppress obviously invalid frames from the "decoded" stream.
+                    if event.get("errors"):
+                        self.error_total += len(event.get("errors"))
+                        self._window_errors += len(event.get("errors"))
+
+                    # Keep strict mode behavior for numeric output stream,
+                    # but do not suppress visibility in event logs.
                     if not (self.strict_mode and event.get("status") == "error"):
-                        self._publish_event(event)
-                        self.frames_total += 1
                         self._samples_since_frame = 0
                         self._hunt_timeout_raised = False
-
-                        if event.get("errors"):
-                            self.error_total += len(event.get("errors"))
-                            self._window_errors += len(event.get("errors"))
-
                         if produced < out_capacity:
                             out0[produced] = float(event["decode"]["data_val"])
                             produced += 1
@@ -375,10 +382,6 @@ class alert_protocol_decoder(gr.basic_block):
                                 "output buffer full; decode output sample dropped",
                                 details={"out_capacity": int(out_capacity)},
                             )
-                    else:
-                        # Strict reject: count internally, keep event log clean.
-                        self.error_total += 1
-                        self._window_errors += 1
 
                     self._reset_frame_collection()
                 else:
