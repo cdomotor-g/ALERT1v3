@@ -94,6 +94,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     · Min score: <input id='minScore' type='number' min='0' max='1' step='0.05' placeholder='0.0' style='width:72px'>
     · Status: <select id='statusFilter'><option value=''>all</option><option value='ok'>ok</option><option value='warn'>warn</option><option value='error'>error</option></select>
     · <label><input type='checkbox' id='warnOnly'> warn/error only</label>
+    · <label><input type='checkbox' id='okOnly'> ok only (hide warn/error)</label>
     · Time: <select id='timeMode'><option value='local' selected>local</option><option value='zulu'>zulu</option></select>
     · Detail: <select id='detailMode'><option value='top' selected>top</option><option value='inline'>inline</option></select>
     · <button id='resetBtn'>Reset filters</button>
@@ -128,6 +129,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   var minScore=document.getElementById('minScore');
   var statusFilter=document.getElementById('statusFilter');
   var warnOnly=document.getElementById('warnOnly');
+  var okOnly=document.getElementById('okOnly');
   var timeMode=document.getElementById('timeMode');
   var detailMode=document.getElementById('detailMode');
   var resetBtn=document.getElementById('resetBtn');
@@ -224,8 +226,10 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   function passFilter(ev){
     var f=sensor.value.trim(), de=g(ev,'decode',{});
     if(f && String(g(de,'sensor_id',''))!==f) return false;
-    var sf=statusFilter.value; if(sf && g(ev,'status','')!==sf) return false;
-    if(warnOnly.checked && g(ev,'status','ok')==='ok') return false;
+    var st=g(ev,'status','');
+    var sf=statusFilter.value; if(sf && st!==sf) return false;
+    if(warnOnly.checked && st==='ok') return false;
+    if(okOnly.checked && st!=='ok') return false;
     var ms=minScore.value.trim();
     if(ms){ var v=Number(ms), q=g(g(ev,'quality',{}),'score',null); if(typeof q==='number' && q < v) return false; }
     return true;
@@ -325,9 +329,9 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     var url = URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download='fwlab_filtered_events.csv'; a.click(); URL.revokeObjectURL(url);
   }
 
-  function resetFilters(){ sensor.value=''; minScore.value=''; statusFilter.value=''; warnOnly.checked=false; render(); }
+  function resetFilters(){ sensor.value=''; minScore.value=''; statusFilter.value=''; warnOnly.checked=false; okOnly.checked=false; render(); }
 
-  [sensor,minScore,statusFilter,warnOnly,timeMode,detailMode].forEach(function(el){ el.addEventListener('input',render); });
+  [sensor,minScore,statusFilter,warnOnly,okOnly,timeMode,detailMode].forEach(function(el){ el.addEventListener('input',render); });
   exportBtn.addEventListener('click',exportCSV);
   resetBtn.addEventListener('click',resetFilters);
   rfApply.addEventListener('click', function(){
