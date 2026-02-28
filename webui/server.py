@@ -600,7 +600,7 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
 </style>
 <script src='https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js'></script></head><body><div class='wrap'>
   <div class='card'><strong>Navigation:</strong> <a href='/' style='color:#7fc8ff'>Dashboard</a> · <a href='/events' style='color:#7fc8ff'>Events</a> · <a href='/radio' style='color:#7fc8ff'>Radio</a> · <a href='/trends' style='color:#7fc8ff'>Trends</a> · <a href='/admin' style='color:#7fc8ff'>Admin</a></div>
-  <div class='card'><strong>Radio Live</strong> <span class='muted'>· Real-time RF/decode health</span></div>
+  <div class='card'><strong>Radio Live</strong> <span class='muted'>· Real-time RF/decode health</span> · <button id='freezeBtn'>Freeze</button> <span id='freezeState' class='muted'>live</span></div>
   <div class='row'>
     <div class='card kpi'>Receiver<br><strong id='rx'>unknown</strong></div>
     <div class='card kpi'>Events/min<br><strong id='rate'>0.0</strong></div>
@@ -618,6 +618,8 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
   var events=[]; var max=1200;
   var rx=document.getElementById('rx'), rate=document.getElementById('rate'), ones=document.getElementById('ones'), toperr=document.getElementById('toperr'), errs=document.getElementById('errs');
   var wavesrc=document.getElementById('wavesrc');
+  var freezeBtn=document.getElementById('freezeBtn'), freezeState=document.getElementById('freezeState');
+  var paused=false;
   var chart=(window.echarts)?echarts.init(document.getElementById('chart')):null;
   var symchart=(window.echarts)?echarts.init(document.getElementById('symchart')):null;
   var wfchart=(window.echarts)?echarts.init(document.getElementById('wfchart')):null;
@@ -699,8 +701,9 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
 
   fetch('/api/events?limit=800').then(function(r){return r.json();}).then(function(d){ events=d.events||[]; refresh(); })['catch'](function(){});
   var es=new EventSource('/api/live');
-  es.onmessage=function(m){ try{ events.push(JSON.parse(m.data)); if(events.length>max) events=events.slice(-max); refresh(); }catch(e){} };
+  es.onmessage=function(m){ try{ if(paused) return; events.push(JSON.parse(m.data)); if(events.length>max) events=events.slice(-max); refresh(); }catch(e){} };
   if(wavesrc){ wavesrc.addEventListener('input', refresh); }
+  if(freezeBtn){ freezeBtn.addEventListener('click', function(){ paused=!paused; freezeBtn.textContent = paused ? 'Resume' : 'Freeze'; if(freezeState){ freezeState.textContent = paused ? 'frozen' : 'live'; } }); }
   window.addEventListener('resize', function(){ if(chart) chart.resize(); if(symchart) symchart.resize(); if(wfchart) wfchart.resize(); });
 })();
 </script></body></html>"""
