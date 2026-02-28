@@ -34,10 +34,10 @@ class alert_protocol_decoder(gr.basic_block):
         center_freq_hz=173900000.0,
         rf_gain_db=40.0,
         rf_squelch_db=-33.0,
-        start_bit=1,
-        stop_bit=0,
+        start_bit=0,
+        stop_bit=1,
         word_lsb_first=True,
-        invert_bits=False,
+        invert_bits=True,
         strict_mode=True,
     ):
         gr.basic_block.__init__(
@@ -166,27 +166,74 @@ class alert_protocol_decoder(gr.basic_block):
             "ones_ratio": round(ratio, 3),
         }, errors
 
+    def _bits_to_int_lsb(self, bits_lsb_first):
+        v = 0
+        for i, b in enumerate(bits_lsb_first):
+            v |= (int(b) & 1) << i
+        return int(v)
+
     def _decode_message_bits(self, bits):
-        msg_int = np.uint32(0)
-        for b in bits:
-            msg_int = (msg_int << 1) | np.uint32(b)
+        # bits is expected as 32 payload bits in word order:
+        # p1(8) + p2(8) + p3(8) + p4(8), each payload in LSB->MSB order.
+        if len(bits) != 32:
+            return {
+                "schema": "alert.decode.v1",
+                "ts": self._now_iso(),
+                "status": "error",
+                "quality": {"score": 0.0, "confidence": "low", "ones_ratio": 0.0},
+                "errors": [{"code": "framing.length_mismatch", "message": f"expected 32 payload bits got {len(bits)}"}],
+                "rx": {
+                    "center_freq_hz": self.center_freq_hz,
+                    "rf_gain_db": self.rf_gain_db,
+                    "rf_squelch_db": self.rf_squelch_db,
+                },
+                "frame": {"payload_bits": ''.join(str(int(b)) for b in bits), "payload_hex": ""},
+                "decode": {},
+                "summary": "ERROR: framing.length_mismatch",
+                "display": "ERROR: framing.length_mismatch",
+            }
 
-        sensor_id = (msg_int >> 0) & 0x3F
-        sensor_id |= ((msg_int >> 8) & 0x3F) << 6
-        sensor_id |= ((msg_int >> 16) & 0x01) << 12
+        p1, p2, p3, p4 = bits[0:8], bits[8:16], bits[16:24], bits[24:32]
 
-        format_id = int((msg_int >> 6) & 0x03)
-        is_binary = format_id == 2
+        errors = []
+        # ALERT Binary fixed pair bits validation:
+        # p1[6:8]=10, p2[6:8]=10, p3[6:8]=11, p4[6:8]=11
+        if p1[6:8] != [1, 0]:
+            errors.append({"code": "decode.fixed_pair_mismatch_w1", "message": f"w1 pair={p1[6:8]} expected [1,0]"})
+        if p2[6:8] != [1, 0]:
+            errors.append({"code": "decode.fixed_pair_mismatch_w2", "message": f"w2 pair={p2[6:8]} expected [1,0]"})
+        if p3[6:8] != [1, 1]:
+            errors.append({"code": "decode.fixed_pair_mismatch_w3", "message": f"w3 pair={p3[6:8]} expected [1,1]"})
+        if p4[6:8] != [1, 1]:
+            errors.append({"code": "decode.fixed_pair_mismatch_w4", "message": f"w4 pair={p4[6:8]} expected [1,1]"})
 
-        data_val = (msg_int >> 17) & 0x1F
-        data_val |= ((msg_int >> 24) & 0x3F) << 5
+        # Extract ALERT AU binary fields (LSB-first per spec).
+        a_bits = []
+        a_bits.extend(p1[0:6])
+        a_bits.extend(p2[0:6])
+        a_bits.append(p3[0])
+
+        d_bits = []
+        d_bits.extend(p3[1:6])
+        d_bits.extend(p4[0:6])
+
+        sensor_id = self._bits_to_int_lsb(a_bits)
+        data_val = self._bits_to_int_lsb(d_bits)
+
+        # keep existing format flags as derived placeholder
+        format_id = 2 if (p3[6:8] == [1, 1] and p4[6:8] == [1, 1]) else 1
+        is_binary = True
 
         raw_bits = ''.join(str(int(b)) for b in bits)
+        # Convert payload to int for hex display in arrival bit order
+        msg_int = np.uint32(0)
+        for b in bits:
+            msg_int = (msg_int << 1) | np.uint32(int(b))
         raw_hex = f"{int(msg_int):08X}"
 
-        quality, errors = self._assess_quality(bits, format_id)
+        quality, q_errors = self._assess_quality(bits, format_id)
+        errors.extend(q_errors)
 
-        # Strict gates to reduce obvious false decodes.
         if self.strict_mode:
             if int(msg_int) == 0:
                 errors.append({"code": "decode.zero_payload", "message": "payload is all zero"})
@@ -235,8 +282,10 @@ class alert_protocol_decoder(gr.basic_block):
 
     def _extract_word_payload_bits(self, word_bits):
         # word_bits length = 10: [start][8 data][stop]
+        # ALERT spec says payload bits are transmitted LSB->MSB.
         data_bits = list(word_bits[1:9])
-        if self.word_lsb_first:
+        # If word_lsb_first=False, reinterpret as MSB-first and reverse into LSB order.
+        if not self.word_lsb_first:
             data_bits = list(reversed(data_bits))
         return data_bits
 
