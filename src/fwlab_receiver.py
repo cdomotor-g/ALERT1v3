@@ -511,7 +511,7 @@ class ALERT1v3(gr.top_block, Qt.QWidget):
         self.digital_symbol_sync_xx_0 = digital.symbol_sync_ff(
             digital.TED_EARLY_LATE,
             (demod_rate/300),
-            (2*math.pi*0.02),
+            (2*math.pi*0.04),
             1.0,
             1.0,
             1,
@@ -523,7 +523,6 @@ class ALERT1v3(gr.top_block, Qt.QWidget):
         self.blocks_null_source_0 = blocks.null_source(gr.sizeof_float*1)
         self.blocks_null_sink_2 = blocks.null_sink(gr.sizeof_float*1)
         self.blocks_multiply_const_vxx_0 = blocks.multiply_const_ff(1)
-        self.blocks_dc_blocker_xx_0 = filter.dc_blocker_ff(64, True)
         _headless = os.environ.get('FWLAB_HEADLESS', '0') == '1'
         if _headless:
             self.audio_sink_1 = blocks.null_sink(gr.sizeof_float*1)
@@ -540,7 +539,7 @@ class ALERT1v3(gr.top_block, Qt.QWidget):
         self.analog_agc_xx_0_0 = analog.agc_ff((1e-3), 1, 1)
         self.analog_agc_xx_0_0.set_max_gain(65536)
         self.analog_agc_xx_0 = analog.agc_ff((1e-4), 1.0, 1.0)
-        self.analog_agc_xx_0.set_max_gain(65536)
+        self.analog_agc_xx_0.set_max_gain(0)
 
 
         ##################################################
@@ -565,8 +564,7 @@ class ALERT1v3(gr.top_block, Qt.QWidget):
         self.connect((self.low_pass_filter_0, 0), (self.analog_simple_squelch_cc_0, 0))
         self.connect((self.low_pass_filter_0, 0), (self.qtgui_waterfall_sink_x_1, 0))
         self.connect((self.low_pass_filter_0_0, 0), (self.analog_wfm_rcv_0, 0))
-        self.connect((self.low_pass_filter_1, 0), (self.blocks_dc_blocker_xx_0, 0))
-        self.connect((self.blocks_dc_blocker_xx_0, 0), (self.digital_symbol_sync_xx_0, 0))
+        self.connect((self.low_pass_filter_1, 0), (self.digital_symbol_sync_xx_0, 0))
         self.connect((self.low_pass_filter_1, 0), (self.qtgui_time_sink_x_0, 0))
         self.connect((self.low_pass_filter_1, 0), (self.qtgui_waterfall_sink_x_1_1, 0))
         self.connect((self.rational_resampler_xxx_0, 0), (self.low_pass_filter_0_0, 0))
