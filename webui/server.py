@@ -722,8 +722,15 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
       if(audioState) audioState.textContent='connecting';
       if(audioBtn) audioBtn.textContent='Audio...';
       audioEl.src = '/api/audio_opus';
+      var fallbackTimer = setTimeout(function(){
+        if(!audioOn){
+          if(audioState) audioState.textContent='fallback aac';
+          audioEl.src = '/api/audio_aac';
+          try{ audioEl.play(); }catch(e){}
+        }
+      }, 4000);
       var p = audioEl.play();
-      if(p && p.catch){ p.catch(function(){ if(audioState) audioState.textContent='blocked'; if(audioBtn) audioBtn.textContent='Audio ON'; }); }
+      if(p && p.catch){ p.catch(function(){ if(audioState) audioState.textContent='blocked'; if(audioBtn) audioBtn.textContent='Audio ON'; clearTimeout(fallbackTimer); }); }
     }catch(e){ if(audioState) audioState.textContent='error'; if(audioBtn) audioBtn.textContent='Audio ON'; }
   }
 
@@ -1268,21 +1275,26 @@ class Handler(BaseHTTPRequestHandler):
                         pass
             return self._json({'events': rows, 'count': len(rows)})
 
-        if parsed.path == '/api/audio_opus':
+        if parsed.path in ['/api/audio_opus', '/api/audio_aac']:
+            is_aac = (parsed.path == '/api/audio_aac')
             self.send_response(HTTPStatus.OK)
-            self.send_header('Content-Type', 'audio/ogg')
+            self.send_header('Content-Type', 'audio/aac' if is_aac else 'audio/ogg')
             self.send_header('Cache-Control', 'no-cache')
             self.send_header('Connection', 'close')
             self.end_headers()
             arec = subprocess.Popen([
                 'arecord','-D','hw:Loopback,1,0','-f','S16_LE','-c','1','-r','48000','-t','raw','-q'
             ], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-            ffm = subprocess.Popen([
+            ff_cmd = [
                 'ffmpeg','-nostdin','-loglevel','error',
                 '-f','s16le','-ac','1','-ar','48000','-i','pipe:0',
-                '-c:a','libopus','-b:a','32k','-vbr','on','-application','voip',
-                '-f','ogg','pipe:1'
-            ], stdin=arec.stdout, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            ]
+            if is_aac:
+                ff_cmd += ['-c:a','aac','-b:a','64k','-f','adts','pipe:1']
+            else:
+                ff_cmd += ['-c:a','libopus','-b:a','32k','-vbr','on','-application','voip','-f','ogg','pipe:1']
+
+            ffm = subprocess.Popen(ff_cmd, stdin=arec.stdout, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
             try:
                 while True:
                     chunk = ffm.stdout.read(4096)
