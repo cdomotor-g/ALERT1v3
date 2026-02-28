@@ -62,7 +62,9 @@ class alert_protocol_decoder(gr.basic_block):
 
         self.state = "HUNTING_S"
         self.bit_buffer = []
+        self.word_sample_buffer = []
         self.message_bits = []
+        self.message_symbol_samples = []
         self.bits_per_word = 10
         self.word_count = 0
 
@@ -109,10 +111,12 @@ class alert_protocol_decoder(gr.basic_block):
     def _reset_word_collection(self):
         self.state = "HUNTING_S"
         self.bit_buffer = []
+        self.word_sample_buffer = []
 
     def _reset_frame_collection(self):
         self.word_count = 0
         self.message_bits = []
+        self.message_symbol_samples = []
         self._reset_word_collection()
 
     def _publish_stats_if_due(self, force=False):
@@ -172,7 +176,7 @@ class alert_protocol_decoder(gr.basic_block):
             v |= (int(b) & 1) << i
         return int(v)
 
-    def _decode_message_bits(self, bits):
+    def _decode_message_bits(self, bits, symbol_samples=None):
         # bits is expected as 32 payload bits in word order:
         # p1(8) + p2(8) + p3(8) + p4(8), each payload in LSB->MSB order.
         if len(bits) != 32:
@@ -270,6 +274,7 @@ class alert_protocol_decoder(gr.basic_block):
                 "stop_bit": self.stop_bit,
                 "word_lsb_first": self.word_lsb_first,
                 "invert_bits": self.invert_bits,
+                "symbol_samples": [round(float(x), 4) for x in (symbol_samples or [])],
             },
             "decode": {
                 "sensor_id": int(sensor_id),
@@ -313,6 +318,7 @@ class alert_protocol_decoder(gr.basic_block):
                 if logical_bit == self.start_bit:
                     self.state = "COLLECTING_WORD"
                     self.bit_buffer = [logical_bit]
+                    self.word_sample_buffer = [float(float_sample)]
 
                 if self._samples_since_frame >= self.HUNT_TIMEOUT_SAMPLES and not self._hunt_timeout_raised:
                     self._publish_decode_error(
@@ -330,6 +336,7 @@ class alert_protocol_decoder(gr.basic_block):
 
             if self.state == "COLLECTING_WORD":
                 self.bit_buffer.append(logical_bit)
+                self.word_sample_buffer.append(float(float_sample))
 
                 if len(self.bit_buffer) < self.bits_per_word:
                     continue
@@ -345,17 +352,24 @@ class alert_protocol_decoder(gr.basic_block):
                             "word_bits": ''.join(str(int(b)) for b in self.bit_buffer),
                             "expected_start": int(self.start_bit),
                             "expected_stop": int(self.stop_bit),
+                            "symbol_samples": [round(float(x), 4) for x in self.word_sample_buffer],
                         },
                     )
                     self._reset_word_collection()
                     self._publish_stats_if_due()
                     continue
 
-                self.message_bits.extend(self._extract_word_payload_bits(self.bit_buffer))
+                payload_bits = self._extract_word_payload_bits(self.bit_buffer)
+                payload_samples = list(self.word_sample_buffer[1:9])
+                if not self.word_lsb_first:
+                    payload_samples = list(reversed(payload_samples))
+
+                self.message_bits.extend(payload_bits)
+                self.message_symbol_samples.extend(payload_samples)
                 self.word_count += 1
 
                 if self.word_count == self.FRAME_WORDS:
-                    event = self._decode_message_bits(self.message_bits)
+                    event = self._decode_message_bits(self.message_bits, self.message_symbol_samples)
                     self._publish_event(event)
                     self.frames_total += 1
 

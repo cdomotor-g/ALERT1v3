@@ -607,7 +607,8 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
     <div class='card kpi'>Ones ratio avg<br><strong id='ones'>n/a</strong></div>
     <div class='card kpi'>Top error<br><strong id='toperr'>none</strong></div>
   </div>
-  <div class='card'><div id='chart' style='height:280px'></div></div>
+  <div class='card'><div id='chart' style='height:220px'></div></div>
+  <div class='card'><strong>Latest symbol waveform (post symbol-sync)</strong><div id='symchart' style='height:220px'></div></div>
   <div class='card'><strong>Recent error codes</strong><pre id='errs'>none</pre></div>
 </div>
 <script>
@@ -616,6 +617,7 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
   var events=[]; var max=1200;
   var rx=document.getElementById('rx'), rate=document.getElementById('rate'), ones=document.getElementById('ones'), toperr=document.getElementById('toperr'), errs=document.getElementById('errs');
   var chart=(window.echarts)?echarts.init(document.getElementById('chart')):null;
+  var symchart=(window.echarts)?echarts.init(document.getElementById('symchart')):null;
 
   function refresh(){
     if(!events.length) return;
@@ -643,12 +645,23 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
       tail.forEach(function(e){ var t=Date.parse(g(e,'ts','')); var q=g(e,'quality',{}), or=g(q,'ones_ratio',null); if(isFinite(t) && typeof or==='number'){ xs.push(new Date(t).toLocaleTimeString()); ys.push(or);} });
       chart.setOption({animation:false,grid:{left:40,right:12,top:20,bottom:28},xAxis:{type:'category',data:xs},yAxis:{type:'value',min:0,max:1},tooltip:{trigger:'axis'},series:[{type:'line',data:ys,symbol:'none'}]});
     }
+
+    if(symchart){
+      var sym=[];
+      for(var i=events.length-1;i>=0;i--){
+        var fr=g(events[i],'frame',{}), s=g(fr,'symbol_samples',null);
+        if(s && s.length){ sym=s; break; }
+      }
+      var sx=[], sy=[];
+      for(var j=0;j<sym.length;j++){ sx.push(String(j)); sy.push(Number(sym[j])); }
+      symchart.setOption({animation:false,grid:{left:40,right:12,top:20,bottom:28},xAxis:{type:'category',data:sx},yAxis:{type:'value',min:-2,max:2},tooltip:{trigger:'axis'},series:[{type:'line',data:sy,symbol:'none',step:'middle'}]});
+    }
   }
 
   fetch('/api/events?limit=800').then(function(r){return r.json();}).then(function(d){ events=d.events||[]; refresh(); });
   var es=new EventSource('/api/stream');
   es.onmessage=function(m){ try{ events.push(JSON.parse(m.data)); if(events.length>max) events=events.slice(-max); refresh(); }catch(e){} };
-  window.addEventListener('resize', function(){ if(chart) chart.resize(); });
+  window.addEventListener('resize', function(){ if(chart) chart.resize(); if(symchart) symchart.resize(); });
 })();
 </script></body></html>"""
 
