@@ -730,7 +730,22 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
         }
       }, 4000);
       var p = audioEl.play();
-      if(p && p.catch){ p.catch(function(){ if(audioState) audioState.textContent='blocked'; if(audioBtn) audioBtn.textContent='Audio ON'; clearTimeout(fallbackTimer); }); }
+      if(p && p.catch){ p.catch(function(err){
+        clearTimeout(fallbackTimer);
+        // NotAllowedError = autoplay/user-gesture policy, NotSupportedError = codec/container support.
+        var name = (err && err.name) ? err.name : '';
+        if(name === 'NotSupportedError'){
+          if(audioState) audioState.textContent='fallback aac';
+          audioEl.src = '/api/audio_aac';
+          var p2 = audioEl.play();
+          if(p2 && p2.catch){ p2.catch(function(){ if(audioState) audioState.textContent='blocked'; if(audioBtn) audioBtn.textContent='Audio ON'; }); }
+        } else {
+          if(audioState) audioState.textContent='blocked';
+          if(audioBtn) audioBtn.textContent='Audio ON';
+          // show native controls so user can manually hit play in restrictive webviews
+          audioEl.controls = true;
+        }
+      }); }
     }catch(e){ if(audioState) audioState.textContent='error'; if(audioBtn) audioBtn.textContent='Audio ON'; }
   }
 
