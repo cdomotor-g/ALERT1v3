@@ -234,13 +234,20 @@ class alert_protocol_decoder(gr.basic_block):
         quality, q_errors = self._assess_quality(bits, format_id)
         errors.extend(q_errors)
 
+        hard_reject = False
         if self.strict_mode:
             if int(msg_int) == 0:
                 errors.append({"code": "decode.zero_payload", "message": "payload is all zero"})
+                hard_reject = True
             if int(sensor_id) == 0:
                 errors.append({"code": "decode.zero_sensor_id", "message": "sensor_id is zero"})
+                hard_reject = True
+            if any((e.get("code", "").startswith("decode.fixed_pair_mismatch")) for e in errors):
+                hard_reject = True
 
         status = "ok" if not errors else ("warn" if quality["score"] >= 0.60 else "error")
+        if hard_reject:
+            status = "error"
         summary = f"{int(sensor_id):04d}, {int(data_val):06d}"
 
         return {
@@ -331,15 +338,8 @@ class alert_protocol_decoder(gr.basic_block):
                 if self.bit_buffer[0] != self.start_bit or self.bit_buffer[-1] != self.stop_bit:
                     self.error_total += 1
                     self._window_errors += 1
-                    self._publish_decode_error(
-                        "framing.word_start_stop_mismatch",
-                        "word start/stop bits invalid",
-                        details={
-                            "word_bits": ''.join(str(int(b)) for b in self.bit_buffer),
-                            "expected_start": int(self.start_bit),
-                            "expected_stop": int(self.stop_bit),
-                        },
-                    )
+                    # Don't spam per-word framing errors into event logs;
+                    # keep this as counter-only and re-hunt.
                     self._reset_word_collection()
                     self._publish_stats_if_due()
                     continue
@@ -376,17 +376,9 @@ class alert_protocol_decoder(gr.basic_block):
                                 details={"out_capacity": int(out_capacity)},
                             )
                     else:
-                        # Still report strict rejects as decode errors.
+                        # Strict reject: count internally, keep event log clean.
                         self.error_total += 1
                         self._window_errors += 1
-                        self._publish_decode_error(
-                            "decode.strict_reject",
-                            "frame rejected by strict decoder gates",
-                            details={
-                                "payload_hex": event.get("frame", {}).get("payload_hex", ""),
-                                "errors": event.get("errors", []),
-                            },
-                        )
 
                     self._reset_frame_collection()
                 else:
