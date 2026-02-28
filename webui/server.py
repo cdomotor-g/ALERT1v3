@@ -600,7 +600,7 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
 </style>
 <script src='https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js'></script></head><body><div class='wrap'>
   <div class='card'><strong>Navigation:</strong> <a href='/' style='color:#7fc8ff'>Dashboard</a> · <a href='/events' style='color:#7fc8ff'>Events</a> · <a href='/radio' style='color:#7fc8ff'>Radio</a> · <a href='/trends' style='color:#7fc8ff'>Trends</a> · <a href='/admin' style='color:#7fc8ff'>Admin</a></div>
-  <div class='card'><strong>Radio Live</strong> <span class='muted'>· Real-time RF/decode health</span> · <button id='freezeBtn'>Freeze</button> <span id='freezeState' class='muted'>live</span> · <button id='audioBtn'>Audio ON</button> <span id='audioState' class='muted'>off</span> · Codec: <select id='audioCodec'><option value='auto' selected>auto</option><option value='opus'>opus</option><option value='aac'>aac</option></select><br><audio id='audioPlayer' controls playsinline preload='none' style='margin-top:.35rem;width:100%'></audio></div>
+  <div class='card'><strong>Radio Live</strong> <span class='muted'>· Real-time RF/decode health</span> · <button id='freezeBtn'>Freeze</button> <span id='freezeState' class='muted'>live</span> · <button id='audioBtn'>Load Audio</button> <span id='audioState' class='muted'>off</span> · Codec: <select id='audioCodec'><option value='auto' selected>auto</option><option value='opus'>opus</option><option value='aac'>aac</option></select><br><audio id='audioPlayer' controls playsinline preload='none' style='margin-top:.35rem;width:100%'></audio><div class='muted' style='margin-top:.25rem'>If blocked on iOS, tap play on the native control above. Test links: <a href='/api/audio_aac' target='_blank' style='color:#7fc8ff'>aac</a> · <a href='/api/audio_opus' target='_blank' style='color:#7fc8ff'>opus</a></div></div>
   <div class='row'>
     <div class='card kpi'>Receiver<br><strong id='rx'>unknown</strong></div>
     <div class='card kpi'>Events/min<br><strong id='rate'>0.0</strong></div>
@@ -707,56 +707,34 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
     audioOn=false;
     if(audioEl){ try{ audioEl.pause(); audioEl.src=''; }catch(e){} }
     if(audioState) audioState.textContent='off';
-    if(audioBtn) audioBtn.textContent='Audio ON';
+    if(audioBtn) audioBtn.textContent='Load Audio';
   }
 
   function startAudio(){
     try{
       if(!audioEl){
         audioEl = audioPlayer || new Audio();
-        audioEl.autoplay = true;
+        audioEl.autoplay = false;
         audioEl.preload = 'none';
         audioEl.controls = true;
-        audioEl.onplaying = function(){ audioOn=true; if(audioState) audioState.textContent='on'; if(audioBtn) audioBtn.textContent='Audio OFF'; };
-        audioEl.onpause = function(){ if(!audioOn) return; audioOn=false; if(audioState) audioState.textContent='off'; if(audioBtn) audioBtn.textContent='Audio ON'; };
-        audioEl.onerror = function(){ audioOn=false; if(audioState) audioState.textContent='stream error'; if(audioBtn) audioBtn.textContent='Audio ON'; };
+        audioEl.onplaying = function(){ audioOn=true; if(audioState) audioState.textContent='on'; if(audioBtn) audioBtn.textContent='Unload Audio'; };
+        audioEl.onpause = function(){ if(!audioOn) return; audioOn=false; if(audioState) audioState.textContent='paused'; if(audioBtn) audioBtn.textContent='Load Audio'; };
+        audioEl.onerror = function(){ audioOn=false; if(audioState) audioState.textContent='stream error'; if(audioBtn) audioBtn.textContent='Load Audio'; };
         audioEl.onstalled = function(){ if(audioState) audioState.textContent='buffering'; };
       }
-      if(audioState) audioState.textContent='connecting';
-      if(audioBtn) audioBtn.textContent='Audio...';
 
       var codec = (audioCodec && audioCodec.value) ? audioCodec.value : 'auto';
       var primary = (codec==='aac') ? '/api/audio_aac' : '/api/audio_opus';
-      var secondary = (codec==='opus') ? '/api/audio_aac' : '/api/audio_opus';
-      if(codec==='auto') secondary = '/api/audio_aac';
-
+      if(codec==='auto') primary = '/api/audio_aac';
       audioEl.src = primary;
-      var fallbackTimer = setTimeout(function(){
-        if(!audioOn && codec==='auto'){
-          if(audioState) audioState.textContent='fallback';
-          audioEl.src = secondary;
-          try{ audioEl.play(); }catch(e){}
-        }
-      }, 3500);
-
-      var p = audioEl.play();
-      if(p && p.catch){ p.catch(function(){
-        clearTimeout(fallbackTimer);
-        if(codec==='auto' || codec==='opus'){
-          if(audioState) audioState.textContent='fallback';
-          audioEl.src = '/api/audio_aac';
-          var p2 = audioEl.play();
-          if(p2 && p2.catch){ p2.catch(function(){ if(audioState) audioState.textContent='blocked'; if(audioBtn) audioBtn.textContent='Audio ON'; }); }
-        } else {
-          if(audioState) audioState.textContent='blocked';
-          if(audioBtn) audioBtn.textContent='Audio ON';
-        }
-      }); }
-    }catch(e){ if(audioState) audioState.textContent='error'; if(audioBtn) audioBtn.textContent='Audio ON'; }
+      audioEl.load();
+      if(audioState) audioState.textContent='ready (press play on control)';
+      if(audioBtn) audioBtn.textContent='Unload Audio';
+    }catch(e){ if(audioState) audioState.textContent='error'; if(audioBtn) audioBtn.textContent='Load Audio'; }
   }
 
-  if(audioBtn){ audioBtn.addEventListener('click', function(){ if(audioOn) stopAudio(); else startAudio(); }); }
-  if(audioCodec){ audioCodec.addEventListener('change', function(){ if(audioOn){ stopAudio(); startAudio(); } }); }
+  if(audioBtn){ audioBtn.addEventListener('click', function(){ if(audioEl && audioEl.src){ stopAudio(); } else { startAudio(); } }); }
+  if(audioCodec){ audioCodec.addEventListener('change', function(){ if(audioEl && audioEl.src){ startAudio(); } }); }
 
   fetch('/api/events?limit=800').then(function(r){return r.json();}).then(function(d){ events=d.events||[]; refresh(); })['catch'](function(){});
   var es=new EventSource('/api/live');
