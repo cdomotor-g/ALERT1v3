@@ -1,0 +1,24 @@
+{
+  "adminApi": {
+    "enabled": false,
+    "token": "",
+    "allowLocalhostWithoutToken": true
+  },
+  "roles": {
+    "viewer": [
+      "read dashboard",
+      "read trends",
+      "read status"
+    ],
+    "operator": [
+      "viewer",
+      "receiver start/stop/restart",
+      "rf control writes"
+    ],
+    "admin": [
+      "operator",
+      "storage policy writes",
+      "archive policy writes"
+    ]
+  }
+}

@@ -100,7 +100,10 @@
   - legacy `ALERT1v3*` wrappers preserved for compatibility
 - Remote access governance artifacts:
   - `docs/REMOTE_ACCESS_ACCESS.md`
+  - `docs/ACCESS_MODEL.md`
+  - `config/access_policy.json`
   - `tools/remote_access_check.py`
+  - admin action audit log (`rf_log/audit/admin_actions.jsonl`)
 
 ### Changed
 - Web dashboard (`webui/server.py`) now supports optional host metrics input via `--host-metrics-jsonl` and `/api/host_metrics`.

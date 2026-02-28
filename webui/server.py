@@ -529,6 +529,54 @@ Y Max: <input id='ymax' style='width:90px' placeholder='auto'>
 </script></div></body></html>"""
 
 
+def load_access_policy(path='config/access_policy.json'):
+    p = Path(path)
+    if not p.exists():
+        return {'adminApi': {'enabled': False, 'token': '', 'allowLocalhostWithoutToken': True}}
+    try:
+        d = json.loads(p.read_text(encoding='utf-8'))
+        admin = d.get('adminApi') or {}
+        return {
+            'adminApi': {
+                'enabled': bool(admin.get('enabled', False)),
+                'token': str(admin.get('token', '')),
+                'allowLocalhostWithoutToken': bool(admin.get('allowLocalhostWithoutToken', True)),
+            }
+        }
+    except Exception:
+        return {'adminApi': {'enabled': False, 'token': '', 'allowLocalhostWithoutToken': True}}
+
+
+def audit_admin_action(action: str, remote_addr: str, ok: bool, details: dict | None = None):
+    out = Path('rf_log/audit/admin_actions.jsonl')
+    out.parent.mkdir(parents=True, exist_ok=True)
+    rec = {
+        'ts': datetime.utcnow().isoformat() + 'Z',
+        'action': action,
+        'remote_addr': remote_addr,
+        'ok': bool(ok),
+        'details': details or {},
+    }
+    with out.open('a', encoding='utf-8') as f:
+        f.write(json.dumps(rec) + '\n')
+
+
+def is_local_request(remote_addr: str) -> bool:
+    ra = (remote_addr or '').split(':')[0]
+    return ra in ('127.0.0.1', '::1', 'localhost')
+
+
+def admin_authorized(headers, remote_addr: str):
+    pol = load_access_policy().get('adminApi', {})
+    if not pol.get('enabled', False):
+        return True
+    if pol.get('allowLocalhostWithoutToken', True) and is_local_request(remote_addr):
+        return True
+    token = str(pol.get('token', ''))
+    supplied = headers.get('X-Admin-Token', '')
+    return bool(token) and (supplied == token)
+
+
 def load_rf_control(path='config/rf_control.json'):
     p = Path(path)
     if not p.exists():
@@ -804,6 +852,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         parsed = urlparse(self.path)
         if parsed.path in ['/api/admin/storage_policy', '/api/admin/rf_control', '/api/admin/receiver_action']:
+            if not admin_authorized(self.headers, self.client_address[0] if self.client_address else ''):
+                audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', False, {'error': 'unauthorized'})
+                return self._json({'ok': False, 'error': 'unauthorized'}, code=403)
             try:
                 length = int(self.headers.get('Content-Length', '0'))
                 raw = self.rfile.read(length) if length > 0 else b'{}'
@@ -827,6 +878,7 @@ class Handler(BaseHTTPRequestHandler):
                         },
                     }
                     save_storage_policy(merged)
+                    audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', True, {'keys': ['storage_policy']})
                     return self._json({'ok': True, 'policy': merged})
 
                 if parsed.path == '/api/admin/rf_control':
@@ -837,6 +889,7 @@ class Handler(BaseHTTPRequestHandler):
                         'rf_squelch_db': body.get('rf_squelch_db', current.get('rf_squelch_db', -33.0)),
                     }
                     save_rf_control(merged)
+                    audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', True, {'keys': ['rf_control']})
                     return self._json({'ok': True, 'rf_control': merged})
 
                 action = str(body.get('action', '')).strip().lower()
@@ -844,9 +897,12 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json({'ok': False, 'error': 'invalid action'}, code=400)
                 cp = subprocess.run(['sudo', 'systemctl', action, 'fwlab-receiver.service'], capture_output=True, text=True)
                 if cp.returncode != 0:
+                    audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', False, {'action': action, 'error': cp.stderr.strip() or cp.stdout.strip()})
                     return self._json({'ok': False, 'error': cp.stderr.strip() or cp.stdout.strip()}, code=500)
+                audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', True, {'action': action})
                 return self._json({'ok': True, 'action': action})
             except Exception as e:
+                audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', False, {'error': str(e)})
                 return self._json({'ok': False, 'error': str(e)}, code=400)
 
         self.send_error(HTTPStatus.NOT_FOUND)
@@ -881,10 +937,32 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if parsed.path == '/api/admin/storage_policy':
+            if not admin_authorized(self.headers, self.client_address[0] if self.client_address else ''):
+                return self._json({'ok': False, 'error': 'unauthorized'}, code=403)
             return self._json(load_storage_policy())
 
         if parsed.path == '/api/admin/rf_control':
+            if not admin_authorized(self.headers, self.client_address[0] if self.client_address else ''):
+                return self._json({'ok': False, 'error': 'unauthorized'}, code=403)
             return self._json(load_rf_control())
+
+        if parsed.path == '/api/admin/audit_recent':
+            if not admin_authorized(self.headers, self.client_address[0] if self.client_address else ''):
+                return self._json({'ok': False, 'error': 'unauthorized'}, code=403)
+            q = parse_qs(parsed.query)
+            limit = int(q.get('limit', ['100'])[0])
+            limit = max(1, min(limit, 500))
+            p = Path('rf_log/audit/admin_actions.jsonl')
+            rows = []
+            if p.exists():
+                for line in p.read_text(encoding='utf-8', errors='replace').splitlines()[-limit:]:
+                    if not line.strip():
+                        continue
+                    try:
+                        rows.append(json.loads(line))
+                    except Exception:
+                        pass
+            return self._json({'events': rows, 'count': len(rows)})
 
         if parsed.path == '/api/events':
             q = parse_qs(parsed.query)

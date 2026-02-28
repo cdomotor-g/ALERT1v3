@@ -14,6 +14,11 @@ This runbook covers multi-user authenticated access to FW-LAB.
 1. Port 8088 must not be publicly open.
 2. Cloudflare Access policy must enforce authenticated allowlist access.
 3. Receiver/admin controls should only be available to operator/admin users.
+4. Enable local admin API guard when exposing control APIs beyond localhost.
+
+Admin API guard config:
+- `config/access_policy.json`
+- token header: `X-Admin-Token`
 
 ## Onboarding a collaborator
 
