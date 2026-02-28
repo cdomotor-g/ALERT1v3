@@ -41,7 +41,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
 <body>
 <div class='page'>
   <h2 style='margin-top:0'>FW-LAB Live Dashboard</h2>
-  <div class='card' style='padding:.45rem .8rem'><strong>Navigation:</strong> <a href='/' style='color:#7fc8ff'>Dashboard</a> · <a href='/events' style='color:#7fc8ff'>Events</a> · <a href='/trends' style='color:#7fc8ff'>Trends</a> · <a href='/admin' style='color:#7fc8ff'>Admin</a></div>
+  <div class='card' style='padding:.45rem .8rem'><strong>Navigation:</strong> <a href='/' style='color:#7fc8ff'>Dashboard</a> · <a href='/events' style='color:#7fc8ff'>Events</a> · <a href='/radio' style='color:#7fc8ff'>Radio</a> · <a href='/trends' style='color:#7fc8ff'>Trends</a> · <a href='/admin' style='color:#7fc8ff'>Admin</a></div>
 
   <div class='sticky-wrap'>
     <div class='card'>
@@ -411,7 +411,7 @@ ADMIN_HTML = """<!doctype html><html><head><meta charset='utf-8'><title>FW-LAB A
 <style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}a{color:#7fc8ff}.row{margin:.35rem 0}</style></head>
 <body><div class='page'>
 <h2 style='margin-top:0'>FW-LAB Admin</h2>
-<div class='card'><strong>Navigation:</strong> <a href='/'>Dashboard</a> · <a href='/events'>Events</a> · <a href='/trends'>Trends</a> · <a href='/admin'>Admin</a></div>
+<div class='card'><strong>Navigation:</strong> <a href='/'>Dashboard</a> · <a href='/events'>Events</a> · <a href='/radio'>Radio</a> · <a href='/trends'>Trends</a> · <a href='/admin'>Admin</a></div>
 <div class='card'>
   <div class='row'>Local retention days: <input id='localDays' type='number' step='0.1'></div>
   <div class='row'>Max local MB: <input id='maxMb' type='number' step='1'></div>
@@ -451,7 +451,7 @@ TRENDS_HTML = """<!doctype html><html><head><meta charset='utf-8'><title>FW-LAB 
 <style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,select,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}a{color:#7fc8ff}#chart{height:420px}</style></head>
 <body><div class='page'>
 <h2 style='margin-top:0'>FW-LAB Sensor Trends</h2>
-<div class='card'><strong>Navigation:</strong> <a href='/'>Dashboard</a> · <a href='/events'>Events</a> · <a href='/trends'>Trends</a> · <a href='/admin'>Admin</a><br><br>
+<div class='card'><strong>Navigation:</strong> <a href='/'>Dashboard</a> · <a href='/events'>Events</a> · <a href='/radio'>Radio</a> · <a href='/trends'>Trends</a> · <a href='/admin'>Admin</a><br><br>
 Sensor ID: <input id='sensor' list='sensorList' style='width:120px' placeholder='e.g. 4099'>
 <datalist id='sensorList'></datalist>
 <button id='refreshSensors'>Sensors</button>
@@ -588,6 +588,69 @@ View name <input id='viewName' style='width:120px' placeholder='optional'>
   window.addEventListener('resize', function(){ chart.resize(); });
 })();
 </script></div></body></html>"""
+
+RADIO_HTML = """<!doctype html><html><head><meta charset='utf-8'><title>FW-LAB Radio</title>
+<style>
+body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;background:#0f141a;color:#e6edf3;margin:0}
+.wrap{max-width:1200px;margin:0 auto;padding:1rem}
+.card{background:#17212b;border:1px solid #243243;border-radius:10px;padding:.8rem;margin:.6rem 0}
+.row{display:flex;gap:1rem;flex-wrap:wrap}
+.kpi{min-width:180px}.muted{color:#9fb0c3}.good{color:#6dd17c}.warn{color:#f2c14e}.bad{color:#f36f6f}
+pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
+</style>
+<script src='https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js'></script></head><body><div class='wrap'>
+  <div class='card'><strong>Navigation:</strong> <a href='/' style='color:#7fc8ff'>Dashboard</a> · <a href='/events' style='color:#7fc8ff'>Events</a> · <a href='/radio' style='color:#7fc8ff'>Radio</a> · <a href='/trends' style='color:#7fc8ff'>Trends</a> · <a href='/admin' style='color:#7fc8ff'>Admin</a></div>
+  <div class='card'><strong>Radio Live</strong> <span class='muted'>· Real-time RF/decode health</span></div>
+  <div class='row'>
+    <div class='card kpi'>Receiver<br><strong id='rx'>unknown</strong></div>
+    <div class='card kpi'>Events/min<br><strong id='rate'>0.0</strong></div>
+    <div class='card kpi'>Ones ratio avg<br><strong id='ones'>n/a</strong></div>
+    <div class='card kpi'>Top error<br><strong id='toperr'>none</strong></div>
+  </div>
+  <div class='card'><div id='chart' style='height:280px'></div></div>
+  <div class='card'><strong>Recent error codes</strong><pre id='errs'>none</pre></div>
+</div>
+<script>
+(function(){
+  function g(o,k,d){return (o&&o[k]!==undefined&&o[k]!==null)?o[k]:d;}
+  var events=[]; var max=1200;
+  var rx=document.getElementById('rx'), rate=document.getElementById('rate'), ones=document.getElementById('ones'), toperr=document.getElementById('toperr'), errs=document.getElementById('errs');
+  var chart=(window.echarts)?echarts.init(document.getElementById('chart')):null;
+
+  function refresh(){
+    if(!events.length) return;
+    var now=Date.now();
+    var recent=events.filter(function(e){var t=Date.parse(g(e,'ts','')); return isFinite(t) && (now-t)<=300000;});
+    rate.textContent=(recent.length/5.0).toFixed(2);
+
+    var rs={}, sum=0, n=0, ec={};
+    recent.forEach(function(e){
+      rs[g(e,'status','ok')] = (rs[g(e,'status','ok')]||0)+1;
+      var q=g(e,'quality',{}), or=g(q,'ones_ratio',null); if(typeof or==='number'){sum+=or;n++;}
+      (g(e,'errors',[])||[]).forEach(function(er){ var c=g(er,'code','unknown'); ec[c]=(ec[c]||0)+1; });
+    });
+    var st=(rs.error>0)?'error':((rs.warn>0)?'warn':'ok');
+    rx.textContent=st.toUpperCase()+' (ok:'+(rs.ok||0)+' warn:'+(rs.warn||0)+' err:'+(rs.error||0)+')';
+    rx.className=st==='ok'?'good':(st==='warn'?'warn':'bad');
+    ones.textContent=n? (sum/n).toFixed(3) : 'n/a';
+
+    var top='none', topn=0; Object.keys(ec).forEach(function(k){ if(ec[k]>topn){topn=ec[k]; top=k;} });
+    toperr.textContent=topn? (top+' ('+topn+')') : 'none';
+    errs.textContent=Object.keys(ec).sort(function(a,b){return ec[b]-ec[a];}).slice(0,10).map(function(k){return k+': '+ec[k];}).join('\n') || 'none';
+
+    if(chart){
+      var tail=events.slice(-200), xs=[], ys=[];
+      tail.forEach(function(e){ var t=Date.parse(g(e,'ts','')); var q=g(e,'quality',{}), or=g(q,'ones_ratio',null); if(isFinite(t) && typeof or==='number'){ xs.push(new Date(t).toLocaleTimeString()); ys.push(or);} });
+      chart.setOption({animation:false,grid:{left:40,right:12,top:20,bottom:28},xAxis:{type:'category',data:xs},yAxis:{type:'value',min:0,max:1},tooltip:{trigger:'axis'},series:[{type:'line',data:ys,symbol:'none'}]});
+    }
+  }
+
+  fetch('/api/events?limit=800').then(function(r){return r.json();}).then(function(d){ events=d.events||[]; refresh(); });
+  var es=new EventSource('/api/stream');
+  es.onmessage=function(m){ try{ events.push(JSON.parse(m.data)); if(events.length>max) events=events.slice(-max); refresh(); }catch(e){} };
+  window.addEventListener('resize', function(){ if(chart) chart.resize(); });
+})();
+</script></body></html>"""
 
 
 def load_access_policy(path='config/access_policy.json'):
@@ -1065,6 +1128,15 @@ class Handler(BaseHTTPRequestHandler):
 
         if parsed.path == '/trends':
             payload = TRENDS_HTML.encode('utf-8')
+            self.send_response(HTTPStatus.OK)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Content-Length', str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
+
+        if parsed.path == '/radio':
+            payload = RADIO_HTML.encode('utf-8')
             self.send_response(HTTPStatus.OK)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
             self.send_header('Content-Length', str(len(payload)))
