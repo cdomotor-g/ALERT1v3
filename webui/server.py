@@ -711,13 +711,17 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
   function startAudio(){
     try{
       var AudioContext = window.AudioContext || window.webkitAudioContext;
-      if(!AudioContext) return;
+      if(!AudioContext) { if(audioState) audioState.textContent='unsupported'; return; }
       if(!audioCtx) audioCtx = new AudioContext({sampleRate:48000});
+      if(audioCtx.state==='suspended'){ audioCtx.resume(); }
+      if(audioState) audioState.textContent='connecting';
+      if(audioBtn) audioBtn.textContent='Audio...';
       var proto = (location.protocol==='https:') ? 'wss://' : 'ws://';
       audioWs = new WebSocket(proto + location.hostname + ':8090');
       audioWs.binaryType='arraybuffer';
       audioWs.onopen=function(){ audioOn=true; if(audioState) audioState.textContent='on'; if(audioBtn) audioBtn.textContent='Audio OFF'; if(nextPlayTime < audioCtx.currentTime) nextPlayTime = audioCtx.currentTime + 0.05; };
-      audioWs.onclose=function(){ if(audioOn) { if(audioState) audioState.textContent='disconnected'; } };
+      audioWs.onerror=function(){ if(audioState) audioState.textContent='ws error'; if(audioBtn) audioBtn.textContent='Audio ON'; };
+      audioWs.onclose=function(){ if(audioOn) { if(audioState) audioState.textContent='disconnected'; } else { if(audioState) audioState.textContent='off'; } if(audioBtn) audioBtn.textContent='Audio ON'; };
       audioWs.onmessage=function(ev){
         if(!audioOn || !audioCtx) return;
         var i16 = new Int16Array(ev.data);
