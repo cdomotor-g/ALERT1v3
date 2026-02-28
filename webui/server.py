@@ -609,6 +609,7 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
   </div>
   <div class='card'><div id='chart' style='height:220px'></div></div>
   <div class='card'><strong>Latest symbol waveform</strong> · Source: <select id='wavesrc'><option value='symbol' selected>symbol_samples</option><option value='bits'>payload_bits step</option></select><div id='symchart' style='height:220px'></div></div>
+  <div class='card'><strong>Symbol waterfall (recent frames)</strong><div id='wfchart' style='height:260px'></div></div>
   <div class='card'><strong>Recent error codes</strong><pre id='errs'>none</pre></div>
 </div>
 <script>
@@ -619,6 +620,7 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
   var wavesrc=document.getElementById('wavesrc');
   var chart=(window.echarts)?echarts.init(document.getElementById('chart')):null;
   var symchart=(window.echarts)?echarts.init(document.getElementById('symchart')):null;
+  var wfchart=(window.echarts)?echarts.init(document.getElementById('wfchart')):null;
 
   function refresh(){
     if(!events.length) return;
@@ -639,7 +641,7 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
 
     var top='none', topn=0; Object.keys(ec).forEach(function(k){ if(ec[k]>topn){topn=ec[k]; top=k;} });
     toperr.textContent=topn? (top+' ('+topn+')') : 'none';
-    errs.textContent=Object.keys(ec).sort(function(a,b){return ec[b]-ec[a];}).slice(0,10).map(function(k){return k+': '+ec[k];}).join('\n') || 'none';
+    errs.textContent=Object.keys(ec).sort(function(a,b){return ec[b]-ec[a];}).slice(0,10).map(function(k){return k+': '+ec[k];}).join('\\n') || 'none';
 
     if(chart){
       var tail=events.slice(-200), xs=[], ys=[];
@@ -667,13 +669,39 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
       for(var j=0;j<sym.length;j++){ sx.push(String(j)); sy.push(Number(sym[j])); }
       symchart.setOption({animation:false,grid:{left:40,right:12,top:20,bottom:28},xAxis:{type:'category',data:sx},yAxis:{type:'value',min:-2,max:2},tooltip:{trigger:'axis'},series:[{type:'line',data:sy,symbol:'none',step:'middle'}]});
     }
+
+    if(wfchart){
+      var rows=[];
+      for(var i=events.length-1;i>=0 && rows.length<40;i--){
+        var fr=g(events[i],'frame',{}), s=g(fr,'symbol_samples',null);
+        if(s && s.length) rows.push(s.map(function(v){return Number(v);}));
+      }
+      rows.reverse();
+      var maxLen=0;
+      for(var r=0;r<rows.length;r++) if(rows[r].length>maxLen) maxLen=rows[r].length;
+      var data=[], xlabels=[], ylabels=[];
+      for(var x=0;x<maxLen;x++) xlabels.push(String(x));
+      for(var y=0;y<rows.length;y++){
+        ylabels.push(String(y-rows.length+1));
+        for(var x=0;x<rows[y].length;x++) data.push([x,y,rows[y][x]]);
+      }
+      wfchart.setOption({
+        animation:false,
+        grid:{left:46,right:18,top:20,bottom:28},
+        xAxis:{type:'category',data:xlabels,name:'symbol'},
+        yAxis:{type:'category',data:ylabels,name:'frames'},
+        visualMap:{min:-1,max:1,orient:'horizontal',left:'center',bottom:0,inRange:{color:['#2c7bb6','#abd9e9','#ffffbf','#fdae61','#d7191c']}},
+        tooltip:{position:'top'},
+        series:[{type:'heatmap',data:data,progressive:0,emphasis:{itemStyle:{borderColor:'#fff',borderWidth:1}}}]
+      });
+    }
   }
 
   fetch('/api/events?limit=800').then(function(r){return r.json();}).then(function(d){ events=d.events||[]; refresh(); })['catch'](function(){});
   var es=new EventSource('/api/live');
   es.onmessage=function(m){ try{ events.push(JSON.parse(m.data)); if(events.length>max) events=events.slice(-max); refresh(); }catch(e){} };
   if(wavesrc){ wavesrc.addEventListener('input', refresh); }
-  window.addEventListener('resize', function(){ if(chart) chart.resize(); if(symchart) symchart.resize(); });
+  window.addEventListener('resize', function(){ if(chart) chart.resize(); if(symchart) symchart.resize(); if(wfchart) wfchart.resize(); });
 })();
 </script></body></html>"""
 
