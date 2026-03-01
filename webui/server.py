@@ -530,41 +530,52 @@ __NAV__
 
 <div class='card'>
   <h3 style='margin:.1rem 0 .6rem'>Recent admin audit</h3>
+  <button id='copyDiag'>Copy diagnostics snapshot</button>
   <pre id='audit'>loading...</pre>
 </div>
 <script>
 (function(){
+  function g(o,k,d){ return (o && o[k]!==undefined && o[k]!==null) ? o[k] : d; }
   function setv(id,v){ document.getElementById(id).value = (v==null?'':v); }
   function num(id){ var x=parseFloat(document.getElementById(id).value); return isNaN(x)?null:x; }
+  var lastPolicy=null, lastReceiver=null, lastStorage=null, lastAudit=[];
+
   function load(){
-    fetch('/api/admin/storage_policy').then(r=>r.json()).then(p=>{
-      setv('localDays', p.localRetentionDays); setv('maxMb', p.maxLocalMb);
-      setv('warnPct', p.thresholds?.warnDiskPercent); setv('critPct', p.thresholds?.criticalDiskPercent); setv('emerPct', p.thresholds?.emergencyDiskPercent);
-      setv('critDays', p.criticalPolicy?.criticalRetentionDays); setv('emerHours', p.criticalPolicy?.emergencyRetentionHours);
-    });
+    fetch('/api/admin/storage_policy').then(function(r){return r.json();}).then(function(p){
+      lastPolicy = p || {};
+      var th = g(p,'thresholds',{}), cp = g(p,'criticalPolicy',{});
+      setv('localDays', g(p,'localRetentionDays','')); setv('maxMb', g(p,'maxLocalMb',''));
+      setv('warnPct', g(th,'warnDiskPercent','')); setv('critPct', g(th,'criticalDiskPercent','')); setv('emerPct', g(th,'emergencyDiskPercent',''));
+      setv('critDays', g(cp,'criticalRetentionDays','')); setv('emerHours', g(cp,'emergencyRetentionHours',''));
+    }).catch(function(){ document.getElementById('msg').textContent=' failed to load policy'; });
   }
   function pollStatus(){
-    fetch('/api/receiver_status').then(r=>r.json()).then(d=>{
+    fetch('/api/receiver_status').then(function(r){return r.json();}).then(function(d){
+      lastReceiver = d || {};
       var el=document.getElementById('rxState');
-      el.textContent=d.state||'unknown';
-      el.className=(d.state==='online')?'good':((d.state==='stale')?'warn':'bad');
-    }).catch(()=>{});
-    fetch('/api/storage_status').then(r=>r.json()).then(d=>{
-      document.getElementById('stMode').textContent=d.mode||'n/a';
-      document.getElementById('stUsed').textContent=(d.disk_used_percent!=null?d.disk_used_percent:'-');
-    }).catch(()=>{});
+      var st=g(d,'state','unknown');
+      el.textContent=st;
+      el.className=(st==='online')?'good':((st==='stale')?'warn':'bad');
+    }).catch(function(){});
+    fetch('/api/storage_status').then(function(r){return r.json();}).then(function(d){
+      lastStorage = d || {};
+      document.getElementById('stMode').textContent=g(d,'mode','n/a');
+      document.getElementById('stUsed').textContent=(g(d,'disk_used_percent',null)!=null?g(d,'disk_used_percent','-'):'-');
+    }).catch(function(){});
   }
   function loadAudit(){
-    fetch('/api/admin/audit_recent?limit=20').then(r=>r.json()).then(d=>{
-      var rows=d.events||[];
+    fetch('/api/admin/audit_recent?limit=20').then(function(r){return r.json();}).then(function(d){
+      var rows=g(d,'events',[])||[];
+      lastAudit = rows;
       document.getElementById('audit').textContent = rows.map(function(e){
-        return (e.ts||'')+'  '+(e.ok?'OK ':'ERR')+'  '+(e.action||'')+'  '+JSON.stringify(e.details||{});
-      }).join('\n') || 'no audit events yet';
+        return (g(e,'ts',''))+'  '+(g(e,'ok',false)?'OK ':'ERR')+'  '+(g(e,'action',''))+'  '+JSON.stringify(g(e,'details',{}));
+      }).join('\\n') || 'no audit events yet';
     }).catch(function(){ document.getElementById('audit').textContent='failed to load audit'; });
   }
   function receiverAction(action){
     fetch('/api/admin/receiver_action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:action})})
-      .then(r=>r.json()).then(d=>{ document.getElementById('msg').textContent = d.ok ? (' receiver '+action+' ok') : (' receiver '+action+' failed'); loadAudit(); pollStatus(); });
+      .then(function(r){return r.json();})
+      .then(function(d){ document.getElementById('msg').textContent = d.ok ? (' receiver '+action+' ok') : (' receiver '+action+' failed'); loadAudit(); pollStatus(); });
   }
   document.getElementById('rxStart').addEventListener('click', function(){ receiverAction('start'); });
   document.getElementById('rxStop').addEventListener('click', function(){ receiverAction('stop'); });
@@ -577,8 +588,27 @@ __NAV__
       thresholds:{warnDiskPercent:num('warnPct'),criticalDiskPercent:num('critPct'),emergencyDiskPercent:num('emerPct')},
       criticalPolicy:{criticalRetentionDays:num('critDays'),emergencyRetentionHours:num('emerHours')}
     };
-    fetch('/api/admin/storage_policy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(r=>r.json()).then(d=>{ document.getElementById('msg').textContent = d.ok ? ' saved' : ' failed'; });
+    fetch('/api/admin/storage_policy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+      .then(function(r){return r.json();})
+      .then(function(d){ document.getElementById('msg').textContent = d.ok ? ' saved' : ' failed'; load(); loadAudit(); pollStatus(); });
   });
+
+  document.getElementById('copyDiag').addEventListener('click', function(){
+    var snap = {
+      ts: new Date().toISOString(),
+      receiver: lastReceiver || {},
+      storage: lastStorage || {},
+      policy: lastPolicy || {},
+      audit_recent: lastAudit || []
+    };
+    var txt = JSON.stringify(snap, null, 2);
+    navigator.clipboard.writeText(txt).then(function(){
+      document.getElementById('msg').textContent=' diagnostics copied';
+    }).catch(function(){
+      document.getElementById('msg').textContent=' copy failed';
+    });
+  });
+
   load();
   pollStatus(); setInterval(pollStatus,5000);
   loadAudit(); setInterval(loadAudit,12000);
