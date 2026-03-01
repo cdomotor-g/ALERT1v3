@@ -25,7 +25,67 @@ def _build_stamp():
     return sha[:12]
 
 BUILD_STAMP = _build_stamp()
-NAV_HTML = f"<div class='card' style='padding:.45rem .8rem'><strong>Navigation:</strong> <a href='/'>Dashboard</a> · <a href='/events'>Events</a> · <a href='/radio'>Radio</a> · <a href='/trends'>Trends</a> · <a href='/admin'>Admin</a> · <a href='/about'>About</a><span style='float:right;color:#93a6b8'>build {BUILD_STAMP}</span></div>"
+NAV_HTML = f"""
+<style>
+:root{{--sidebar-w:240px;--sidebar-w-c:72px;}}
+.fw-shell{{display:flex;gap:0;}}
+.fw-sidebar{{position:fixed;left:0;top:0;bottom:0;width:var(--sidebar-w);background:#0d131a;border-right:1px solid #243243;padding:.75rem .55rem;z-index:120;transition:width .18s ease;overflow:hidden;}}
+.fw-sidebar.collapsed{{width:var(--sidebar-w-c);}}
+.fw-brand{{display:flex;align-items:center;justify-content:space-between;color:#cfe2f5;font-weight:700;padding:.35rem .4rem .65rem .4rem;}}
+.fw-build{{font-size:.78rem;color:#8ea6bf;}}
+.fw-nav a{{display:flex;align-items:center;gap:.55rem;color:#d7e5f3;text-decoration:none;padding:.55rem .55rem;border-radius:8px;margin:.15rem 0;}}
+.fw-nav a:hover{{background:#15212d;}}
+.fw-nav a.active{{background:#1e2f40;color:#8fd1ff;}}
+.fw-ico{{width:1.15rem;display:inline-flex;justify-content:center;}}
+.fw-label{{white-space:nowrap;}}
+.fw-sidebar.collapsed .fw-label{{display:none;}}
+.fw-toggle{{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:6px;padding:.2rem .5rem;cursor:pointer;}}
+.fw-mobilebar{{display:none;position:sticky;top:0;z-index:110;background:#0f141a;border-bottom:1px solid #243243;padding:.45rem .6rem;align-items:center;gap:.6rem;}}
+.fw-main{{margin-left:var(--sidebar-w);width:calc(100% - var(--sidebar-w));transition:margin-left .18s ease,width .18s ease;}}
+.fw-main.nav-collapsed{{margin-left:var(--sidebar-w-c);width:calc(100% - var(--sidebar-w-c));}}
+@media (max-width: 860px){{
+  .fw-mobilebar{{display:flex;}}
+  .fw-sidebar{{transform:translateX(-100%);width:var(--sidebar-w);}}
+  .fw-sidebar.open{{transform:translateX(0);}}
+  .fw-main,.fw-main.nav-collapsed{{margin-left:0;width:100%;}}
+}}
+</style>
+<div class='fw-mobilebar'><button class='fw-toggle' id='fwMobileToggle'>☰</button><strong>FW-LAB</strong><span class='fw-build'>build {BUILD_STAMP}</span></div>
+<div class='fw-shell'>
+  <aside class='fw-sidebar' id='fwSidebar'>
+    <div class='fw-brand'><span>FW-LAB</span><button class='fw-toggle' id='fwCollapseBtn'>≡</button></div>
+    <div class='fw-build' style='padding:0 .45rem .4rem'>build {BUILD_STAMP}</div>
+    <nav class='fw-nav'>
+      <a href='/'><span class='fw-ico'>🏠</span><span class='fw-label'>Dashboard</span></a>
+      <a href='/events'><span class='fw-ico'>📋</span><span class='fw-label'>Events</span></a>
+      <a href='/radio'><span class='fw-ico'>📡</span><span class='fw-label'>Radio</span></a>
+      <a href='/trends'><span class='fw-ico'>📈</span><span class='fw-label'>Trends</span></a>
+      <a href='/admin'><span class='fw-ico'>🛠️</span><span class='fw-label'>Admin</span></a>
+      <a href='/about'><span class='fw-ico'>ℹ️</span><span class='fw-label'>About</span></a>
+    </nav>
+  </aside>
+</div>
+<script>
+(function(){{
+  var sb=document.getElementById('fwSidebar');
+  var collapseBtn=document.getElementById('fwCollapseBtn');
+  var mBtn=document.getElementById('fwMobileToggle');
+  var path=window.location.pathname||'/';
+  document.querySelectorAll('.fw-nav a').forEach(function(a){{ if(a.getAttribute('href')===path) a.classList.add('active'); }});
+  function applyMain(){{
+    var page=document.querySelector('.page')||document.querySelector('.wrap');
+    if(!page) return;
+    page.classList.add('fw-main');
+    if(sb.classList.contains('collapsed')) page.classList.add('nav-collapsed'); else page.classList.remove('nav-collapsed');
+  }}
+  var collapsed=localStorage.getItem('fw_sidebar_collapsed')==='1';
+  if(collapsed) sb.classList.add('collapsed');
+  applyMain();
+  if(collapseBtn) collapseBtn.onclick=function(){{ sb.classList.toggle('collapsed'); localStorage.setItem('fw_sidebar_collapsed', sb.classList.contains('collapsed')?'1':'0'); applyMain(); }};
+  if(mBtn) mBtn.onclick=function(){{ sb.classList.toggle('open'); }};
+}})();
+</script>
+"""
 
 HTML = """<!doctype html><html><head><meta charset='utf-8'><title>FW-LAB Dashboard</title>
 <style>
