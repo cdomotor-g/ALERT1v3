@@ -85,7 +85,7 @@ h2{{font-weight:650;letter-spacing:.2px;}}
       <a href='/radio'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 12h3m12 0h3'/><circle cx='12' cy='12' r='2.5'/><path d='M6.5 8.5a8 8 0 0 1 0 7M17.5 8.5a8 8 0 0 1 0 7'/></svg></span><span class='fw-label'>Radio</span></a>
       <a href='/trends'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 19h16'/><path d='m6 15 4-4 3 2 5-6'/><path d='m18 7 0 3h-3'/></svg></span><span class='fw-label'>Trends</span></a>
       <a href='/admin'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='3'/><path d='M19.4 15a1 1 0 0 0 .2 1.1l.1.1a2 2 0 0 1-2.8 2.8l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V20a2 2 0 0 1-4 0v-.2a1 1 0 0 0-.6-.9 1 1 0 0 0-1.1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H4a2 2 0 0 1 0-4h.2a1 1 0 0 0 .9-.6 1 1 0 0 0-.2-1.1l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1 1 0 0 0 1.1.2h0a1 1 0 0 0 .6-.9V4a2 2 0 0 1 4 0v.2a1 1 0 0 0 .6.9h0a1 1 0 0 0 1.1-.2l.1-.1a2 2 0 0 1 2.8 2.8l-.1.1a1 1 0 0 0-.2 1.1v0a1 1 0 0 0 .9.6H20a2 2 0 0 1 0 4h-.2a1 1 0 0 0-.9.6z'/></svg></span><span class='fw-label'>Admin</span></a>
-      <a href='/forensics'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 5h16v14H4z'/><path d='M8 9h8M8 12h8M8 15h5'/></svg></span><span class='fw-label'>Forensics</span></a>
+      <a href='/forensics'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='6.5'/><path d='M20 20l-4.2-4.2'/><path d='M11 8.5v5M8.5 11h5'/></svg></span><span class='fw-label'>Forensics</span></a>
       <a href='/about'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M12 11v5'/><circle cx='12' cy='8' r='1'/></svg></span><span class='fw-label'>About</span></a>
     </nav>
   </aside>
@@ -968,11 +968,8 @@ __NAV__
   </ul>
 </div>
 <div class='grid'>
-  <div class='card'><strong>Flowgraph summary</strong><pre id='summary'>loading...</pre></div>
-  <div class='card'><strong>Block inventory</strong><pre id='blocks'>loading...</pre></div>
-</div>
-<div class='card'><strong>Connections (src -> dst)</strong><pre id='conns'>loading...</pre></div>
-<div class='card'><strong>Pipeline narrative (for SME review)</strong><pre id='narrative'>1) RTL-SDR source (complex IQ)
+  <div class='card'><strong>Flowgraph summary</strong><pre id='summary'>__FG_SUMMARY__</pre></div>
+  <div class='card'><strong>Pipeline narrative (for SME review)</strong><pre id='narrative'>1) RTL-SDR source (complex IQ)
    - center frequency target and RF gain/squelch are the first-order sensitivity controls.
 
 2) Channel conditioning
@@ -991,6 +988,9 @@ __NAV__
 
 6) Quality and operations outputs
    - per-event quality/error taxonomy + logs/MQTT/web views for operator feedback and tuning.</pre></div>
+</div>
+<div class='card'><strong>Block inventory</strong><pre id='blocks'>__FG_BLOCKS__</pre></div>
+<div class='card'><strong>Connections (src -> dst)</strong><pre id='conns'>__FG_CONNS__</pre></div>
 <div class='card'><strong>Decode checklist</strong><pre id='check'>1) Confirm symbol timing and slicer behavior under real RF conditions.
 2) Validate 10-bit framing assumptions (start/stop polarity, bit order).
 3) Validate fixed pattern / CRC expectations against known-good captures.
@@ -1001,27 +1001,6 @@ __NAV__
 (function(){
   function g(o,k,d){ return (o&&o[k]!==undefined&&o[k]!==null)?o[k]:d; }
   var exportBtn=document.getElementById('exportBundle'), exportMsg=document.getElementById('exportMsg');
-
-  fetch('/api/flowgraph_doc').then(function(r){return r.json();}).then(function(d){
-    var s=[];
-    s.push('file: '+g(d,'path','n/a'));
-    s.push('blocks: '+g(d,'block_count',0));
-    s.push('connections: '+g(d,'connection_count',0));
-    s.push('generated: '+g(d,'generated_ts',''));
-    document.getElementById('summary').textContent = s.join('\n');
-
-    var blocks=(g(d,'blocks',[])||[]).map(function(b){ return (b.name||'?')+'  ['+(b.id||'?')+']'; });
-    document.getElementById('blocks').textContent = blocks.join('\n') || 'none';
-
-    var conns=(g(d,'connections',[])||[]).map(function(c){
-      return g(c,'src_block','?')+':'+g(c,'src_port','?')+' -> '+g(c,'dst_block','?')+':'+g(c,'dst_port','?');
-    });
-    document.getElementById('conns').textContent = conns.join('\n') || 'none';
-  }).catch(function(e){
-    document.getElementById('summary').textContent='failed to load flowgraph doc';
-    document.getElementById('blocks').textContent=String(e);
-    document.getElementById('conns').textContent='';
-  });
 
   if(exportBtn){
     exportBtn.addEventListener('click', function(){
@@ -1648,7 +1627,20 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if parsed.path == '/forensics':
-            payload = FORENSICS_HTML.replace('__NAV__', NAV_HTML).encode('utf-8')
+            fg = _flowgraph_doc()
+            summary_lines = [
+                f"file: {fg.get('path','n/a')}",
+                f"blocks: {fg.get('block_count',0)}",
+                f"connections: {fg.get('connection_count',0)}",
+                f"generated: {fg.get('generated_ts','')}",
+            ]
+            blocks_lines = [f"{b.get('name','?')}  [{b.get('id','?')}]" for b in (fg.get('blocks') or [])]
+            conns_lines = [f"{c.get('src_block','?')}:{c.get('src_port','?')} -> {c.get('dst_block','?')}:{c.get('dst_port','?')}" for c in (fg.get('connections') or [])]
+            html_body = FORENSICS_HTML.replace('__NAV__', NAV_HTML)
+            html_body = html_body.replace('__FG_SUMMARY__', html.escape('\n'.join(summary_lines)))
+            html_body = html_body.replace('__FG_BLOCKS__', html.escape('\n'.join(blocks_lines) if blocks_lines else 'none'))
+            html_body = html_body.replace('__FG_CONNS__', html.escape('\n'.join(conns_lines) if conns_lines else 'none'))
+            payload = html_body.encode('utf-8')
             self.send_response(HTTPStatus.OK)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
             self.send_header('Content-Length', str(len(payload)))
