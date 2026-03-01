@@ -499,11 +499,25 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
 </script></body></html>"""
 
 ADMIN_HTML = """<!doctype html><html><head><meta charset='utf-8'><title>FW-LAB Admin</title>
-<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}a{color:#7fc8ff}.row{margin:.35rem 0}</style></head>
+<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button,select{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}a{color:#7fc8ff}.row{margin:.35rem 0}.grid{display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:.6rem}.good{color:#6dd17c}.warn{color:#f2c14e}.bad{color:#f36f6f}pre{white-space:pre-wrap;max-height:220px;overflow:auto;background:#0f141a;border:1px solid #2a3948;padding:.55rem;border-radius:6px}@media(max-width:860px){.grid{grid-template-columns:1fr}input,button,select{min-height:40px;font-size:16px}}</style></head>
 <body><div class='page'>
 <h2 style='margin-top:0'>FW-LAB Admin</h2>
 __NAV__
 <div class='card'>
+  <div class='grid'>
+    <div>Receiver: <strong id='rxState'>unknown</strong></div>
+    <div>Storage mode: <strong id='stMode'>n/a</strong></div>
+    <div>Disk used: <strong id='stUsed'>-</strong>%</div>
+  </div>
+  <div class='row' style='margin-top:.6rem'>
+    <button id='rxStart'>Start receiver</button>
+    <button id='rxStop'>Stop receiver</button>
+    <button id='rxRestart'>Restart receiver</button>
+  </div>
+</div>
+
+<div class='card'>
+  <h3 style='margin:.1rem 0 .6rem'>Storage policy</h3>
   <div class='row'>Local retention days: <input id='localDays' type='number' step='0.1'></div>
   <div class='row'>Max local MB: <input id='maxMb' type='number' step='1'></div>
   <div class='row'>Warn disk %: <input id='warnPct' type='number' step='0.1'></div>
@@ -512,6 +526,11 @@ __NAV__
   <div class='row'>Critical retention days: <input id='critDays' type='number' step='0.1'></div>
   <div class='row'>Emergency retention hours: <input id='emerHours' type='number' step='1'></div>
   <button id='save'>Save policy</button> <span id='msg'></span>
+</div>
+
+<div class='card'>
+  <h3 style='margin:.1rem 0 .6rem'>Recent admin audit</h3>
+  <pre id='audit'>loading...</pre>
 </div>
 <script>
 (function(){
@@ -524,6 +543,33 @@ __NAV__
       setv('critDays', p.criticalPolicy?.criticalRetentionDays); setv('emerHours', p.criticalPolicy?.emergencyRetentionHours);
     });
   }
+  function pollStatus(){
+    fetch('/api/receiver_status').then(r=>r.json()).then(d=>{
+      var el=document.getElementById('rxState');
+      el.textContent=d.state||'unknown';
+      el.className=(d.state==='online')?'good':((d.state==='stale')?'warn':'bad');
+    }).catch(()=>{});
+    fetch('/api/storage_status').then(r=>r.json()).then(d=>{
+      document.getElementById('stMode').textContent=d.mode||'n/a';
+      document.getElementById('stUsed').textContent=(d.disk_used_percent!=null?d.disk_used_percent:'-');
+    }).catch(()=>{});
+  }
+  function loadAudit(){
+    fetch('/api/admin/audit_recent?limit=20').then(r=>r.json()).then(d=>{
+      var rows=d.events||[];
+      document.getElementById('audit').textContent = rows.map(function(e){
+        return (e.ts||'')+'  '+(e.ok?'OK ':'ERR')+'  '+(e.action||'')+'  '+JSON.stringify(e.details||{});
+      }).join('\n') || 'no audit events yet';
+    }).catch(function(){ document.getElementById('audit').textContent='failed to load audit'; });
+  }
+  function receiverAction(action){
+    fetch('/api/admin/receiver_action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:action})})
+      .then(r=>r.json()).then(d=>{ document.getElementById('msg').textContent = d.ok ? (' receiver '+action+' ok') : (' receiver '+action+' failed'); loadAudit(); pollStatus(); });
+  }
+  document.getElementById('rxStart').addEventListener('click', function(){ receiverAction('start'); });
+  document.getElementById('rxStop').addEventListener('click', function(){ receiverAction('stop'); });
+  document.getElementById('rxRestart').addEventListener('click', function(){ receiverAction('restart'); });
+
   document.getElementById('save').addEventListener('click', function(){
     var body={
       localRetentionDays:num('localDays'),
@@ -534,6 +580,8 @@ __NAV__
     fetch('/api/admin/storage_policy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(r=>r.json()).then(d=>{ document.getElementById('msg').textContent = d.ok ? ' saved' : ' failed'; });
   });
   load();
+  pollStatus(); setInterval(pollStatus,5000);
+  loadAudit(); setInterval(loadAudit,12000);
 })();
 </script></div></body></html>"""
 
