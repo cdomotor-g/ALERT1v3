@@ -53,8 +53,14 @@ NAV_HTML = f"""
   input,select,button{{min-height:40px;font-size:16px;}}
   .grid{{grid-template-columns:1fr !important;gap:.5rem !important;}}
   .row{{flex-direction:column !important;}}
-  .table-wrap{{max-height:none !important;overflow:auto;-webkit-overflow-scrolling:touch;}}
+  .sticky-wrap{{position:static !important;}}
+  #table-controls-card{{line-height:2.0;}}
+  #table-controls-card input,#table-controls-card select,#table-controls-card button{{display:inline-block;margin:.15rem 0;max-width:100%;}}
+  .table-wrap{{max-height:none !important;overflow:auto;-webkit-overflow-scrolling:touch;border-radius:10px;}}
   th,td{{padding:.55rem .45rem !important;white-space:nowrap;}}
+  /* Events table mobile simplification */
+  #rows td:nth-child(3), #rows td:nth-child(4), #rows td:nth-child(5),
+  table thead th:nth-child(3), table thead th:nth-child(4), table thead th:nth-child(5){{display:none;}}
   pre{{max-height:42vh !important;}}
 }}
 </style>
