@@ -8,24 +8,33 @@ Current goals:
 - Add MQTT integration for downstream systems
 - Add a decoupled web UI (without hard dependency on bokehgui)
 
-## Current State (v0.2 line)
+## Current State
 
 - RF receive via RTL-SDR (`osmosdr`)
-- FSK-like demodulation chain and symbol sync
-- Custom embedded protocol decoder block
-- GUI with tuning controls, waterfalls, time/raster views
-- CSV logger for decoded message/debug payloads
+- FSK-like demodulation chain + symbol timing recovery
+- Hardened embedded protocol decoder with structured status/error taxonomy
+- JSONL event logging + CSV data logging
+- MQTT event publisher integration
+- Web UI suite (`/`, `/events`, `/radio`, `/trends`, `/admin`, `/forensics`, `/about`)
+- Systemd-oriented unattended operation on Raspberry Pi
 
-## Quick Start (current flowgraph)
+## Quick Start
 
-1. Open `src/ALERT1v3.grc` in GNU Radio Companion
-2. Confirm SDR and audio devices are available
+### A) Recommended (service mode on Pi)
+
+1. Install/start services (see `docs/PACKAGING.md`)
+2. Start stack with helper:
+   - `./tools/fwlabctl start`
+3. Open Web UI (`/`, `/events`, `/radio`)
+4. Check health on `/admin` and `/radio`
+
+### B) GNU Radio Companion (interactive)
+
+1. Open `src/ALERT1v3.grc`
+2. Confirm SDR and audio devices
 3. Start flowgraph
-4. Set:
-   - Center frequency
-   - RF gain
-   - RF squelch
-5. Monitor decoded output and logs
+4. Set center frequency / RF gain / RF squelch
+5. Monitor decoder output + logs
 
 ## Web UI Pages
 
@@ -39,14 +48,16 @@ Current goals:
 
 ### Browser audio monitor
 
-`/radio` provides an in-browser audio monitor over the same Web UI port (`8088`) via:
-- `/api/audio_aac` (best compatibility)
+`/radio` provides in-browser audio monitoring over the same Web UI port (`8088`) via:
+- `/api/audio_aac` (best compatibility; preferred on iOS)
 - `/api/audio_opus`
 
-Audio controls are intentionally platform-agnostic:
+Audio controls:
 - codec selector (`auto`, `aac`, `opus`)
 - gain control
 - native HTML audio controls (`playsinline`)
+
+Tip: if mobile appears blocked, use **Load Audio** then press play on the native control.
 
 ## Documentation
 
@@ -74,6 +85,13 @@ Audio controls are intentionally platform-agnostic:
 - Roadmap and milestones: `docs/ROADMAP.md`
 - Versioning + naming policy: `docs/VERSIONING.md`
 - Change log: `docs/CHANGELOG.md`
+
+## Forensics / SME verification
+
+Use `/forensics` when you need non-daily deep diagnostics:
+- flowgraph block inventory + connectivity extracted from `.grc`
+- modulation/decoding narrative and checklist
+- exportable SME bundle (`/api/forensics_bundle`) with flowgraph + config + recent events
 
 ## Design Direction
 
