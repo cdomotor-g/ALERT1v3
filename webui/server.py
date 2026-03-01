@@ -6,6 +6,7 @@ import time
 import shutil
 import subprocess
 import html
+import os
 from datetime import datetime
 from collections import deque
 from http import HTTPStatus
@@ -13,7 +14,18 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-NAV_HTML = "<div class='card' style='padding:.45rem .8rem'><strong>Navigation:</strong> <a href='/'>Dashboard</a> · <a href='/events'>Events</a> · <a href='/radio'>Radio</a> · <a href='/trends'>Trends</a> · <a href='/admin'>Admin</a> · <a href='/about'>About</a></div>"
+def _build_stamp():
+    sha = os.environ.get('FWLAB_BUILD', '').strip()
+    if not sha:
+        try:
+            cp = subprocess.run(['git', 'rev-parse', '--short', 'HEAD'], capture_output=True, text=True, check=False)
+            sha = (cp.stdout or '').strip() or 'dev'
+        except Exception:
+            sha = 'dev'
+    return sha[:12]
+
+BUILD_STAMP = _build_stamp()
+NAV_HTML = f"<div class='card' style='padding:.45rem .8rem'><strong>Navigation:</strong> <a href='/'>Dashboard</a> · <a href='/events'>Events</a> · <a href='/radio'>Radio</a> · <a href='/trends'>Trends</a> · <a href='/admin'>Admin</a> · <a href='/about'>About</a><span style='float:right;color:#93a6b8'>build {BUILD_STAMP}</span></div>"
 
 HTML = """<!doctype html><html><head><meta charset='utf-8'><title>FW-LAB Dashboard</title>
 <style>
