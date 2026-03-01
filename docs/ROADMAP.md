@@ -57,6 +57,16 @@
 - [ ] Add decoder extension plan (feature flags or parallel decode path)
 - [ ] Add test captures/replay cases for ALERT2
 
+## Phase 7.1 — IFLOWS / Enhanced IFLOWS (EIF) planning (no implementation yet)
+
+- [ ] Add EIF protocol appendix to docs (layout, marker bits, CRC-6 polynomial)
+- [ ] Define dual-format compatibility plan: ALERT Binary + EIF coexistence in decoder pipeline
+- [ ] Specify EIF decode contract fields in `alert.decode.v1` (format family, crc_ok, raw bytes)
+- [ ] Define configurable CRC-6 parameters for field validation (`init`, reflection, xor, bit-order)
+- [ ] Capture at least one known-good real EIF sample to lock CRC behavior for this network
+- [ ] Add replay fixtures + acceptance tests for EIF once sample truth data is available
+- [ ] Decide rollout strategy (feature flag / passive detect / strict mode) and operator controls
+
 ## Phase 8 — Operational completion targets
 
 - [x] Finish Raspberry Pi host monitoring acceptance (breach surfacing + soak summary + helper runner)
