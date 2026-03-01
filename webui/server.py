@@ -28,7 +28,7 @@ def _build_stamp():
 BUILD_STAMP = _build_stamp()
 NAV_HTML = f"""
 <style>
-:root{{--sidebar-w:240px;--sidebar-w-c:72px;}}
+:root{{--sidebar-w:212px;--sidebar-w-c:64px;}}
 .fw-shell{{display:flex;gap:0;}}
 .fw-sidebar{{position:fixed;left:0;top:0;bottom:0;width:var(--sidebar-w);background:#0d131a;border-right:1px solid #243243;padding:.75rem .55rem;z-index:120;transition:width .18s ease;overflow:hidden;}}
 .fw-sidebar.collapsed{{width:var(--sidebar-w-c);}}
@@ -42,7 +42,7 @@ NAV_HTML = f"""
 .fw-sidebar.collapsed .fw-label{{display:none;}}
 .fw-toggle{{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:6px;padding:.2rem .5rem;cursor:pointer;}}
 .fw-mobilebar{{display:none;position:sticky;top:0;z-index:110;background:#0f141a;border-bottom:1px solid #243243;padding:.45rem .6rem;align-items:center;gap:.6rem;}}
-.fw-main{{margin-left:var(--sidebar-w);width:calc(100% - var(--sidebar-w));transition:margin-left .18s ease,width .18s ease;}}
+.fw-main{{margin-left:var(--sidebar-w);width:calc(100% - var(--sidebar-w));padding-left:1rem;padding-right:.6rem;transition:margin-left .18s ease,width .18s ease;box-sizing:border-box;}}
 .fw-main.nav-collapsed{{margin-left:var(--sidebar-w-c);width:calc(100% - var(--sidebar-w-c));}}
 /* visual consistency tokens applied across pages */
 body{{color:#d7e5f3;letter-spacing:.1px;}}
@@ -57,7 +57,7 @@ h2{{font-weight:650;letter-spacing:.2px;}}
   .fw-mobilebar{{display:flex;}}
   .fw-sidebar{{transform:translateX(-100%);width:var(--sidebar-w);}}
   .fw-sidebar.open{{transform:translateX(0);}}
-  .fw-main,.fw-main.nav-collapsed{{margin-left:0;width:100%;}}
+  .fw-main,.fw-main.nav-collapsed{{margin-left:0;width:100%;padding-left:.6rem;padding-right:.6rem;}}
   .card{{padding:.95rem !important;}}
   input,select,button{{min-height:40px;font-size:16px;}}
   .grid{{grid-template-columns:1fr !important;gap:.5rem !important;}}
