@@ -79,12 +79,12 @@ h2{{font-weight:650;letter-spacing:.2px;}}
     <div class='fw-brand'><span>FW-LAB</span><button class='fw-toggle' id='fwCollapseBtn'>≡</button></div>
     <div class='fw-build' style='padding:0 .45rem .4rem'>build {BUILD_STAMP}</div>
     <nav class='fw-nav'>
-      <a href='/'><span class='fw-ico'>🏠</span><span class='fw-label'>Dashboard</span></a>
-      <a href='/events'><span class='fw-ico'>📋</span><span class='fw-label'>Events</span></a>
-      <a href='/radio'><span class='fw-ico'>📡</span><span class='fw-label'>Radio</span></a>
-      <a href='/trends'><span class='fw-ico'>📈</span><span class='fw-label'>Trends</span></a>
-      <a href='/admin'><span class='fw-ico'>🛠️</span><span class='fw-label'>Admin</span></a>
-      <a href='/about'><span class='fw-ico'>ℹ️</span><span class='fw-label'>About</span></a>
+      <a href='/'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 10.5 12 3l9 7.5'/><path d='M5 9.5V21h14V9.5'/></svg></span><span class='fw-label'>Dashboard</span></a>
+      <a href='/events'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='4' width='16' height='16' rx='2'/><path d='M8 9h8M8 13h8M8 17h5'/></svg></span><span class='fw-label'>Events</span></a>
+      <a href='/radio'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 12h3m12 0h3'/><circle cx='12' cy='12' r='2.5'/><path d='M6.5 8.5a8 8 0 0 1 0 7M17.5 8.5a8 8 0 0 1 0 7'/></svg></span><span class='fw-label'>Radio</span></a>
+      <a href='/trends'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 19h16'/><path d='m6 15 4-4 3 2 5-6'/><path d='m18 7 0 3h-3'/></svg></span><span class='fw-label'>Trends</span></a>
+      <a href='/admin'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='3'/><path d='M19.4 15a1 1 0 0 0 .2 1.1l.1.1a2 2 0 0 1-2.8 2.8l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V20a2 2 0 0 1-4 0v-.2a1 1 0 0 0-.6-.9 1 1 0 0 0-1.1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H4a2 2 0 0 1 0-4h.2a1 1 0 0 0 .9-.6 1 1 0 0 0-.2-1.1l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1 1 0 0 0 1.1.2h0a1 1 0 0 0 .6-.9V4a2 2 0 0 1 4 0v.2a1 1 0 0 0 .6.9h0a1 1 0 0 0 1.1-.2l.1-.1a2 2 0 0 1 2.8 2.8l-.1.1a1 1 0 0 0-.2 1.1v0a1 1 0 0 0 .9.6H20a2 2 0 0 1 0 4h-.2a1 1 0 0 0-.9.6z'/></svg></span><span class='fw-label'>Admin</span></a>
+      <a href='/about'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M12 11v5'/><circle cx='12' cy='8' r='1'/></svg></span><span class='fw-label'>About</span></a>
     </nav>
   </aside>
 </div>
