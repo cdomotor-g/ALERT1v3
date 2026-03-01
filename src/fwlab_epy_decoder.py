@@ -142,7 +142,7 @@ class alert_protocol_decoder(gr.basic_block):
         self._window_decode = 0
         self._window_errors = 0
 
-    def _assess_quality(self, bits, format_id):
+    def _assess_quality(self, bits, format_id, symbol_samples=None):
         errors = []
         score = 1.0
 
@@ -161,14 +161,39 @@ class alert_protocol_decoder(gr.basic_block):
             errors.append({"code": "signal.bit_balance_extreme", "message": f"ones_ratio={ratio:.3f}"})
             score -= 0.25
 
+        snr_db = None
+        eye_opening = None
+        if symbol_samples and len(symbol_samples) == len(bits):
+            try:
+                vals = np.array(symbol_samples, dtype=np.float32)
+                bb = np.array(bits, dtype=np.int8)
+                v1 = vals[bb == 1]
+                v0 = vals[bb == 0]
+                if len(v1) >= 4 and len(v0) >= 4:
+                    m1 = float(np.mean(v1))
+                    m0 = float(np.mean(v0))
+                    eye_opening = abs(m1 - m0)
+                    sigma = float(np.sqrt((np.var(v1) + np.var(v0)) / 2.0)) + 1e-6
+                    snr_lin = ((m1 - m0) ** 2) / (sigma ** 2)
+                    snr_db = 10.0 * np.log10(max(snr_lin, 1e-6))
+                    if snr_db < 3.0:
+                        errors.append({"code": "signal.low_snr_proxy", "message": f"snr_db_proxy={snr_db:.2f}"})
+                        score -= 0.2
+            except Exception:
+                pass
+
         score = max(0.0, min(1.0, score))
         confidence = "high" if score >= 0.85 else ("medium" if score >= 0.60 else "low")
 
-        return {
+        out = {
             "score": round(score, 3),
             "confidence": confidence,
             "ones_ratio": round(ratio, 3),
-        }, errors
+            "snr_db_proxy": round(float(snr_db), 3) if snr_db is not None else None,
+            "eye_opening": round(float(eye_opening), 4) if eye_opening is not None else None,
+            "snr_available": bool(snr_db is not None),
+        }
+        return out, errors
 
     def _bits_to_int_lsb(self, bits_lsb_first):
         v = 0
@@ -235,7 +260,7 @@ class alert_protocol_decoder(gr.basic_block):
             msg_int = (msg_int << 1) | np.uint32(int(b))
         raw_hex = f"{int(msg_int):08X}"
 
-        quality, q_errors = self._assess_quality(bits, format_id)
+        quality, q_errors = self._assess_quality(bits, format_id, symbol_samples=symbol_samples)
         errors.extend(q_errors)
 
         hard_reject = False

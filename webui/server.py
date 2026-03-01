@@ -600,7 +600,7 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
 </style>
 <script src='https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js'></script></head><body><div class='wrap'>
   <div class='card'><strong>Navigation:</strong> <a href='/' style='color:#7fc8ff'>Dashboard</a> · <a href='/events' style='color:#7fc8ff'>Events</a> · <a href='/radio' style='color:#7fc8ff'>Radio</a> · <a href='/trends' style='color:#7fc8ff'>Trends</a> · <a href='/admin' style='color:#7fc8ff'>Admin</a></div>
-  <div class='card'><strong>Radio Live</strong> <span class='muted'>· Real-time RF/decode health</span> · <button id='freezeBtn'>Freeze</button> <span id='freezeState' class='muted'>live</span> · <button id='audioBtn'>Load Audio</button> <span id='audioState' class='muted'>off</span> · Codec: <select id='audioCodec'><option value='auto' selected>auto</option><option value='opus'>opus</option><option value='aac'>aac</option></select><br><audio id='audioPlayer' controls playsinline preload='none' style='margin-top:.35rem;width:100%'></audio><div class='muted' style='margin-top:.25rem'>If blocked on iOS, tap play on the native control above. Test links: <a href='/api/audio_aac' target='_blank' style='color:#7fc8ff'>aac</a> · <a href='/api/audio_opus' target='_blank' style='color:#7fc8ff'>opus</a></div></div>
+  <div class='card'><strong>Radio Live</strong> <span class='muted'>· Real-time RF/decode health</span> · <button id='freezeBtn'>Freeze</button> <span id='freezeState' class='muted'>live</span> · <button id='audioBtn'>Load Audio</button> <span id='audioState' class='muted'>off</span> · Codec: <select id='audioCodec'><option value='auto' selected>auto</option><option value='opus'>opus</option><option value='aac'>aac</option></select> · Profile: <select id='audioProfile'><option value='raw' selected>raw</option><option value='chirp'>chirp-focus</option></select> · Gain <input id='audioGain' type='number' min='0.5' max='4.0' step='0.1' value='1.6' style='width:70px'><br><audio id='audioPlayer' controls playsinline preload='none' style='margin-top:.35rem;width:100%'></audio><div class='muted' style='margin-top:.25rem'>If blocked on iOS, tap play on the native control above. Test links: <a href='/api/audio_aac' target='_blank' style='color:#7fc8ff'>aac</a> · <a href='/api/audio_opus' target='_blank' style='color:#7fc8ff'>opus</a></div></div>
   <div class='row'>
     <div class='card kpi'>Receiver<br><strong id='rx'>unknown</strong></div>
     <div class='card kpi'>Events/min<br><strong id='rate'>0.0</strong></div>
@@ -621,6 +621,8 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
   var freezeBtn=document.getElementById('freezeBtn'), freezeState=document.getElementById('freezeState');
   var audioBtn=document.getElementById('audioBtn'), audioState=document.getElementById('audioState');
   var audioCodec=document.getElementById('audioCodec');
+  var audioProfile=document.getElementById('audioProfile');
+  var audioGain=document.getElementById('audioGain');
   var audioPlayer=document.getElementById('audioPlayer');
   var paused=false;
   var audioOn=false, audioEl=null;
@@ -724,9 +726,13 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
       }
 
       var codec = (audioCodec && audioCodec.value) ? audioCodec.value : 'auto';
+      var profile = (audioProfile && audioProfile.value) ? audioProfile.value : 'raw';
+      var gain = (audioGain && audioGain.value) ? Number(audioGain.value) : 1.6;
+      if(!isFinite(gain) || gain <= 0) gain = 1.6;
       var primary = (codec==='aac') ? '/api/audio_aac' : '/api/audio_opus';
       if(codec==='auto') primary = '/api/audio_aac';
-      audioEl.src = primary;
+      var sep = primary.indexOf('?')>=0 ? '&' : '?';
+      audioEl.src = primary + sep + 'profile=' + encodeURIComponent(profile) + '&gain=' + encodeURIComponent(String(gain));
       audioEl.load();
       if(audioState) audioState.textContent='ready (press play on control)';
       if(audioBtn) audioBtn.textContent='Unload Audio';
@@ -735,6 +741,8 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
 
   if(audioBtn){ audioBtn.addEventListener('click', function(){ if(audioEl && audioEl.src){ stopAudio(); } else { startAudio(); } }); }
   if(audioCodec){ audioCodec.addEventListener('change', function(){ if(audioEl && audioEl.src){ startAudio(); } }); }
+  if(audioProfile){ audioProfile.addEventListener('change', function(){ if(audioEl && audioEl.src){ startAudio(); } }); }
+  if(audioGain){ audioGain.addEventListener('change', function(){ if(audioEl && audioEl.src){ startAudio(); } }); }
 
   fetch('/api/events?limit=800').then(function(r){return r.json();}).then(function(d){ events=d.events||[]; refresh(); })['catch'](function(){});
   var es=new EventSource('/api/live');
@@ -1277,6 +1285,13 @@ class Handler(BaseHTTPRequestHandler):
 
         if parsed.path in ['/api/audio_opus', '/api/audio_aac']:
             is_aac = (parsed.path == '/api/audio_aac')
+            q = parse_qs(parsed.query)
+            profile = (q.get('profile', ['raw'])[0] or 'raw').strip().lower()
+            try:
+                gain = float((q.get('gain', ['1.6'])[0] or '1.6'))
+            except Exception:
+                gain = 1.6
+            gain = max(0.5, min(4.0, gain))
             self.send_response(HTTPStatus.OK)
             self.send_header('Content-Type', 'audio/aac' if is_aac else 'audio/ogg')
             self.send_header('Cache-Control', 'no-cache')
@@ -1289,6 +1304,14 @@ class Handler(BaseHTTPRequestHandler):
                 'ffmpeg','-nostdin','-loglevel','error',
                 '-f','s16le','-ac','1','-ar','48000','-i','pipe:0',
             ]
+            af = []
+            if profile == 'chirp':
+                # Favor narrow ALERT chirps over broadband static.
+                af += ['highpass=f=250', 'lowpass=f=2800', f'volume={gain:.2f}']
+            else:
+                af += [f'volume={gain:.2f}']
+            ff_cmd += ['-af', ','.join(af)]
+
             if is_aac:
                 ff_cmd += ['-c:a','aac','-b:a','64k','-f','adts','pipe:1']
             else:
