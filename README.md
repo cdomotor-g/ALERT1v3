@@ -34,6 +34,7 @@ Current goals:
 - `/radio` Live RF health, waveform/waterfall, and browser audio monitor
 - `/trends` Sensor trends/analytics
 - `/admin` Runtime policy/control
+- `/forensics` Deep diagnostics page (flowgraph inventory/connectivity + decode review checklist)
 - `/about` About page (renders this README + repo link)
 
 ### Browser audio monitor

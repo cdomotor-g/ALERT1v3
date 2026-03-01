@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import html
 import os
+import yaml
 from datetime import datetime
 from collections import deque
 from http import HTTPStatus
@@ -84,6 +85,7 @@ h2{{font-weight:650;letter-spacing:.2px;}}
       <a href='/radio'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 12h3m12 0h3'/><circle cx='12' cy='12' r='2.5'/><path d='M6.5 8.5a8 8 0 0 1 0 7M17.5 8.5a8 8 0 0 1 0 7'/></svg></span><span class='fw-label'>Radio</span></a>
       <a href='/trends'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 19h16'/><path d='m6 15 4-4 3 2 5-6'/><path d='m18 7 0 3h-3'/></svg></span><span class='fw-label'>Trends</span></a>
       <a href='/admin'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='3'/><path d='M19.4 15a1 1 0 0 0 .2 1.1l.1.1a2 2 0 0 1-2.8 2.8l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V20a2 2 0 0 1-4 0v-.2a1 1 0 0 0-.6-.9 1 1 0 0 0-1.1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H4a2 2 0 0 1 0-4h.2a1 1 0 0 0 .9-.6 1 1 0 0 0-.2-1.1l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1 1 0 0 0 1.1.2h0a1 1 0 0 0 .6-.9V4a2 2 0 0 1 4 0v.2a1 1 0 0 0 .6.9h0a1 1 0 0 0 1.1-.2l.1-.1a2 2 0 0 1 2.8 2.8l-.1.1a1 1 0 0 0-.2 1.1v0a1 1 0 0 0 .9.6H20a2 2 0 0 1 0 4h-.2a1 1 0 0 0-.9.6z'/></svg></span><span class='fw-label'>Admin</span></a>
+      <a href='/forensics'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 5h16v14H4z'/><path d='M8 9h8M8 12h8M8 15h5'/></svg></span><span class='fw-label'>Forensics</span></a>
       <a href='/about'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M12 11v5'/><circle cx='12' cy='8' r='1'/></svg></span><span class='fw-label'>About</span></a>
     </nav>
   </aside>
@@ -944,6 +946,96 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
 })();
 </script></body></html>"""
 
+FORENSICS_HTML = """<!doctype html><html><head><meta charset='utf-8'><title>FW-LAB Forensics</title>
+<style>
+body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;background:#0f141a;color:#e6edf3;margin:0}
+.wrap{max-width:1280px;margin:0 auto;padding:1rem}
+.card{background:#17212b;border:1px solid #243243;border-radius:10px;padding:.8rem;margin:.6rem 0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;border:1px solid #2a3948;padding:.6rem;border-radius:8px;max-height:52vh;overflow:auto}
+.muted{color:#9fb0c3}a{color:#7fc8ff}
+@media(max-width:980px){.grid{grid-template-columns:1fr}}
+</style></head><body><div class='wrap'>
+<h2 style='margin-top:0'>FW-LAB Forensics</h2>
+__NAV__
+<div class='card'>
+  <strong>Purpose</strong><br>
+  Non-daily deep diagnostics for SDR modulation/decode verification and SME review.
+  <ul>
+    <li>Flowgraph block inventory + connectivity extracted from <code>src/ALERT1v3.grc</code></li>
+    <li>Decoder/error telemetry references for troubleshooting</li>
+    <li>Hand-off material for external protocol/RF experts</li>
+  </ul>
+</div>
+<div class='grid'>
+  <div class='card'><strong>Flowgraph summary</strong><pre id='summary'>loading...</pre></div>
+  <div class='card'><strong>Block inventory</strong><pre id='blocks'>loading...</pre></div>
+</div>
+<div class='card'><strong>Connections (src -> dst)</strong><pre id='conns'>loading...</pre></div>
+<div class='card'><strong>Decode checklist</strong><pre id='check'>1) Confirm symbol timing and slicer behavior under real RF conditions.
+2) Validate 10-bit framing assumptions (start/stop polarity, bit order).
+3) Validate fixed pattern / CRC expectations against known-good captures.
+4) Compare pre/post filter and demod taps for bias (e.g. all-ones drift).
+5) Quantify quality metrics (ones_ratio, snr proxy, eye opening) over soak windows.</pre></div>
+<script>
+(function(){
+  function g(o,k,d){ return (o&&o[k]!==undefined&&o[k]!==null)?o[k]:d; }
+  fetch('/api/flowgraph_doc').then(function(r){return r.json();}).then(function(d){
+    var s=[];
+    s.push('file: '+g(d,'path','n/a'));
+    s.push('blocks: '+g(d,'block_count',0));
+    s.push('connections: '+g(d,'connection_count',0));
+    s.push('generated: '+g(d,'generated_ts',''));
+    document.getElementById('summary').textContent = s.join('\n');
+
+    var blocks=(g(d,'blocks',[])||[]).map(function(b){ return (b.name||'?')+'  ['+(b.id||'?')+']'; });
+    document.getElementById('blocks').textContent = blocks.join('\n') || 'none';
+
+    var conns=(g(d,'connections',[])||[]).map(function(c){
+      return g(c,'src_block','?')+':'+g(c,'src_port','?')+' -> '+g(c,'dst_block','?')+':'+g(c,'dst_port','?');
+    });
+    document.getElementById('conns').textContent = conns.join('\n') || 'none';
+  }).catch(function(e){
+    document.getElementById('summary').textContent='failed to load flowgraph doc';
+    document.getElementById('blocks').textContent=String(e);
+    document.getElementById('conns').textContent='';
+  });
+})();
+</script></div></body></html>"""
+
+
+def _flowgraph_doc(grc_path='src/ALERT1v3.grc'):
+    p = Path(grc_path)
+    out = {
+        'path': str(p),
+        'exists': p.exists(),
+        'generated_ts': datetime.utcnow().isoformat() + 'Z',
+        'block_count': 0,
+        'connection_count': 0,
+        'blocks': [],
+        'connections': [],
+    }
+    if not p.exists():
+        return out
+    try:
+        d = yaml.safe_load(p.read_text(encoding='utf-8', errors='replace')) or {}
+        blocks = d.get('blocks', []) or []
+        conns = d.get('connections', []) or []
+        out['blocks'] = [{'name': str(b.get('name','')), 'id': str(b.get('id',''))} for b in blocks if isinstance(b, dict)]
+        parsed_conns = []
+        for c in conns:
+            if isinstance(c, list) and len(c) >= 4:
+                parsed_conns.append({
+                    'src_block': str(c[0]), 'src_port': str(c[1]),
+                    'dst_block': str(c[2]), 'dst_port': str(c[3]),
+                })
+        out['connections'] = parsed_conns
+        out['block_count'] = len(out['blocks'])
+        out['connection_count'] = len(out['connections'])
+    except Exception as e:
+        out['error'] = str(e)
+    return out
+
 
 def render_about_html():
     readme = Path('README.md')
@@ -1482,6 +1574,15 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(payload)
             return
 
+        if parsed.path == '/forensics':
+            payload = FORENSICS_HTML.replace('__NAV__', NAV_HTML).encode('utf-8')
+            self.send_response(HTTPStatus.OK)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Content-Length', str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
+
         if parsed.path == '/api/admin/storage_policy':
             if not admin_authorized(self.headers, self.client_address[0] if self.client_address else ''):
                 return self._json({'ok': False, 'error': 'unauthorized'}, code=403)
@@ -1553,6 +1654,9 @@ class Handler(BaseHTTPRequestHandler):
                     except Exception:
                         pass
             return
+
+        if parsed.path == '/api/flowgraph_doc':
+            return self._json(_flowgraph_doc())
 
         if parsed.path == '/api/events':
             q = parse_qs(parsed.query)

@@ -83,8 +83,16 @@
 
 ## Phase 10 — RF web observability expansion (later)
 
-- [ ] Add richer RF telemetry panel (signal power/noise/lock quality)
+- [x] Add richer RF telemetry panel baseline (`/radio`: waveform + symbol waterfall + audio monitor)
 - [ ] Add PSD/spectrum mini-view updates for web UI
 - [ ] Design full web equivalents for waterfall/time sinks
 - [ ] Evaluate transport/performance budget for real-time sink streaming
 - [ ] Add remote RF control safety model (authz + audit trail)
+
+## Phase 11 — Forensics + SME verification workspace
+
+- [x] Add `/forensics` UI page for non-daily deep diagnostics
+- [x] Add flowgraph inventory/connectivity extraction API (`/api/flowgraph_doc` from `.grc`)
+- [ ] Add block-by-block narrative docs in UI (purpose, assumptions, tuning notes)
+- [ ] Add capture bundle export for external SME review (events + config + flowgraph snapshot)
+- [ ] Add decoder hypothesis checklist templates for modulation/decoding signoff
