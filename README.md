@@ -27,6 +27,26 @@ Current goals:
    - RF squelch
 5. Monitor decoded output and logs
 
+## Web UI Pages
+
+- `/` Dashboard
+- `/events` Event table + filters
+- `/radio` Live RF health, waveform/waterfall, and browser audio monitor
+- `/trends` Sensor trends/analytics
+- `/admin` Runtime policy/control
+- `/about` About page (renders this README + repo link)
+
+### Browser audio monitor
+
+`/radio` provides an in-browser audio monitor over the same Web UI port (`8088`) via:
+- `/api/audio_aac` (best compatibility)
+- `/api/audio_opus`
+
+Audio controls are intentionally platform-agnostic:
+- codec selector (`auto`, `aac`, `opus`)
+- gain control
+- native HTML audio controls (`playsinline`)
+
 ## Documentation
 
 - Architecture: `docs/ARCHITECTURE.md`

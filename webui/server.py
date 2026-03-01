@@ -5,6 +5,7 @@ import gzip
 import time
 import shutil
 import subprocess
+import html
 from datetime import datetime
 from collections import deque
 from http import HTTPStatus
@@ -12,6 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+NAV_HTML = "<div class='card' style='padding:.45rem .8rem'><strong>Navigation:</strong> <a href='/'>Dashboard</a> · <a href='/events'>Events</a> · <a href='/radio'>Radio</a> · <a href='/trends'>Trends</a> · <a href='/admin'>Admin</a> · <a href='/about'>About</a></div>"
 
 HTML = """<!doctype html><html><head><meta charset='utf-8'><title>FW-LAB Dashboard</title>
 <style>
@@ -41,7 +43,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
 <body>
 <div class='page'>
   <h2 style='margin-top:0'>FW-LAB Live Dashboard</h2>
-  <div class='card' style='padding:.45rem .8rem'><strong>Navigation:</strong> <a href='/' style='color:#7fc8ff'>Dashboard</a> · <a href='/events' style='color:#7fc8ff'>Events</a> · <a href='/radio' style='color:#7fc8ff'>Radio</a> · <a href='/trends' style='color:#7fc8ff'>Trends</a> · <a href='/admin' style='color:#7fc8ff'>Admin</a></div>
+  __NAV__
 
   <div class='sticky-wrap'>
     <div class='card'>
@@ -411,7 +413,7 @@ ADMIN_HTML = """<!doctype html><html><head><meta charset='utf-8'><title>FW-LAB A
 <style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}a{color:#7fc8ff}.row{margin:.35rem 0}</style></head>
 <body><div class='page'>
 <h2 style='margin-top:0'>FW-LAB Admin</h2>
-<div class='card'><strong>Navigation:</strong> <a href='/'>Dashboard</a> · <a href='/events'>Events</a> · <a href='/radio'>Radio</a> · <a href='/trends'>Trends</a> · <a href='/admin'>Admin</a></div>
+__NAV__
 <div class='card'>
   <div class='row'>Local retention days: <input id='localDays' type='number' step='0.1'></div>
   <div class='row'>Max local MB: <input id='maxMb' type='number' step='1'></div>
@@ -451,7 +453,7 @@ TRENDS_HTML = """<!doctype html><html><head><meta charset='utf-8'><title>FW-LAB 
 <style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,select,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}a{color:#7fc8ff}#chart{height:420px}</style></head>
 <body><div class='page'>
 <h2 style='margin-top:0'>FW-LAB Sensor Trends</h2>
-<div class='card'><strong>Navigation:</strong> <a href='/'>Dashboard</a> · <a href='/events'>Events</a> · <a href='/radio'>Radio</a> · <a href='/trends'>Trends</a> · <a href='/admin'>Admin</a><br><br>
+__NAV__<br><br>
 Sensor ID: <input id='sensor' list='sensorList' style='width:120px' placeholder='e.g. 4099'>
 <datalist id='sensorList'></datalist>
 <button id='refreshSensors'>Sensors</button>
@@ -599,8 +601,8 @@ body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;background:#0f141a;c
 pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
 </style>
 <script src='https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js'></script></head><body><div class='wrap'>
-  <div class='card'><strong>Navigation:</strong> <a href='/' style='color:#7fc8ff'>Dashboard</a> · <a href='/events' style='color:#7fc8ff'>Events</a> · <a href='/radio' style='color:#7fc8ff'>Radio</a> · <a href='/trends' style='color:#7fc8ff'>Trends</a> · <a href='/admin' style='color:#7fc8ff'>Admin</a></div>
-  <div class='card'><strong>Radio Live</strong> <span class='muted'>· Real-time RF/decode health</span> · <button id='freezeBtn'>Freeze</button> <span id='freezeState' class='muted'>live</span> · <button id='audioBtn'>Load Audio</button> <span id='audioState' class='muted'>off</span> · Codec: <select id='audioCodec'><option value='auto' selected>auto</option><option value='opus'>opus</option><option value='aac'>aac</option></select> · Profile: <select id='audioProfile'><option value='raw' selected>raw</option><option value='chirp'>chirp-focus</option></select> · Gain <input id='audioGain' type='number' min='0.5' max='4.0' step='0.1' value='1.6' style='width:70px'><br><audio id='audioPlayer' controls playsinline preload='none' style='margin-top:.35rem;width:100%'></audio><div class='muted' style='margin-top:.25rem'>If blocked on iOS, tap play on the native control above. Test links: <a href='/api/audio_aac' target='_blank' style='color:#7fc8ff'>aac</a> · <a href='/api/audio_opus' target='_blank' style='color:#7fc8ff'>opus</a></div></div>
+  __NAV__
+  <div class='card'><strong>Radio Live</strong> <span class='muted'>· Real-time RF/decode health</span> · <button id='freezeBtn'>Freeze</button> <span id='freezeState' class='muted'>live</span> · <button id='audioBtn'>Load Audio</button> <span id='audioState' class='muted'>off</span> · Codec: <select id='audioCodec'><option value='auto' selected>auto</option><option value='opus'>opus</option><option value='aac'>aac</option></select> · Gain <input id='audioGain' type='number' min='0.5' max='4.0' step='0.1' value='1.6' style='width:70px'><br><audio id='audioPlayer' controls playsinline preload='none' style='margin-top:.35rem;width:100%'></audio><div class='muted' style='margin-top:.25rem'>If blocked on iOS, tap play on the native control above. Test links: <a href='/api/audio_aac' target='_blank' style='color:#7fc8ff'>aac</a> · <a href='/api/audio_opus' target='_blank' style='color:#7fc8ff'>opus</a></div></div>
   <div class='row'>
     <div class='card kpi'>Receiver<br><strong id='rx'>unknown</strong></div>
     <div class='card kpi'>Events/min<br><strong id='rate'>0.0</strong></div>
@@ -621,7 +623,6 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
   var freezeBtn=document.getElementById('freezeBtn'), freezeState=document.getElementById('freezeState');
   var audioBtn=document.getElementById('audioBtn'), audioState=document.getElementById('audioState');
   var audioCodec=document.getElementById('audioCodec');
-  var audioProfile=document.getElementById('audioProfile');
   var audioGain=document.getElementById('audioGain');
   var audioPlayer=document.getElementById('audioPlayer');
   var paused=false;
@@ -726,13 +727,12 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
       }
 
       var codec = (audioCodec && audioCodec.value) ? audioCodec.value : 'auto';
-      var profile = (audioProfile && audioProfile.value) ? audioProfile.value : 'raw';
       var gain = (audioGain && audioGain.value) ? Number(audioGain.value) : 1.6;
       if(!isFinite(gain) || gain <= 0) gain = 1.6;
       var primary = (codec==='aac') ? '/api/audio_aac' : '/api/audio_opus';
       if(codec==='auto') primary = '/api/audio_aac';
       var sep = primary.indexOf('?')>=0 ? '&' : '?';
-      audioEl.src = primary + sep + 'profile=' + encodeURIComponent(profile) + '&gain=' + encodeURIComponent(String(gain));
+      audioEl.src = primary + sep + 'gain=' + encodeURIComponent(String(gain));
       audioEl.load();
       if(audioState) audioState.textContent='ready (press play on control)';
       if(audioBtn) audioBtn.textContent='Unload Audio';
@@ -741,7 +741,6 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
 
   if(audioBtn){ audioBtn.addEventListener('click', function(){ if(audioEl && audioEl.src){ stopAudio(); } else { startAudio(); } }); }
   if(audioCodec){ audioCodec.addEventListener('change', function(){ if(audioEl && audioEl.src){ startAudio(); } }); }
-  if(audioProfile){ audioProfile.addEventListener('change', function(){ if(audioEl && audioEl.src){ startAudio(); } }); }
   if(audioGain){ audioGain.addEventListener('change', function(){ if(audioEl && audioEl.src){ startAudio(); } }); }
 
   fetch('/api/events?limit=800').then(function(r){return r.json();}).then(function(d){ events=d.events||[]; refresh(); })['catch'](function(){});
@@ -753,6 +752,34 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
   window.addEventListener('resize', function(){ if(chart) chart.resize(); if(symchart) symchart.resize(); if(wfchart) wfchart.resize(); });
 })();
 </script></body></html>"""
+
+
+def render_about_html():
+    readme = Path('README.md')
+    body = "README not found."
+    if readme.exists():
+        try:
+            body = readme.read_text(encoding='utf-8', errors='replace')
+        except Exception as e:
+            body = f"Failed to read README.md: {e}"
+
+    safe = html.escape(body)
+    nav = NAV_HTML
+    return f"""<!doctype html><html><head><meta charset='utf-8'><title>FW-LAB About</title>
+<style>
+body{{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;background:#0f141a;color:#e6edf3;margin:0}}
+.wrap{{max-width:1200px;margin:0 auto;padding:1rem}}
+.card{{background:#17212b;border:1px solid #243243;border-radius:10px;padding:.8rem;margin:.6rem 0}}
+pre{{white-space:pre-wrap;word-break:break-word;background:#101923;border:1px solid #2a3948;border-radius:8px;padding:.8rem}}
+a{{color:#7fc8ff}}
+</style></head><body><div class='wrap'>
+{nav}
+<div class='card'><h2 style='margin:.2rem 0 0'>About FW-LAB Receiver</h2>
+<div>Project repo: <a href='https://github.com/cdomotor-g/ALERT1v3' target='_blank' rel='noopener'>github.com/cdomotor-g/ALERT1v3</a></div>
+<div class='muted'>This page mirrors README.md from the running repo.</div>
+</div>
+<div class='card'><pre>{safe}</pre></div>
+</div></body></html>"""
 
 
 def load_access_policy(path='config/access_policy.json'):
@@ -1220,7 +1247,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urlparse(self.path)
         if parsed.path in ['/', '/events']:
-            payload = HTML.encode('utf-8')
+            payload = HTML.replace('__NAV__', NAV_HTML).encode('utf-8')
             self.send_response(HTTPStatus.OK)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
             self.send_header('Content-Length', str(len(payload)))
@@ -1229,7 +1256,7 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if parsed.path == '/trends':
-            payload = TRENDS_HTML.encode('utf-8')
+            payload = TRENDS_HTML.replace('__NAV__', NAV_HTML).encode('utf-8')
             self.send_response(HTTPStatus.OK)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
             self.send_header('Content-Length', str(len(payload)))
@@ -1238,7 +1265,7 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if parsed.path == '/radio':
-            payload = RADIO_HTML.encode('utf-8')
+            payload = RADIO_HTML.replace('__NAV__', NAV_HTML).encode('utf-8')
             self.send_response(HTTPStatus.OK)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
             self.send_header('Content-Length', str(len(payload)))
@@ -1247,7 +1274,16 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if parsed.path == '/admin':
-            payload = ADMIN_HTML.encode('utf-8')
+            payload = ADMIN_HTML.replace('__NAV__', NAV_HTML).encode('utf-8')
+            self.send_response(HTTPStatus.OK)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Content-Length', str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
+
+        if parsed.path == '/about':
+            payload = render_about_html().encode('utf-8')
             self.send_response(HTTPStatus.OK)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
             self.send_header('Content-Length', str(len(payload)))
@@ -1286,7 +1322,6 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path in ['/api/audio_opus', '/api/audio_aac']:
             is_aac = (parsed.path == '/api/audio_aac')
             q = parse_qs(parsed.query)
-            profile = (q.get('profile', ['raw'])[0] or 'raw').strip().lower()
             try:
                 gain = float((q.get('gain', ['1.6'])[0] or '1.6'))
             except Exception:
@@ -1304,13 +1339,7 @@ class Handler(BaseHTTPRequestHandler):
                 'ffmpeg','-nostdin','-loglevel','error',
                 '-f','s32le','-ac','1','-ar','48000','-i','pipe:0',
             ]
-            af = []
-            if profile == 'chirp':
-                # Favor narrow ALERT chirps over broadband static.
-                af += ['highpass=f=250', 'lowpass=f=2800', f'volume={gain:.2f}']
-            else:
-                af += [f'volume={gain:.2f}']
-            ff_cmd += ['-af', ','.join(af)]
+            ff_cmd += ['-af', f'volume={gain:.2f}']
 
             if is_aac:
                 ff_cmd += ['-c:a','aac','-b:a','64k','-f','adts','pipe:1']
