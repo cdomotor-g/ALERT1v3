@@ -116,7 +116,7 @@ h2{{font-weight:650;letter-spacing:.2px;}}
 </script>
 """
 
-HTML = """<!doctype html><html><head><meta charset='utf-8'><title>FW-LAB Dashboard</title>
+HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Dashboard</title>
 <style>
 body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}
 .page{padding:1rem}
@@ -522,7 +522,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
 })();
 </script></body></html>"""
 
-ADMIN_HTML = """<!doctype html><html><head><meta charset='utf-8'><title>FW-LAB Admin</title>
+ADMIN_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Admin</title>
 <style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button,select{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}a{color:#7fc8ff}.row{margin:.35rem 0}.grid{display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:.6rem}.good{color:#6dd17c}.warn{color:#f2c14e}.bad{color:#f36f6f}pre{white-space:pre-wrap;max-height:220px;overflow:auto;background:#0f141a;border:1px solid #2a3948;padding:.55rem;border-radius:6px}@media(max-width:860px){.grid{grid-template-columns:1fr}input,button,select{min-height:40px;font-size:16px}}</style></head>
 <body><div class='page'>
 <h2 style='margin-top:0'>FW-LAB Admin</h2>
@@ -639,7 +639,7 @@ __NAV__
 })();
 </script></div></body></html>"""
 
-TRENDS_HTML = """<!doctype html><html><head><meta charset='utf-8'><title>FW-LAB Trends</title>
+TRENDS_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Trends</title>
 <script src='https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js'></script>
 <style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,select,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}a{color:#7fc8ff}#chart{height:420px}.controls{display:flex;flex-wrap:wrap;gap:.35rem .5rem;align-items:center}@media(max-width:860px){.controls{display:grid;grid-template-columns:1fr 1fr;gap:.45rem}#chart{height:320px}input,select,button{min-height:40px;font-size:16px}}</style></head>
 <body><div class='page'>
@@ -783,7 +783,7 @@ View name <input id='viewName' style='width:120px' placeholder='optional'>
 })();
 </script></div></body></html>"""
 
-RADIO_HTML = """<!doctype html><html><head><meta charset='utf-8'><title>FW-LAB Radio</title>
+RADIO_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Radio</title>
 <style>
 body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;background:#0f141a;color:#e6edf3;margin:0}
 .wrap{max-width:1200px;margin:0 auto;padding:1rem}
@@ -946,7 +946,7 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
 })();
 </script></body></html>"""
 
-FORENSICS_HTML = """<!doctype html><html><head><meta charset='utf-8'><title>FW-LAB Forensics</title>
+FORENSICS_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Forensics</title>
 <style>
 body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;background:#0f141a;color:#e6edf3;margin:0}
 .wrap{max-width:1280px;margin:0 auto;padding:1rem}
@@ -1100,7 +1100,7 @@ def render_about_html():
 
     safe = html.escape(body)
     nav = NAV_HTML
-    return f"""<!doctype html><html><head><meta charset='utf-8'><title>FW-LAB About</title>
+    return f"""<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB About</title>
 <style>
 body{{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;background:#0f141a;color:#e6edf3;margin:0}}
 .wrap{{max-width:1200px;margin:0 auto;padding:1rem}}
