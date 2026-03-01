@@ -61,6 +61,7 @@ NAV_HTML = f"""
   /* Events table mobile simplification */
   #rows td:nth-child(3), #rows td:nth-child(4), #rows td:nth-child(5),
   table thead th:nth-child(3), table thead th:nth-child(4), table thead th:nth-child(5){{display:none;}}
+  #detailTop{{position:fixed !important;left:.4rem;right:.4rem;bottom:.4rem;z-index:140;max-height:46vh;overflow:auto;box-shadow:0 8px 30px rgba(0,0,0,.45);}}
   pre{{max-height:42vh !important;}}
 }}
 </style>
@@ -181,6 +182,8 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   <div id='data-section'>
   <div id='table-controls-card' class='card'>
     <span class='muted'>Table controls:</span>
+    <button id='filtersToggle' style='margin-left:.4rem'>Hide filters</button><br>
+    <div id='filtersInner' style='margin-top:.35rem'>
     Sensor: <input id='sensor' placeholder='sensor id' style='width:90px'>
     · Min score: <input id='minScore' type='number' min='0' max='1' step='0.05' placeholder='0.0' style='width:72px'>
     · Status: <select id='statusFilter'><option value=''>all</option><option value='ok'>ok</option><option value='warn'>warn</option><option value='error'>error</option></select>
@@ -190,6 +193,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     · Detail: <select id='detailMode'><option value='top' selected>top</option><option value='inline'>inline</option></select>
     · <button id='resetBtn'>Reset filters</button>
     · <button id='exportBtn'>Export filtered CSV</button>
+    </div>
   </div>
   <div class='table-wrap'>
     <table><thead><tr><th>Time</th><th>Status</th><th>Score</th><th>Conf</th><th>Errs</th><th>Sensor</th><th>Format</th><th>Data</th><th>Summary</th></tr></thead><tbody id='rows'></tbody></table>
@@ -213,6 +217,8 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   if(rxSection && isEventsPage){ rxSection.style.display='none'; }
   if(rfControlsSection && isEventsPage){ rfControlsSection.style.display='none'; }
   var status=document.getElementById('status');
+  var filtersToggle=document.getElementById('filtersToggle');
+  var filtersInner=document.getElementById('filtersInner');
   var rxState=document.getElementById('rx-state');
   var count=document.getElementById('count');
   var source=document.getElementById('source');
@@ -228,6 +234,13 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   var detailText=document.getElementById('detailText');
   var detailTop=document.getElementById('detailTop');
   if(detailTop && !isEventsPage){ detailTop.style.display='none'; }
+  if(isEventsPage && window.innerWidth<=860 && filtersInner){ filtersInner.style.display='none'; if(filtersToggle) filtersToggle.textContent='Show filters'; }
+  if(filtersToggle){ filtersToggle.addEventListener('click', function(){
+    if(!filtersInner) return;
+    var hidden = (filtersInner.style.display==='none');
+    filtersInner.style.display = hidden ? '' : 'none';
+    filtersToggle.textContent = hidden ? 'Hide filters' : 'Show filters';
+  }); }
   var rxChartEl=document.getElementById('rx-chart');
   var rxChart=(window.echarts && rxChartEl) ? echarts.init(rxChartEl) : null;
   var rfFreqNow=document.getElementById('rf-freq-now'), rfGainNow=document.getElementById('rf-gain-now'), rfSqNow=document.getElementById('rf-sq-now');
@@ -617,10 +630,11 @@ __NAV__
 
 TRENDS_HTML = """<!doctype html><html><head><meta charset='utf-8'><title>FW-LAB Trends</title>
 <script src='https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js'></script>
-<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,select,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}a{color:#7fc8ff}#chart{height:420px}</style></head>
+<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,select,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}a{color:#7fc8ff}#chart{height:420px}.controls{display:flex;flex-wrap:wrap;gap:.35rem .5rem;align-items:center}@media(max-width:860px){.controls{display:grid;grid-template-columns:1fr 1fr;gap:.45rem}#chart{height:320px}input,select,button{min-height:40px;font-size:16px}}</style></head>
 <body><div class='page'>
 <h2 style='margin-top:0'>FW-LAB Sensor Trends</h2>
 __NAV__<br><br>
+<div class='card controls'>
 Sensor ID: <input id='sensor' list='sensorList' style='width:120px' placeholder='e.g. 4099'>
 <datalist id='sensorList'></datalist>
 <button id='refreshSensors'>Sensors</button>
@@ -763,13 +777,14 @@ RADIO_HTML = """<!doctype html><html><head><meta charset='utf-8'><title>FW-LAB R
 body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;background:#0f141a;color:#e6edf3;margin:0}
 .wrap{max-width:1200px;margin:0 auto;padding:1rem}
 .card{background:#17212b;border:1px solid #243243;border-radius:10px;padding:.8rem;margin:.6rem 0}
+@media (max-width: 860px){#radioAudioCard{position:sticky;top:46px;z-index:105}}
 .row{display:flex;gap:1rem;flex-wrap:wrap}
 .kpi{min-width:180px}.muted{color:#9fb0c3}.good{color:#6dd17c}.warn{color:#f2c14e}.bad{color:#f36f6f}
 pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
 </style>
 <script src='https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js'></script></head><body><div class='wrap'>
   __NAV__
-  <div class='card'><strong>Radio Live</strong> <span class='muted'>· Real-time RF/decode health</span> · <button id='freezeBtn'>Freeze</button> <span id='freezeState' class='muted'>live</span> · <button id='audioBtn'>Load Audio</button> <span id='audioState' class='muted'>off</span> · Codec: <select id='audioCodec'><option value='auto' selected>auto</option><option value='opus'>opus</option><option value='aac'>aac</option></select> · Gain <input id='audioGain' type='number' min='0.5' max='4.0' step='0.1' value='1.6' style='width:70px'><br><audio id='audioPlayer' controls playsinline preload='none' style='margin-top:.35rem;width:100%'></audio><div class='muted' style='margin-top:.25rem'>If blocked on iOS, tap play on the native control above. Test links: <a href='/api/audio_aac' target='_blank' style='color:#7fc8ff'>aac</a> · <a href='/api/audio_opus' target='_blank' style='color:#7fc8ff'>opus</a></div></div>
+  <div id='radioAudioCard' class='card'><strong>Radio Live</strong> <span class='muted'>· Real-time RF/decode health</span> · <button id='freezeBtn'>Freeze</button> <span id='freezeState' class='muted'>live</span> · <button id='audioBtn'>Load Audio</button> <span id='audioState' class='muted'>off</span> · Codec: <select id='audioCodec'><option value='auto' selected>auto</option><option value='opus'>opus</option><option value='aac'>aac</option></select> · Gain <input id='audioGain' type='number' min='0.5' max='4.0' step='0.1' value='1.6' style='width:70px'><br><audio id='audioPlayer' controls playsinline preload='none' style='margin-top:.35rem;width:100%'></audio><div class='muted' style='margin-top:.25rem'>If blocked on iOS, tap play on the native control above. Test links: <a href='/api/audio_aac' target='_blank' style='color:#7fc8ff'>aac</a> · <a href='/api/audio_opus' target='_blank' style='color:#7fc8ff'>opus</a></div></div>
   <div class='row'>
     <div class='card kpi'>Receiver<br><strong id='rx'>unknown</strong></div>
     <div class='card kpi'>Events/min<br><strong id='rate'>0.0</strong></div>
