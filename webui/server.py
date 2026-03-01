@@ -43,6 +43,14 @@ NAV_HTML = f"""
 .fw-mobilebar{{display:none;position:sticky;top:0;z-index:110;background:#0f141a;border-bottom:1px solid #243243;padding:.45rem .6rem;align-items:center;gap:.6rem;}}
 .fw-main{{margin-left:var(--sidebar-w);width:calc(100% - var(--sidebar-w));transition:margin-left .18s ease,width .18s ease;}}
 .fw-main.nav-collapsed{{margin-left:var(--sidebar-w-c);width:calc(100% - var(--sidebar-w-c));}}
+/* visual consistency tokens applied across pages */
+body{{color:#d7e5f3;letter-spacing:.1px;}}
+.card{{border:1px solid #243243;border-radius:10px;box-shadow:0 1px 0 rgba(255,255,255,.02),0 8px 24px rgba(0,0,0,.18);}}
+button{{background:#111a23;border:1px solid #2b3e52;color:#dce8f5;border-radius:8px;padding:.38rem .62rem;}}
+button:hover{{background:#162433;}}
+input,select{{background:#0e151e;border:1px solid #2a3948;color:#dce8f5;border-radius:8px;padding:.35rem .5rem;}}
+h2{{font-weight:650;letter-spacing:.2px;}}
+.muted{{color:#9fb0c3;}}
 @media (max-width: 860px){{
   body{{font-size:15px;}}
   .fw-mobilebar{{display:flex;}}
@@ -94,6 +102,7 @@ NAV_HTML = f"""
     var page=document.querySelector('.page')||document.querySelector('.wrap');
     if(!page) return;
     page.classList.add('fw-main');
+    page.style.paddingTop = (window.innerWidth<=860) ? '.45rem' : '1rem';
     if(sb.classList.contains('collapsed')) page.classList.add('nav-collapsed'); else page.classList.remove('nav-collapsed');
   }}
   var collapsed=localStorage.getItem('fw_sidebar_collapsed')==='1';
