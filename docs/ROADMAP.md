@@ -93,6 +93,6 @@
 
 - [x] Add `/forensics` UI page for non-daily deep diagnostics
 - [x] Add flowgraph inventory/connectivity extraction API (`/api/flowgraph_doc` from `.grc`)
-- [ ] Add block-by-block narrative docs in UI (purpose, assumptions, tuning notes)
-- [ ] Add capture bundle export for external SME review (events + config + flowgraph snapshot)
-- [ ] Add decoder hypothesis checklist templates for modulation/decoding signoff
+- [x] Add block-by-block narrative docs in UI (purpose, assumptions, tuning notes)
+- [x] Add capture bundle export for external SME review (`/api/forensics_bundle`: events + config + flowgraph snapshot)
+- [x] Add decoder hypothesis checklist templates for modulation/decoding signoff

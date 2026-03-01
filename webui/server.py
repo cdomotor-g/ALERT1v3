@@ -972,14 +972,36 @@ __NAV__
   <div class='card'><strong>Block inventory</strong><pre id='blocks'>loading...</pre></div>
 </div>
 <div class='card'><strong>Connections (src -> dst)</strong><pre id='conns'>loading...</pre></div>
+<div class='card'><strong>Pipeline narrative (for SME review)</strong><pre id='narrative'>1) RTL-SDR source (complex IQ)
+   - center frequency target and RF gain/squelch are the first-order sensitivity controls.
+
+2) Channel conditioning
+   - complex low-pass + decimation narrows to expected ALERT channel energy.
+
+3) Frequency demodulation
+   - quadrature demod converts FSK-like frequency swings into baseband amplitude swings.
+
+4) Symbol conditioning + timing
+   - AGC/LPF/symbol-sync stages shape and sample symbol decisions.
+   - failure modes here often show as all-ones/all-zeros bias, framing mismatch, hunt timeouts.
+
+5) Protocol framing / field extraction
+   - decoder assembles 10-bit words and 4-word frames, validates framing/pattern constraints,
+     then extracts sensor/address + data fields.
+
+6) Quality and operations outputs
+   - per-event quality/error taxonomy + logs/MQTT/web views for operator feedback and tuning.</pre></div>
 <div class='card'><strong>Decode checklist</strong><pre id='check'>1) Confirm symbol timing and slicer behavior under real RF conditions.
 2) Validate 10-bit framing assumptions (start/stop polarity, bit order).
 3) Validate fixed pattern / CRC expectations against known-good captures.
 4) Compare pre/post filter and demod taps for bias (e.g. all-ones drift).
 5) Quantify quality metrics (ones_ratio, snr proxy, eye opening) over soak windows.</pre></div>
+<div class='card'><button id='exportBundle'>Export SME bundle (.json)</button> <span id='exportMsg' class='muted'></span></div>
 <script>
 (function(){
   function g(o,k,d){ return (o&&o[k]!==undefined&&o[k]!==null)?o[k]:d; }
+  var exportBtn=document.getElementById('exportBundle'), exportMsg=document.getElementById('exportMsg');
+
   fetch('/api/flowgraph_doc').then(function(r){return r.json();}).then(function(d){
     var s=[];
     s.push('file: '+g(d,'path','n/a'));
@@ -1000,8 +1022,59 @@ __NAV__
     document.getElementById('blocks').textContent=String(e);
     document.getElementById('conns').textContent='';
   });
+
+  if(exportBtn){
+    exportBtn.addEventListener('click', function(){
+      if(exportMsg) exportMsg.textContent=' building...';
+      fetch('/api/forensics_bundle?limit=300').then(function(r){return r.json();}).then(function(d){
+        var txt = JSON.stringify(d, null, 2);
+        var blob = new Blob([txt], {type:'application/json;charset=utf-8'});
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'fwlab_forensics_bundle.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        if(exportMsg) exportMsg.textContent=' exported';
+      }).catch(function(){ if(exportMsg) exportMsg.textContent=' export failed'; });
+    });
+  }
 })();
 </script></div></body></html>"""
+
+
+def _forensics_bundle(store: 'EventStore', limit: int = 300):
+    limit = max(10, min(int(limit), 2000))
+    events = []
+    if store:
+        try:
+            store.poll_new()
+            events = list(store.events)[-limit:]
+        except Exception:
+            events = []
+    cfg = {}
+    for name, path in {
+        'rf_control': 'config/rf_control.json',
+        'storage_policy': 'config/storage_policy.json',
+        'access_policy': 'config/access_policy.json',
+    }.items():
+        p = Path(path)
+        if p.exists():
+            try:
+                cfg[name] = json.loads(p.read_text(encoding='utf-8', errors='replace'))
+            except Exception:
+                cfg[name] = {'error': 'parse_failed'}
+        else:
+            cfg[name] = {'error': 'missing'}
+
+    return {
+        'schema': 'fwlab.forensics.bundle.v1',
+        'ts': datetime.utcnow().isoformat() + 'Z',
+        'flowgraph': _flowgraph_doc(),
+        'config': cfg,
+        'events_limit': limit,
+        'events': events,
+    }
 
 
 def _flowgraph_doc(grc_path='src/ALERT1v3.grc'):
@@ -1657,6 +1730,11 @@ class Handler(BaseHTTPRequestHandler):
 
         if parsed.path == '/api/flowgraph_doc':
             return self._json(_flowgraph_doc())
+
+        if parsed.path == '/api/forensics_bundle':
+            q = parse_qs(parsed.query)
+            limit = int(q.get('limit', ['300'])[0])
+            return self._json(_forensics_bundle(self.store, limit=limit))
 
         if parsed.path == '/api/events':
             q = parse_qs(parsed.query)
