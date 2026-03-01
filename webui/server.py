@@ -44,10 +44,18 @@ NAV_HTML = f"""
 .fw-main{{margin-left:var(--sidebar-w);width:calc(100% - var(--sidebar-w));transition:margin-left .18s ease,width .18s ease;}}
 .fw-main.nav-collapsed{{margin-left:var(--sidebar-w-c);width:calc(100% - var(--sidebar-w-c));}}
 @media (max-width: 860px){{
+  body{{font-size:15px;}}
   .fw-mobilebar{{display:flex;}}
   .fw-sidebar{{transform:translateX(-100%);width:var(--sidebar-w);}}
   .fw-sidebar.open{{transform:translateX(0);}}
   .fw-main,.fw-main.nav-collapsed{{margin-left:0;width:100%;}}
+  .card{{padding:.95rem !important;}}
+  input,select,button{{min-height:40px;font-size:16px;}}
+  .grid{{grid-template-columns:1fr !important;gap:.5rem !important;}}
+  .row{{flex-direction:column !important;}}
+  .table-wrap{{max-height:none !important;overflow:auto;-webkit-overflow-scrolling:touch;}}
+  th,td{{padding:.55rem .45rem !important;white-space:nowrap;}}
+  pre{{max-height:42vh !important;}}
 }}
 </style>
 <div class='fw-mobilebar'><button class='fw-toggle' id='fwMobileToggle'>☰</button><strong>FW-LAB</strong><span class='fw-build'>build {BUILD_STAMP}</span></div>
@@ -71,7 +79,10 @@ NAV_HTML = f"""
   var collapseBtn=document.getElementById('fwCollapseBtn');
   var mBtn=document.getElementById('fwMobileToggle');
   var path=window.location.pathname||'/';
-  document.querySelectorAll('.fw-nav a').forEach(function(a){{ if(a.getAttribute('href')===path) a.classList.add('active'); }});
+  document.querySelectorAll('.fw-nav a').forEach(function(a){{
+    if(a.getAttribute('href')===path) a.classList.add('active');
+    a.addEventListener('click', function(){{ if(window.innerWidth<=860) sb.classList.remove('open'); }});
+  }});
   function applyMain(){{
     var page=document.querySelector('.page')||document.querySelector('.wrap');
     if(!page) return;
