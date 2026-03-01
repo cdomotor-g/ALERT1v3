@@ -1298,11 +1298,11 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header('Connection', 'close')
             self.end_headers()
             arec = subprocess.Popen([
-                'arecord','-D','hw:Loopback,1,0','-f','S16_LE','-c','1','-r','48000','-t','raw','-q'
+                'arecord','-D','hw:Loopback,1,0','-f','S32_LE','-c','1','-r','48000','-t','raw','-q'
             ], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
             ff_cmd = [
                 'ffmpeg','-nostdin','-loglevel','error',
-                '-f','s16le','-ac','1','-ar','48000','-i','pipe:0',
+                '-f','s32le','-ac','1','-ar','48000','-i','pipe:0',
             ]
             af = []
             if profile == 'chirp':
