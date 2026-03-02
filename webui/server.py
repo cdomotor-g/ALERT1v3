@@ -136,7 +136,10 @@ tr.ok{background:rgba(75,160,98,.10)}
 tr.warn{background:rgba(220,170,80,.12)}
 tr.error{background:rgba(200,80,80,.14)}
 tr.inline-detail td{background:#0f141a}
-tr.selected td{box-shadow: inset 0 0 0 1px #4fa8ff;background:rgba(79,168,255,.12)}
+#rows tr{cursor:pointer}
+#rows tr:hover td{background:rgba(127,200,255,.08)}
+#rows tr:active td{background:rgba(127,200,255,.16)}
+tr.selected td{box-shadow: inset 0 0 0 2px #4fa8ff;background:rgba(79,168,255,.18) !important}
 pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;border-radius:6px;border:1px solid #2a3948;max-height:240px;overflow:auto}
 .detail-bits{display:flex;flex-wrap:wrap;gap:2px;background:#0f141a;border:1px solid #2a3948;border-radius:6px;padding:.35rem;margin-top:.4rem}
 .detail-bits .b{width:10px;height:14px;border-radius:2px;display:inline-block}
