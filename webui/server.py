@@ -388,6 +388,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
       var labels24=new Array(bins24);
       var windowMs24=24*60*60*1000;
       var binMs24=30*60*1000;
+      var phaseMs=15*60*1000; // shift bins to :15/:45 boundaries
       for(var b2=0;b2<bins24;b2++){
         var ageH=((bins24-b2)*binMs24)/3600000;
         labels24[b2]='-'+Math.round(ageH)+'h';
@@ -398,7 +399,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
         if(!isFinite(t2)) continue;
         var age2=now-t2;
         if(age2<0 || age2>windowMs24) continue;
-        var idx2=bins24-1-Math.floor(age2/binMs24);
+        var idx2=bins24-1-Math.floor((age2+phaseMs)/binMs24);
         if(idx2>=0 && idx2<bins24) counts24[idx2]++;
       }
       rxChart24.setOption({
