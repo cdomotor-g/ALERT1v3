@@ -167,18 +167,6 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
       Host metrics: <span id='hm-status' class='muted'>n/a</span> · CPU <span id='hm-cpu'>-</span>% · RAM <span id='hm-mem'>-</span>% · Disk <span id='hm-disk'>-</span>% · Temp <span id='hm-temp'>-</span>°C · Load/core <span id='hm-load'>-</span> · Breaches <span id='hm-breach'>0</span>
     </div>
 
-    <div id='rf-controls-section' class='card'>
-      RF now: Freq <span id='rf-freq-now'>-</span> Hz · Gain <span id='rf-gain-now'>-</span> dB · Squelch <span id='rf-sq-now'>-</span> dB<br>
-      RF control (pending/apply on receiver restart):
-      Freq <input id='rf-freq-set' style='width:140px' placeholder='173900000'>
-      Gain <input id='rf-gain-set' style='width:80px' placeholder='-1'>
-      Squelch <input id='rf-sq-set' style='width:80px' placeholder='-33'>
-      <button id='rf-apply'>Save RF config</button>
-      <button id='rx-start'>Start receiver</button>
-      <button id='rx-stop'>Stop receiver</button>
-      <button id='rx-restart'>Restart receiver</button>
-      <span id='rf-msg' class='muted'></span>
-    </div>
 
     <div class='card'>
       Storage: <span id='st-mode' class='muted'>n/a</span> · Used <span id='st-used'>-</span>% · Free <span id='st-free'>-</span> GB · Retention <span id='st-days'>-</span> days
@@ -416,6 +404,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   }
 
   function renderRfNow(){
+    if(!rfFreqNow || !rfGainNow || !rfSqNow) return;
     if(!events.length) return;
     var ev = events[events.length-1] || {};
     var rx = g(ev,'rx',{});
@@ -425,6 +414,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   }
 
   function loadRfConfig(){
+    if(!rfFreqSet || !rfGainSet || !rfSqSet) return;
     fetch('/api/admin/rf_control').then(function(r){return r.json();}).then(function(c){
       rfFreqSet.value = (c.center_freq_hz!=null?c.center_freq_hz:'');
       rfGainSet.value = (c.rf_gain_db!=null?c.rf_gain_db:'');
@@ -478,27 +468,29 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   [sensor,minScore,statusFilter,warnOnly,okOnly,timeMode,detailMode].forEach(function(el){ el.addEventListener('input',render); });
   exportBtn.addEventListener('click',exportCSV);
   resetBtn.addEventListener('click',resetFilters);
-  rfApply.addEventListener('click', function(){
-    var body={
-      center_freq_hz: rfFreqSet.value.trim()==='' ? null : Number(rfFreqSet.value),
-      rf_gain_db: rfGainSet.value.trim()==='' ? null : Number(rfGainSet.value),
-      rf_squelch_db: rfSqSet.value.trim()==='' ? null : Number(rfSqSet.value)
-    };
-    fetch('/api/admin/rf_control',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
-      .then(function(r){return r.json();})
-      .then(function(d){ rfMsg.textContent = d.ok ? ' saved (restart receiver to apply)' : ' failed'; })
-      ['catch'](function(){ rfMsg.textContent=' failed'; });
-  });
+  if(rfApply){
+    rfApply.addEventListener('click', function(){
+      var body={
+        center_freq_hz: rfFreqSet.value.trim()==='' ? null : Number(rfFreqSet.value),
+        rf_gain_db: rfGainSet.value.trim()==='' ? null : Number(rfGainSet.value),
+        rf_squelch_db: rfSqSet.value.trim()==='' ? null : Number(rfSqSet.value)
+      };
+      fetch('/api/admin/rf_control',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+        .then(function(r){return r.json();})
+        .then(function(d){ if(rfMsg) rfMsg.textContent = d.ok ? ' saved (restart receiver to apply)' : ' failed'; })
+        ['catch'](function(){ if(rfMsg) rfMsg.textContent=' failed'; });
+    });
+  }
 
   function receiverAction(action){
     fetch('/api/admin/receiver_action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:action})})
       .then(function(r){return r.json();})
-      .then(function(d){ rfMsg.textContent = d.ok ? (' receiver '+action+' ok') : (' receiver '+action+' failed'); })
-      ['catch'](function(){ rfMsg.textContent=' receiver '+action+' failed'; });
+      .then(function(d){ if(rfMsg) rfMsg.textContent = d.ok ? (' receiver '+action+' ok') : (' receiver '+action+' failed'); })
+      ['catch'](function(){ if(rfMsg) rfMsg.textContent=' receiver '+action+' failed'; });
   }
-  rxStart.addEventListener('click', function(){ receiverAction('start'); });
-  rxStop.addEventListener('click', function(){ receiverAction('stop'); });
-  rxRestart.addEventListener('click', function(){ receiverAction('restart'); });
+  if(rxStart) rxStart.addEventListener('click', function(){ receiverAction('start'); });
+  if(rxStop) rxStop.addEventListener('click', function(){ receiverAction('stop'); });
+  if(rxRestart) rxRestart.addEventListener('click', function(){ receiverAction('restart'); });
 
   fetch('/api/events?limit=400').then(function(r){return r.json();}).then(function(d){events=d.events||[]; source.textContent=g(d,'source','n/a'); render();});
   loadRfConfig();
@@ -823,8 +815,21 @@ body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;background:#0f141a;c
 pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
 </style>
 <script src='https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js'></script></head><body><div class='wrap'>
+  <h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 12h3m12 0h3'/><circle cx='12' cy='12' r='2.5'/><path d='M6.5 8.5a8 8 0 0 1 0 7M17.5 8.5a8 8 0 0 1 0 7'/></svg></span><span>Radio</span></h2>
   __NAV__
   <div id='radioAudioCard' class='card'><strong>Radio Live</strong> <span class='muted'>· Real-time RF/decode health</span> · <button id='freezeBtn'>Freeze</button> <span id='freezeState' class='muted'>live</span> · <button id='audioBtn'>Load Audio</button> <span id='audioState' class='muted'>off</span> · Codec: <select id='audioCodec'><option value='auto' selected>auto</option><option value='opus'>opus</option><option value='aac'>aac</option></select> · Gain <input id='audioGain' type='number' min='0.5' max='4.0' step='0.1' value='1.6' style='width:70px'><br><audio id='audioPlayer' controls playsinline preload='none' style='margin-top:.35rem;width:100%'></audio><div class='muted' style='margin-top:.25rem'>If blocked on iOS, tap play on the native control above. Test links: <a href='/api/audio_aac' target='_blank' style='color:#7fc8ff'>aac</a> · <a href='/api/audio_opus' target='_blank' style='color:#7fc8ff'>opus</a></div></div>
+  <div class='card'>
+    RF now: Freq <span id='rf-freq-now'>-</span> Hz · Gain <span id='rf-gain-now'>-</span> dB · Squelch <span id='rf-sq-now'>-</span> dB<br>
+    RF control (pending/apply on receiver restart):
+    Freq <input id='rf-freq-set' style='width:140px' placeholder='173900000'>
+    Gain <input id='rf-gain-set' style='width:80px' placeholder='40'>
+    Squelch <input id='rf-sq-set' style='width:80px' placeholder='-33'>
+    <button id='rf-apply'>Save RF config</button>
+    <button id='rx-start'>Start receiver</button>
+    <button id='rx-stop'>Stop receiver</button>
+    <button id='rx-restart'>Restart receiver</button>
+    <span id='rf-msg' class='muted'></span>
+  </div>
   <div class='row'>
     <div class='card kpi'>Receiver<br><strong id='rx'>unknown</strong></div>
     <div class='card kpi'>Events/min<br><strong id='rate'>0.0</strong></div>
@@ -847,11 +852,32 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
   var audioCodec=document.getElementById('audioCodec');
   var audioGain=document.getElementById('audioGain');
   var audioPlayer=document.getElementById('audioPlayer');
+  var rfFreqNow=document.getElementById('rf-freq-now'), rfGainNow=document.getElementById('rf-gain-now'), rfSqNow=document.getElementById('rf-sq-now');
+  var rfFreqSet=document.getElementById('rf-freq-set'), rfGainSet=document.getElementById('rf-gain-set'), rfSqSet=document.getElementById('rf-sq-set');
+  var rfApply=document.getElementById('rf-apply'), rfMsg=document.getElementById('rf-msg');
+  var rxStart=document.getElementById('rx-start'), rxStop=document.getElementById('rx-stop'), rxRestart=document.getElementById('rx-restart');
   var paused=false;
   var audioOn=false, audioEl=null;
   var chart=(window.echarts)?echarts.init(document.getElementById('chart')):null;
   var symchart=(window.echarts)?echarts.init(document.getElementById('symchart')):null;
   var wfchart=(window.echarts)?echarts.init(document.getElementById('wfchart')):null;
+
+  function renderRfNow(){
+    if(!events.length || !rfFreqNow) return;
+    var ev=events[events.length-1]||{}, rxm=g(ev,'rx',{});
+    rfFreqNow.textContent=(rxm.center_freq_hz!=null?rxm.center_freq_hz:'-');
+    rfGainNow.textContent=(rxm.rf_gain_db!=null?rxm.rf_gain_db:'-');
+    rfSqNow.textContent=(rxm.rf_squelch_db!=null?rxm.rf_squelch_db:'-');
+  }
+
+  function loadRfConfig(){
+    if(!rfFreqSet) return;
+    fetch('/api/admin/rf_control').then(function(r){return r.json();}).then(function(c){
+      rfFreqSet.value=(c.center_freq_hz!=null?c.center_freq_hz:'');
+      rfGainSet.value=(c.rf_gain_db!=null?c.rf_gain_db:'');
+      rfSqSet.value=(c.rf_squelch_db!=null?c.rf_squelch_db:'');
+    })['catch'](function(){});
+  }
 
   function refresh(){
     if(!events.length) return;
@@ -873,6 +899,8 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
     var top='none', topn=0; Object.keys(ec).forEach(function(k){ if(ec[k]>topn){topn=ec[k]; top=k;} });
     toperr.textContent=topn? (top+' ('+topn+')') : 'none';
     errs.textContent=Object.keys(ec).sort(function(a,b){return ec[b]-ec[a];}).slice(0,10).map(function(k){return k+': '+ec[k];}).join('\\n') || 'none';
+
+    renderRfNow();
 
     if(chart){
       var tail=events.slice(-200), xs=[], ys=[];
@@ -965,6 +993,31 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
   if(audioCodec){ audioCodec.addEventListener('change', function(){ if(audioEl && audioEl.src){ startAudio(); } }); }
   if(audioGain){ audioGain.addEventListener('change', function(){ if(audioEl && audioEl.src){ startAudio(); } }); }
 
+  if(rfApply){
+    rfApply.addEventListener('click', function(){
+      var body={
+        center_freq_hz: rfFreqSet.value.trim()==='' ? null : Number(rfFreqSet.value),
+        rf_gain_db: rfGainSet.value.trim()==='' ? null : Number(rfGainSet.value),
+        rf_squelch_db: rfSqSet.value.trim()==='' ? null : Number(rfSqSet.value)
+      };
+      fetch('/api/admin/rf_control',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+        .then(function(r){return r.json();})
+        .then(function(d){ if(rfMsg) rfMsg.textContent = d.ok ? ' saved (restart receiver to apply)' : ' failed'; })
+        ['catch'](function(){ if(rfMsg) rfMsg.textContent=' failed'; });
+    });
+  }
+
+  function receiverAction(action){
+    fetch('/api/admin/receiver_action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:action})})
+      .then(function(r){return r.json();})
+      .then(function(d){ if(rfMsg) rfMsg.textContent = d.ok ? (' receiver '+action+' ok') : (' receiver '+action+' failed'); })
+      ['catch'](function(){ if(rfMsg) rfMsg.textContent=' receiver '+action+' failed'; });
+  }
+  if(rxStart) rxStart.addEventListener('click', function(){ receiverAction('start'); });
+  if(rxStop) rxStop.addEventListener('click', function(){ receiverAction('stop'); });
+  if(rxRestart) rxRestart.addEventListener('click', function(){ receiverAction('restart'); });
+
+  loadRfConfig();
   fetch('/api/events?limit=800').then(function(r){return r.json();}).then(function(d){ events=d.events||[]; refresh(); })['catch'](function(){});
   var es=new EventSource('/api/live');
   es.onmessage=function(m){ try{ if(paused) return; events.push(JSON.parse(m.data)); if(events.length>max) events=events.slice(-max); refresh(); }catch(e){} };
