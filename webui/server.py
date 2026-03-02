@@ -137,6 +137,10 @@ tr.warn{background:rgba(220,170,80,.12)}
 tr.error{background:rgba(200,80,80,.14)}
 tr.inline-detail td{background:#0f141a}
 pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;border-radius:6px;border:1px solid #2a3948;max-height:240px;overflow:auto}
+.detail-bits{display:flex;flex-wrap:wrap;gap:2px;background:#0f141a;border:1px solid #2a3948;border-radius:6px;padding:.35rem;margin-top:.4rem}
+.detail-bits .b{width:10px;height:14px;border-radius:2px;display:inline-block}
+.detail-bits .one{background:#68b8ff}
+.detail-bits .zero{background:#2b3642}
 .small{font-size:.9em}
 </style>
 <script src='https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js'></script>
@@ -175,6 +179,8 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     <div id='detailTop' class='card'>
       <div id='detailTopHeader' class='muted' style='cursor:pointer'>Drill-down (click a row, click this header to close)</div>
       <pre id='detailText'>No event selected.</pre>
+      <div class='muted small' style='margin-top:.35rem'>Frame bits (graphical)</div>
+      <div id='detailBits' class='detail-bits'></div>
     </div>
   </div>
 
@@ -231,6 +237,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   var resetBtn=document.getElementById('resetBtn');
   var exportBtn=document.getElementById('exportBtn');
   var detailText=document.getElementById('detailText');
+  var detailBits=document.getElementById('detailBits');
   var detailTop=document.getElementById('detailTop');
   var detailTopHeader=document.getElementById('detailTopHeader');
   if(detailTop && !isEventsPage){ detailTop.style.display='none'; }
@@ -238,6 +245,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     detailTopHeader.addEventListener('click', function(){
       selectedDetailKey='';
       if(detailTop){ detailTop.style.display='none'; }
+      if(detailBits){ detailBits.innerHTML=''; }
       clearInlineDetail();
     });
   }
@@ -373,6 +381,18 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     }, null, 2);
   }
 
+  function renderDetailBits(evt){
+    if(!detailBits) return;
+    var fr=g(evt,'frame',{}), bits=String(g(fr,'payload_bits',''));
+    if(!bits){ detailBits.innerHTML=''; return; }
+    var h='';
+    for(var i=0;i<bits.length;i++){
+      var b=bits[i]==='1'?'one':'zero';
+      h += '<span class="b '+b+'" title="bit '+i+': '+bits[i]+'"></span>';
+    }
+    detailBits.innerHTML=h;
+  }
+
   function clearInlineDetail(){
     if(inlineRow && inlineRow.parentNode){ inlineRow.parentNode.removeChild(inlineRow); }
     inlineRow=null;
@@ -384,6 +404,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
       selectedDetailKey = '';
       clearInlineDetail();
       if(detailTop){ detailTop.style.display='none'; }
+      if(detailBits){ detailBits.innerHTML=''; }
       return;
     }
     selectedDetailKey = key;
@@ -391,7 +412,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     var text=detailPayload(evt);
     if(detailMode.value==='top'){
       clearInlineDetail();
-      if(detailTop){ detailTop.style.display='block'; detailText.textContent=text; }
+      if(detailTop){ detailTop.style.display='block'; detailText.textContent=text; renderDetailBits(evt); }
       return;
     }
     if(detailTop){ detailTop.style.display='none'; }
@@ -838,7 +859,7 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
   </div>
   <div class='card'><div id='chart' style='height:220px'></div></div>
   <div class='card'><strong>Latest symbol waveform</strong> · Source: <select id='wavesrc'><option value='symbol' selected>symbol_samples</option><option value='bits'>payload_bits step</option></select><div id='symchart' style='height:220px'></div></div>
-  <div class='card'><strong>Symbol waterfall (recent frames)</strong><div id='wfchart' style='height:260px'></div></div>
+  <div class='card'><strong>Symbol waterfall (recent frames)</strong><div id='wfchart' style='height:520px'></div></div>
   <div class='card'><strong>Recent error codes</strong><pre id='errs'>none</pre></div>
 </div>
 <script>
