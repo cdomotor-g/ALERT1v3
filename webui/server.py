@@ -909,10 +909,10 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
     <div class='card kpi'>Ones ratio avg<br><strong id='ones'>n/a</strong></div>
     <div class='card kpi'>Top error<br><strong id='toperr'>none</strong></div>
   </div>
-  <div class='card'><div id='chart' style='height:220px'></div></div>
   <div class='card'><strong>Latest symbol waveform</strong> · Source: <select id='wavesrc'><option value='symbol' selected>symbol_samples</option><option value='bits'>payload_bits step</option></select><div id='symchart' style='height:220px'></div></div>
   <div class='card'><strong>Symbol waterfall (recent frames)</strong><div id='wfchart' style='height:520px'></div></div>
   <div class='card'><strong>Recent error codes</strong><pre id='errs'>none</pre></div>
+  <div class='card'><div id='chart' style='height:220px'></div></div>
 </div>
 <script>
 (function(){
@@ -999,7 +999,17 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
       }
       var sx=[], sy=[];
       for(var j=0;j<sym.length;j++){ sx.push(String(j)); sy.push(Number(sym[j])); }
-      symchart.setOption({animation:false,grid:{left:40,right:12,top:20,bottom:28},xAxis:{type:'category',data:sx},yAxis:{type:'value',min:-2,max:2},tooltip:{trigger:'axis'},series:[{type:'line',data:sy,symbol:'none',step:'middle'}]});
+      symchart.setOption({
+        animation:false,
+        grid:{left:40,right:12,top:20,bottom:28},
+        xAxis:{type:'category',data:sx},
+        yAxis:{type:'value',min:-2,max:2,
+          splitArea:{show:true,areaStyle:{color:['rgba(44,123,182,0.10)','rgba(76,175,80,0.08)']}},
+          splitLine:{lineStyle:{color:'#2a3948'}}
+        },
+        tooltip:{trigger:'axis'},
+        series:[{type:'line',data:sy,symbol:'none',step:'middle',lineStyle:{color:'#8fd1ff'}}]
+      });
     }
 
     if(wfchart){
@@ -1022,7 +1032,7 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
         grid:{left:46,right:18,top:20,bottom:28},
         xAxis:{type:'category',data:xlabels,name:'symbol'},
         yAxis:{type:'category',data:ylabels,name:'frames'},
-        visualMap:{min:-1,max:1,orient:'horizontal',left:'center',bottom:0,inRange:{color:['#2c7bb6','#abd9e9','#ffffbf','#fdae61','#d7191c']}},
+        visualMap:{min:-1,max:1,orient:'horizontal',left:'center',bottom:0,inRange:{color:['#2c7bb6','#7fb8de','rgba(76,175,80,0.18)','#f4a06b','#d7191c']}},
         tooltip:{position:'top'},
         series:[{type:'heatmap',data:data,progressive:0,emphasis:{itemStyle:{borderColor:'#fff',borderWidth:1}}}]
       });
