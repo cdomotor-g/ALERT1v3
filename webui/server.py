@@ -218,7 +218,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     </div>
   </div>
   <div class='table-wrap'>
-    <table><thead><tr><th>Time</th><th>Status</th><th>Score</th><th>Ones Ratio</th><th>SNR (dB)</th><th>Conf</th><th>Errs</th><th>Sensor</th><th>Format</th><th>Data</th><th>Summary</th></tr></thead><tbody id='rows'></tbody></table>
+    <table><thead><tr><th>Time</th><th>Status</th><th>Score</th><th>Ones Ratio</th><th>SNR (dB)</th><th>Conf</th><th>Errs</th><th>Sensor</th><th>Format</th><th>Pair</th><th>Data</th><th>Summary</th></tr></thead><tbody id='rows'></tbody></table>
   </div>
   </div>
 </div>
@@ -533,7 +533,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     if(detailTop){ detailTop.style.display='none'; }
     clearInlineDetail();
     inlineRow=document.createElement('tr'); inlineRow.className='inline-detail';
-    var td=document.createElement('td'); td.colSpan=11;
+    var td=document.createElement('td'); td.colSpan=12;
     var pre=document.createElement('pre'); pre.textContent=text;
     td.appendChild(pre); inlineRow.appendChild(td);
     tr.parentNode.insertBefore(inlineRow, tr.nextSibling);
@@ -582,9 +582,14 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
       var snrHtml = hasErr('signal.low_snr_proxy') ? ('<span class="bad">'+snr+'</span>') : snr;
       var fmtHtml = hasErr('decode.invalid_format_id') ? ('<span class="bad">'+g(de,'format_id','')+'</span>') : g(de,'format_id','');
       var sidHtml = hasErr('decode.zero_sensor_id') ? ('<span class="bad">'+sidLink+'</span>') : sidLink;
+      var pairId = g(de,'fixed_pair_pattern_id',null);
+      var pairHtml = (pairId===null || pairId===undefined || pairId==='') ? '<span class="muted">-</span>' : String(pairId);
+      if(hasErr('decode.fixed_pair_mismatch_w1')||hasErr('decode.fixed_pair_mismatch_w2')||hasErr('decode.fixed_pair_mismatch_w3')||hasErr('decode.fixed_pair_mismatch_w4')){
+        pairHtml = '<span class="bad">mismatch</span>';
+      }
       var summaryHtml = (errN>0) ? ('<span class="warn">'+g(ev,'summary','')+'</span>') : g(ev,'summary','');
 
-      tr.innerHTML='<td>'+fmtTs(g(ev,'ts',''))+'</td><td>'+g(ev,'status','')+'</td><td>'+q+'</td><td>'+orHtml+'</td><td>'+snrHtml+'</td><td>'+c+'</td><td>'+errN+'</td><td>'+sidHtml+'</td><td>'+fmtHtml+'</td><td>'+g(de,'data_val','')+'</td><td>'+summaryHtml+'</td>';
+      tr.innerHTML='<td>'+fmtTs(g(ev,'ts',''))+'</td><td>'+g(ev,'status','')+'</td><td>'+q+'</td><td>'+orHtml+'</td><td>'+snrHtml+'</td><td>'+c+'</td><td>'+errN+'</td><td>'+sidHtml+'</td><td>'+fmtHtml+'</td><td>'+pairHtml+'</td><td>'+g(de,'data_val','')+'</td><td>'+summaryHtml+'</td>';
       (function(t,e){ t.addEventListener('click', function(){ showDetail(t,e); }); })(tr,ev);
       rows.appendChild(tr);
       if(shown>=300) break;
