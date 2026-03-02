@@ -359,9 +359,21 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   function detailPayload(evt){
     var fr=g(evt,'frame',{});
     return JSON.stringify({
-      ts:g(evt,'ts',''), status:g(evt,'status',''), summary:g(evt,'summary',''),
-      quality:g(evt,'quality',{}), errors:g(evt,'errors',[]), decode:g(evt,'decode',{}),
-      frame:{ payload_hex:g(fr,'payload_hex',''), bits_preview:String(g(fr,'payload_bits','')).slice(0,128) }
+      ts:g(evt,'ts',''),
+      status:g(evt,'status',''),
+      summary:g(evt,'summary',''),
+      frame:{
+        payload_hex:g(fr,'payload_hex',''),
+        bits_preview:String(g(fr,'payload_bits','')).slice(0,128),
+        start_bit:g(fr,'start_bit',null),
+        stop_bit:g(fr,'stop_bit',null)
+      },
+      errors:g(evt,'errors',[]),
+      decode:g(evt,'decode',{}),
+      quality:g(evt,'quality',{}),
+      rx:g(evt,'rx',{}),
+      display:g(evt,'display',''),
+      schema:g(evt,'schema','')
     }, null, 2);
   }
 
