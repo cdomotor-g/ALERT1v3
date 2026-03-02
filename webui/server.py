@@ -170,6 +170,8 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     <div id='rx-section' class='card'>
       <div class='muted small'>Rx packets per 2 min (last 30 min)</div>
       <div id='rx-chart' style='height:150px'></div>
+      <div class='muted small' style='margin-top:.55rem'>Rx packets per 30 min (last 24 h)</div>
+      <div id='rx-chart-24h' style='height:150px'></div>
     </div>
 
     <div class='card'>
@@ -325,6 +327,8 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   }); }
   var rxChartEl=document.getElementById('rx-chart');
   var rxChart=(window.echarts && rxChartEl) ? echarts.init(rxChartEl) : null;
+  var rxChart24El=document.getElementById('rx-chart-24h');
+  var rxChart24=(window.echarts && rxChart24El) ? echarts.init(rxChart24El) : null;
   var rfFreqNow=document.getElementById('rf-freq-now'), rfGainNow=document.getElementById('rf-gain-now'), rfSqNow=document.getElementById('rf-sq-now');
   var rfFreqSet=document.getElementById('rf-freq-set'), rfGainSet=document.getElementById('rf-gain-set'), rfSqSet=document.getElementById('rf-sq-set');
   var rfApply=document.getElementById('rf-apply'), rfMsg=document.getElementById('rf-msg');
@@ -377,6 +381,35 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
       tooltip:{trigger:'axis'},
       series:[{type:'bar',data:counts,itemStyle:{color:'#7fc8ff'},barMaxWidth:14}]
     }, true);
+
+    if(rxChart24){
+      var bins24=48; // 48 x 30min = 24h
+      var counts24=new Array(bins24).fill(0);
+      var labels24=new Array(bins24);
+      var windowMs24=24*60*60*1000;
+      var binMs24=30*60*1000;
+      for(var b2=0;b2<bins24;b2++){
+        var ageH=((bins24-b2)*binMs24)/3600000;
+        labels24[b2]='-'+Math.round(ageH)+'h';
+        if(b2===bins24-1) labels24[b2]='now';
+      }
+      for(var ii=0;ii<events.length;ii++){
+        var t2=Date.parse(g(events[ii],'ts',''));
+        if(!isFinite(t2)) continue;
+        var age2=now-t2;
+        if(age2<0 || age2>windowMs24) continue;
+        var idx2=bins24-1-Math.floor(age2/binMs24);
+        if(idx2>=0 && idx2<bins24) counts24[idx2]++;
+      }
+      rxChart24.setOption({
+        animation:false,
+        grid:{left:36,right:12,top:18,bottom:24},
+        xAxis:{type:'category',data:labels24,axisLabel:{color:'#b6c2cf',fontSize:10,interval:3},axisLine:{lineStyle:{color:'#2a3948'}}},
+        yAxis:{type:'value',minInterval:1,axisLabel:{color:'#b6c2cf',fontSize:10},splitLine:{lineStyle:{color:'#2a3948'}}},
+        tooltip:{trigger:'axis'},
+        series:[{type:'bar',data:counts24,itemStyle:{color:'#5fa8ff'},barMaxWidth:10}]
+      }, true);
+    }
   }
 
   function computeSummary(){
@@ -636,7 +669,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     }catch(e){}
   };
   es.onerror=function(){ status.textContent='reconnecting'; };
-  window.addEventListener('resize', function(){ if(rxChart) rxChart.resize(); });
+  window.addEventListener('resize', function(){ if(rxChart) rxChart.resize(); if(rxChart24) rxChart24.resize(); });
 })();
 </script></body></html>"""
 
