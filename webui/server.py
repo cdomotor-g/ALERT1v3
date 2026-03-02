@@ -1245,11 +1245,27 @@ __NAV__
 3) Validate fixed pattern / CRC expectations against known-good captures.
 4) Compare pre/post filter and demod taps for bias (e.g. all-ones drift).
 5) Quantify quality metrics (ones_ratio, snr proxy, eye opening) over soak windows.</pre></div>
+<div class='card'><strong>Fixed-pair pattern stats (recent sample)</strong><pre id='pairStats'>loading...</pre></div>
 <div class='card'><button id='exportBundle'>Export SME bundle (.json)</button> <span id='exportMsg' class='muted'></span></div>
 <script>
 (function(){
   function g(o,k,d){ return (o&&o[k]!==undefined&&o[k]!==null)?o[k]:d; }
   var exportBtn=document.getElementById('exportBundle'), exportMsg=document.getElementById('exportMsg');
+  var pairStats=document.getElementById('pairStats');
+
+  fetch('/api/pair_pattern_stats?limit=4000').then(function(r){return r.json();}).then(function(d){
+    function fmtRow(r){ return JSON.stringify(r.pattern)+'  -> '+r.count; }
+    var lines=[];
+    lines.push('strict-good top:');
+    (d.strict_top||[]).slice(0,6).forEach(function(r){ lines.push('  '+fmtRow(r)); });
+    lines.push('');
+    lines.push('good-ish top:');
+    (d.goodish_top||[]).slice(0,6).forEach(function(r){ lines.push('  '+fmtRow(r)); });
+    lines.push('');
+    lines.push('overall top:');
+    (d.overall_top||[]).slice(0,6).forEach(function(r){ lines.push('  '+fmtRow(r)); });
+    if(pairStats) pairStats.textContent = lines.join('\n');
+  }).catch(function(){ if(pairStats) pairStats.textContent='failed to load pattern stats'; });
 
   if(exportBtn){
     exportBtn.addEventListener('click', function(){
@@ -1269,6 +1285,73 @@ __NAV__
   }
 })();
 </script></div></body></html>"""
+
+
+def _pair_pattern_stats(store: 'EventStore', limit: int = 2000):
+    limit = max(100, min(int(limit), 20000))
+    try:
+        store.poll_new()
+        evs = list(store.events)[-limit:]
+    except Exception:
+        evs = []
+
+    def observed_pair(ev):
+        pb = str((ev.get('frame') or {}).get('payload_bits') or '')
+        if len(pb) < 32:
+            return None
+        out = []
+        for i in range(4):
+            b = pb[i * 8:(i + 1) * 8]
+            if len(b) != 8 or any(ch not in '01' for ch in b):
+                return None
+            out.append([int(b[6]), int(b[7])])
+        return out
+
+    def has_framing_bad(ev):
+        codes = [str((e or {}).get('code', '')) for e in (ev.get('errors') or [])]
+        for c in codes:
+            if c.startswith('timing.hunt_timeout') or c.startswith('framing.word_start_stop_mismatch') or c.startswith('framing.length_mismatch'):
+                return True
+        return False
+
+    import collections
+    overall = collections.Counter()
+    goodish = collections.Counter()
+    strict = collections.Counter()
+
+    for ev in evs:
+        p = observed_pair(ev)
+        if p is None:
+            continue
+        k = json.dumps(p)
+        overall[k] += 1
+
+        de = ev.get('decode') or {}
+        q = ev.get('quality') or {}
+        score = q.get('score', 0)
+        st = ev.get('status', '')
+        sid = de.get('sensor_id', 0)
+        errs = ev.get('errors') or []
+
+        if st in ('ok', 'warn') and isinstance(score, (int, float)) and score >= 0.70 and sid not in (None, 0) and not has_framing_bad(ev):
+            goodish[k] += 1
+        if st == 'ok' and isinstance(score, (int, float)) and score >= 0.85 and not errs:
+            strict[k] += 1
+
+    def top_rows(counter, n=10):
+        out = []
+        for k, c in counter.most_common(n):
+            out.append({'pattern': json.loads(k), 'count': int(c)})
+        return out
+
+    return {
+        'schema': 'fwlab.pair_pattern_stats.v1',
+        'ts': datetime.utcnow().isoformat() + 'Z',
+        'sample_limit': limit,
+        'overall_top': top_rows(overall, 12),
+        'goodish_top': top_rows(goodish, 12),
+        'strict_top': top_rows(strict, 12),
+    }
 
 
 def _forensics_bundle(store: 'EventStore', limit: int = 300):
@@ -2050,6 +2133,11 @@ class Handler(BaseHTTPRequestHandler):
             q = parse_qs(parsed.query)
             limit = int(q.get('limit', ['300'])[0])
             return self._json(_forensics_bundle(self.store, limit=limit))
+
+        if parsed.path == '/api/pair_pattern_stats':
+            q = parse_qs(parsed.query)
+            limit = int(q.get('limit', ['2000'])[0])
+            return self._json(_pair_pattern_stats(self.store, limit=limit))
 
         if parsed.path == '/api/rx_agg':
             if RX_AGG_JSON_PATH.exists():
