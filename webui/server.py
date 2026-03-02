@@ -1003,7 +1003,7 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
         animation:false,
         grid:{left:40,right:12,top:20,bottom:28},
         xAxis:{type:'category',data:sx},
-        yAxis:{type:'value',min:-2,max:2,
+        yAxis:{type:'value',min:-2,max:2,splitNumber:2,
           splitArea:{show:true,areaStyle:{color:['rgba(44,123,182,0.14)','rgba(215,25,28,0.12)']}},
           splitLine:{lineStyle:{color:'#2a3948'}}
         },
