@@ -91,20 +91,20 @@ class alert_protocol_decoder(gr.basic_block):
 
     def _publish_decode_error(self, error_code, message, details=None):
         event = {
-            "schema": "alert.decode.v1",
             "ts": self._now_iso(),
             "status": "error",
-            "quality": {"score": 0.0, "confidence": "low"},
-            "errors": [{"code": error_code, "message": message}],
-            "frame": details or {},
-            "decode": {},
             "summary": f"ERROR: {error_code}",
-            "display": f"ERROR: {error_code}",
+            "frame": details or {},
+            "errors": [{"code": error_code, "message": message}],
+            "decode": {},
+            "quality": {"score": 0.0, "confidence": "low"},
             "rx": {
                 "center_freq_hz": self.center_freq_hz,
                 "rf_gain_db": self.rf_gain_db,
                 "rf_squelch_db": self.rf_squelch_db,
             },
+            "display": f"ERROR: {error_code}",
+            "schema": "alert.decode.v1",
         }
         self._publish_event(event)
 
@@ -280,16 +280,9 @@ class alert_protocol_decoder(gr.basic_block):
         summary = f"{int(sensor_id):04d}, {int(data_val):06d}"
 
         return {
-            "schema": "alert.decode.v1",
             "ts": self._now_iso(),
             "status": status,
-            "quality": quality,
-            "errors": errors,
-            "rx": {
-                "center_freq_hz": self.center_freq_hz,
-                "rf_gain_db": self.rf_gain_db,
-                "rf_squelch_db": self.rf_squelch_db,
-            },
+            "summary": summary,
             "frame": {
                 "bits_per_word": self.bits_per_word,
                 "word_count": self.FRAME_WORDS,
@@ -301,14 +294,21 @@ class alert_protocol_decoder(gr.basic_block):
                 "invert_bits": self.invert_bits,
                 "symbol_samples": [round(float(x), 4) for x in (symbol_samples or [])],
             },
+            "errors": errors,
             "decode": {
                 "sensor_id": int(sensor_id),
                 "format_id": format_id,
                 "is_binary": bool(is_binary),
                 "data_val": int(data_val),
             },
-            "summary": summary,
+            "quality": quality,
+            "rx": {
+                "center_freq_hz": self.center_freq_hz,
+                "rf_gain_db": self.rf_gain_db,
+                "rf_squelch_db": self.rf_squelch_db,
+            },
             "display": summary,
+            "schema": "alert.decode.v1",
         }
 
     def _normalize_bit(self, float_sample):
