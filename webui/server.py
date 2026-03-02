@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import html
 import os
+import re
 import yaml
 from datetime import datetime
 from collections import deque
@@ -1277,6 +1278,75 @@ def _flowgraph_doc(grc_path='src/ALERT1v3.grc'):
     return out
 
 
+def _md_inline(s: str) -> str:
+    x = html.escape(s)
+    x = re.sub(r'`([^`]+)`', r'<code>\1</code>', x)
+    x = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', x)
+    x = re.sub(r'\*([^*]+)\*', r'<em>\1</em>', x)
+    x = re.sub(r'\[([^\]]+)\]\((https?://[^)]+)\)', r'<a href="\2" target="_blank" rel="noopener">\1</a>', x)
+    return x
+
+
+def markdown_to_html(md: str) -> str:
+    lines = md.splitlines()
+    out = []
+    in_code = False
+    in_ul = False
+    para = []
+
+    def flush_para():
+        nonlocal para
+        if para:
+            out.append('<p>' + _md_inline(' '.join(para).strip()) + '</p>')
+            para = []
+
+    def close_ul():
+        nonlocal in_ul
+        if in_ul:
+            out.append('</ul>')
+            in_ul = False
+
+    for ln in lines:
+        t = ln.rstrip('\n')
+        if t.strip().startswith('```'):
+            flush_para(); close_ul()
+            if not in_code:
+                out.append('<pre><code>'); in_code = True
+            else:
+                out.append('</code></pre>'); in_code = False
+            continue
+
+        if in_code:
+            out.append(html.escape(t))
+            continue
+
+        s = t.strip()
+        if not s:
+            flush_para(); close_ul();
+            continue
+
+        m = re.match(r'^(#{1,6})\s+(.*)$', s)
+        if m:
+            flush_para(); close_ul()
+            lvl = len(m.group(1))
+            out.append(f'<h{lvl}>' + _md_inline(m.group(2)) + f'</h{lvl}>')
+            continue
+
+        if s.startswith('- ') or s.startswith('* '):
+            flush_para()
+            if not in_ul:
+                out.append('<ul>'); in_ul = True
+            out.append('<li>' + _md_inline(s[2:].strip()) + '</li>')
+            continue
+
+        para.append(s)
+
+    flush_para(); close_ul()
+    if in_code:
+        out.append('</code></pre>')
+    return '\n'.join(out)
+
+
 def render_about_html():
     readme = Path('README.md')
     body = "README not found."
@@ -1286,14 +1356,19 @@ def render_about_html():
         except Exception as e:
             body = f"Failed to read README.md: {e}"
 
-    safe = html.escape(body)
+    rendered = markdown_to_html(body)
     nav = NAV_HTML
     return f"""<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB About</title>
 <style>
 body{{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;background:#0f141a;color:#e6edf3;margin:0}}
 .wrap{{max-width:1200px;margin:0 auto;padding:1rem}}
 .card{{background:#17212b;border:1px solid #243243;border-radius:10px;padding:.8rem;margin:.6rem 0}}
-pre{{white-space:pre-wrap;word-break:break-word;background:#101923;border:1px solid #2a3948;border-radius:8px;padding:.8rem}}
+.md{{line-height:1.5}}
+.md h1,.md h2,.md h3{{margin:.35rem 0 .5rem}}
+.md p{{margin:.35rem 0}}
+.md ul{{margin:.35rem 0 .6rem 1.2rem}}
+.md pre{{white-space:pre-wrap;word-break:break-word;background:#101923;border:1px solid #2a3948;border-radius:8px;padding:.8rem;overflow:auto}}
+.md code{{background:#111c27;padding:.08rem .3rem;border-radius:4px}}
 a{{color:#7fc8ff}}
 </style></head><body><div class='wrap'>
 {nav}
@@ -1301,7 +1376,7 @@ a{{color:#7fc8ff}}
 <div>Project repo: <a href='https://github.com/cdomotor-g/ALERT1v3' target='_blank' rel='noopener'>github.com/cdomotor-g/ALERT1v3</a></div>
 <div class='muted'>This page mirrors README.md from the running repo.</div>
 </div>
-<div class='card'><pre>{safe}</pre></div>
+<div class='card'><div class='md'>{rendered}</div></div>
 </div></body></html>"""
 
 
