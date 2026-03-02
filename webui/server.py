@@ -130,7 +130,7 @@ input,select,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;bo
 
 .table-wrap{max-height:58vh;overflow:auto;border:1px solid #243243;border-radius:8px;background:#121922}
 table{width:100%;border-collapse:collapse}
-th,td{border-bottom:1px solid #243243;padding:.4rem}
+th,td{border-bottom:1px solid #243243;padding:.4rem;text-align:left;vertical-align:top}
 thead th{position:sticky;top:0;background:#17212b;z-index:5}
 tr.ok{background:rgba(75,160,98,.10)}
 tr.warn{background:rgba(220,170,80,.12)}
@@ -207,7 +207,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     </div>
   </div>
   <div class='table-wrap'>
-    <table><thead><tr><th>Time</th><th>Status</th><th>Score</th><th>Conf</th><th>Errs</th><th>Sensor</th><th>Format</th><th>Data</th><th>Summary</th></tr></thead><tbody id='rows'></tbody></table>
+    <table><thead><tr><th>Time</th><th>Status</th><th>Score</th><th>Ones Ratio</th><th>SNR (dB)</th><th>Conf</th><th>Errs</th><th>Sensor</th><th>Format</th><th>Data</th><th>Summary</th></tr></thead><tbody id='rows'></tbody></table>
   </div>
   </div>
 </div>
@@ -401,7 +401,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     if(detailTop){ detailTop.style.display='none'; }
     clearInlineDetail();
     inlineRow=document.createElement('tr'); inlineRow.className='inline-detail';
-    var td=document.createElement('td'); td.colSpan=9;
+    var td=document.createElement('td'); td.colSpan=11;
     var pre=document.createElement('pre'); pre.textContent=text;
     td.appendChild(pre); inlineRow.appendChild(td);
     tr.parentNode.insertBefore(inlineRow, tr.nextSibling);
@@ -432,12 +432,15 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
       var ev=events[i]; if(!passFilter(ev)) continue; shown++;
       var tr=document.createElement('tr'); tr.className=g(ev,'status','');
       var q=g(g(ev,'quality',{}),'score',null); q=(typeof q==='number')?q.toFixed(3):'';
-      var c=g(g(ev,'quality',{}),'confidence','');
+      var qy=g(ev,'quality',{});
+      var c=g(qy,'confidence','');
+      var or=g(qy,'ones_ratio',null); or=(typeof or==='number')?or.toFixed(3):'';
+      var snr=g(qy,'snr_db_proxy',null); snr=(typeof snr==='number')?snr.toFixed(2):'';
       var errs=g(ev,'errors',[]); var errN=(errs&&errs.length)?errs.length:0;
       var de=g(ev,'decode',{});
       var sid=g(de,'sensor_id','');
       var sidLink = (sid!=='' && sid!==null && sid!==undefined) ? ('<a style="color:#7fc8ff" href="/trends?sensor_id='+encodeURIComponent(String(sid))+'&window=24h">'+sid+'</a>') : '';
-      tr.innerHTML='<td>'+fmtTs(g(ev,'ts',''))+'</td><td>'+g(ev,'status','')+'</td><td>'+q+'</td><td>'+c+'</td><td>'+errN+'</td><td>'+sidLink+'</td><td>'+g(de,'format_id','')+'</td><td>'+g(de,'data_val','')+'</td><td>'+g(ev,'summary','')+'</td>';
+      tr.innerHTML='<td>'+fmtTs(g(ev,'ts',''))+'</td><td>'+g(ev,'status','')+'</td><td>'+q+'</td><td>'+or+'</td><td>'+snr+'</td><td>'+c+'</td><td>'+errN+'</td><td>'+sidLink+'</td><td>'+g(de,'format_id','')+'</td><td>'+g(de,'data_val','')+'</td><td>'+g(ev,'summary','')+'</td>';
       (function(t,e){ t.addEventListener('click', function(){ showDetail(t,e); }); })(tr,ev);
       rows.appendChild(tr);
       if(shown>=300) break;
