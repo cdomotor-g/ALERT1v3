@@ -184,6 +184,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
       <div id='detailTopHeader' class='muted' style='cursor:pointer;display:flex;align-items:center;gap:.4rem;justify-content:space-between'>
         <span>Drill-down (click this header to close)</span>
         <span>
+          <button id='detailTail'>Tail: ON</button>
           <button id='detailPrev'>◀ Prev</button>
           <button id='detailNext'>Next ▶</button>
         </span>
@@ -252,12 +253,14 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   var detailTopHeader=document.getElementById('detailTopHeader');
   var detailPrev=document.getElementById('detailPrev');
   var detailNext=document.getElementById('detailNext');
+  var detailTail=document.getElementById('detailTail');
   if(detailTop && !isEventsPage){ detailTop.style.display='none'; }
   function eventKey(evt){ return String(g(evt,'ts','')) + '|' + String(g(g(evt,'decode',{}),'sensor_id','')) + '|' + String(g(g(evt,'decode',{}),'data_val','')); }
 
   if(detailTopHeader){
     detailTopHeader.addEventListener('click', function(ev){
       if(ev && ev.target && (ev.target.id==='detailPrev' || ev.target.id==='detailNext')) return;
+      setTailMode(false);
       selectedDetailKey='';
       if(detailTop){ detailTop.style.display='none'; }
       if(detailBits){ detailBits.innerHTML=''; }
@@ -272,7 +275,22 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     return out;
   }
 
+  function setTailMode(on){
+    tailMode = !!on;
+    if(detailTail){ detailTail.textContent = tailMode ? 'Tail: ON' : 'Tail: OFF'; }
+  }
+
+  function refreshTailDetail(){
+    if(!tailMode) return;
+    if(!events.length) return;
+    var latest = events[events.length-1];
+    selectedDetailKey = eventKey(latest);
+    if(detailTop){ detailTop.style.display='block'; detailText.textContent=detailPayload(latest); }
+    renderDetailBits(latest);
+  }
+
   function navDetail(step){
+    setTailMode(false);
     var list=filteredEventsDesc();
     if(!list.length) return;
     var idx=0;
@@ -290,6 +308,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   }
   if(detailPrev){ detailPrev.addEventListener('click', function(e){ e.stopPropagation(); navDetail(1); }); }
   if(detailNext){ detailNext.addEventListener('click', function(e){ e.stopPropagation(); navDetail(-1); }); }
+  if(detailTail){ detailTail.addEventListener('click', function(e){ e.stopPropagation(); setTailMode(!tailMode); if(tailMode){ refreshTailDetail(); render(); } }); }
   if(isEventsPage && window.innerWidth<=860 && filtersInner){ filtersInner.style.display='none'; if(filtersToggle) filtersToggle.textContent='Show filters'; }
   if(isEventsPage){
     var t=document.getElementById('pageTitle');
@@ -312,6 +331,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   var events=[];
   var inlineRow=null;
   var selectedDetailKey='';
+  var tailMode=true;
 
   function fmtTs(ts){
     if(!ts) return '';
@@ -440,6 +460,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   }
 
   function showDetail(tr, evt){
+    setTailMode(false);
     var key = eventKey(evt);
     if(selectedDetailKey === key){
       selectedDetailKey = '';
@@ -565,7 +586,8 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   if(rxStop) rxStop.addEventListener('click', function(){ receiverAction('stop'); });
   if(rxRestart) rxRestart.addEventListener('click', function(){ receiverAction('restart'); });
 
-  fetch('/api/events?limit=400').then(function(r){return r.json();}).then(function(d){events=d.events||[]; source.textContent=g(d,'source','n/a'); render();});
+  setTailMode(true);
+  fetch('/api/events?limit=400').then(function(r){return r.json();}).then(function(d){events=d.events||[]; source.textContent=g(d,'source','n/a'); refreshTailDetail(); render();});
   loadRfConfig();
 
   function renderHost(m){
@@ -607,6 +629,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
       events.push(JSON.parse(m.data));
       if(events.length>4000) events=events.slice(-4000);
       fetch('/api/events?limit=1').then(function(r){return r.json();}).then(function(d){ source.textContent=g(d,'source','n/a'); })['catch'](function(){});
+      refreshTailDetail();
       render();
       status.textContent='live';
     }catch(e){}
