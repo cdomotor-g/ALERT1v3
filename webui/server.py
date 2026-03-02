@@ -185,7 +185,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     </div>
 
     <div id='detailTop' class='card'>
-      <div class='muted'>Drill-down (click a row)</div>
+      <div id='detailTopHeader' class='muted' style='cursor:pointer'>Drill-down (click a row, click this header to close)</div>
       <pre id='detailText'>No event selected.</pre>
     </div>
   </div>
@@ -244,7 +244,15 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   var exportBtn=document.getElementById('exportBtn');
   var detailText=document.getElementById('detailText');
   var detailTop=document.getElementById('detailTop');
+  var detailTopHeader=document.getElementById('detailTopHeader');
   if(detailTop && !isEventsPage){ detailTop.style.display='none'; }
+  if(detailTopHeader){
+    detailTopHeader.addEventListener('click', function(){
+      selectedDetailKey='';
+      if(detailTop){ detailTop.style.display='none'; }
+      clearInlineDetail();
+    });
+  }
   if(isEventsPage && window.innerWidth<=860 && filtersInner){ filtersInner.style.display='none'; if(filtersToggle) filtersToggle.textContent='Show filters'; }
   if(isEventsPage){
     var t=document.getElementById('pageTitle');
