@@ -174,6 +174,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
       <div id='rx-chart' style='height:150px'></div>
       <div class='muted small' style='margin-top:.55rem'>Rx packets per 30 min (last 24 h)</div>
       <div id='rx-chart-24h' style='height:150px'></div>
+      <div class='muted small'>Note: 30-min bins are phase-shifted by +15 min (…:15 to …:45 boundaries).</div>
     </div>
 
     <div class='card'>
