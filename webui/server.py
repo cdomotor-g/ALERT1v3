@@ -181,7 +181,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
       Storage: <span id='st-mode' class='muted'>n/a</span> · Used <span id='st-used'>-</span>% · Free <span id='st-free'>-</span> GB · Retention <span id='st-days'>-</span> days
     </div>
 
-    <div id='detailTop' class='card'>
+    <div id='detailTop' class='card' style='display:none'>
       <div id='detailTopHeader' class='muted' style='cursor:pointer;display:flex;align-items:center;gap:.4rem;justify-content:space-between'>
         <span>Drill-down (click this header to close)</span>
         <span>
@@ -587,8 +587,8 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   if(rxStop) rxStop.addEventListener('click', function(){ receiverAction('stop'); });
   if(rxRestart) rxRestart.addEventListener('click', function(){ receiverAction('restart'); });
 
-  setTailMode(true);
-  fetch('/api/events?limit=400').then(function(r){return r.json();}).then(function(d){events=d.events||[]; source.textContent=g(d,'source','n/a'); refreshTailDetail(); render();});
+  if(isEventsPage){ setTailMode(true); }
+  fetch('/api/events?limit=400').then(function(r){return r.json();}).then(function(d){events=d.events||[]; source.textContent=g(d,'source','n/a'); if(isEventsPage){ refreshTailDetail(); } render();});
   loadRfConfig();
 
   function renderHost(m){
@@ -630,7 +630,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
       events.push(JSON.parse(m.data));
       if(events.length>4000) events=events.slice(-4000);
       fetch('/api/events?limit=1').then(function(r){return r.json();}).then(function(d){ source.textContent=g(d,'source','n/a'); })['catch'](function(){});
-      refreshTailDetail();
+      if(isEventsPage){ refreshTailDetail(); }
       render();
       status.textContent='live';
     }catch(e){}
