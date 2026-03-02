@@ -39,6 +39,8 @@ class alert_protocol_decoder(gr.basic_block):
         word_lsb_first=True,
         invert_bits=True,
         strict_mode=True,
+        enforce_fixed_pairs=True,
+        fixed_pair_hard_reject=False,
     ):
         gr.basic_block.__init__(
             self,
@@ -56,6 +58,8 @@ class alert_protocol_decoder(gr.basic_block):
         self.word_lsb_first = bool(word_lsb_first)
         self.invert_bits = bool(invert_bits)
         self.strict_mode = bool(strict_mode)
+        self.enforce_fixed_pairs = bool(enforce_fixed_pairs)
+        self.fixed_pair_hard_reject = bool(fixed_pair_hard_reject)
 
         self.message_port_register_out(pmt.intern("debug_out"))
         self.message_port_register_out(pmt.intern("stats_out"))
@@ -227,14 +231,20 @@ class alert_protocol_decoder(gr.basic_block):
         errors = []
         # ALERT Binary fixed pair bits validation:
         # p1[6:8]=10, p2[6:8]=10, p3[6:8]=11, p4[6:8]=11
-        if p1[6:8] != [1, 0]:
-            errors.append({"code": "decode.fixed_pair_mismatch_w1", "message": f"w1 pair={p1[6:8]} expected [1,0]"})
-        if p2[6:8] != [1, 0]:
-            errors.append({"code": "decode.fixed_pair_mismatch_w2", "message": f"w2 pair={p2[6:8]} expected [1,0]"})
-        if p3[6:8] != [1, 1]:
-            errors.append({"code": "decode.fixed_pair_mismatch_w3", "message": f"w3 pair={p3[6:8]} expected [1,1]"})
-        if p4[6:8] != [1, 1]:
-            errors.append({"code": "decode.fixed_pair_mismatch_w4", "message": f"w4 pair={p4[6:8]} expected [1,1]"})
+        fixed_pair_mismatch = False
+        if self.enforce_fixed_pairs:
+            if p1[6:8] != [1, 0]:
+                errors.append({"code": "decode.fixed_pair_mismatch_w1", "message": f"w1 pair={p1[6:8]} expected [1,0]"})
+                fixed_pair_mismatch = True
+            if p2[6:8] != [1, 0]:
+                errors.append({"code": "decode.fixed_pair_mismatch_w2", "message": f"w2 pair={p2[6:8]} expected [1,0]"})
+                fixed_pair_mismatch = True
+            if p3[6:8] != [1, 1]:
+                errors.append({"code": "decode.fixed_pair_mismatch_w3", "message": f"w3 pair={p3[6:8]} expected [1,1]"})
+                fixed_pair_mismatch = True
+            if p4[6:8] != [1, 1]:
+                errors.append({"code": "decode.fixed_pair_mismatch_w4", "message": f"w4 pair={p4[6:8]} expected [1,1]"})
+                fixed_pair_mismatch = True
 
         # Extract ALERT AU binary fields (LSB-first per spec).
         a_bits = []
@@ -271,7 +281,7 @@ class alert_protocol_decoder(gr.basic_block):
             if int(sensor_id) == 0:
                 errors.append({"code": "decode.zero_sensor_id", "message": "sensor_id is zero"})
                 hard_reject = True
-            if any((e.get("code", "").startswith("decode.fixed_pair_mismatch")) for e in errors):
+            if fixed_pair_mismatch and self.fixed_pair_hard_reject:
                 hard_reject = True
 
         status = "ok" if not errors else ("warn" if quality["score"] >= 0.60 else "error")
@@ -292,6 +302,8 @@ class alert_protocol_decoder(gr.basic_block):
                 "stop_bit": self.stop_bit,
                 "word_lsb_first": self.word_lsb_first,
                 "invert_bits": self.invert_bits,
+                "enforce_fixed_pairs": self.enforce_fixed_pairs,
+                "fixed_pair_hard_reject": self.fixed_pair_hard_reject,
                 "symbol_samples": [round(float(x), 4) for x in (symbol_samples or [])],
             },
             "errors": errors,
