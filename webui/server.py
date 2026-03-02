@@ -195,9 +195,9 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
           <button id='detailNext'>Next ▶</button>
         </span>
       </div>
-      <pre id='detailText'>No event selected.</pre>
       <div class='muted small' style='margin-top:.35rem'>Frame bits (graphical)</div>
       <div id='detailBits' class='detail-bits'></div>
+      <pre id='detailText'>No event selected.</pre>
     </div>
   </div>
 
