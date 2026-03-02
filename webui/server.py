@@ -454,6 +454,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     if(detailMode.value==='top'){
       clearInlineDetail();
       if(detailTop){ detailTop.style.display='block'; detailText.textContent=text; renderDetailBits(evt); }
+      render();
       return;
     }
     if(detailTop){ detailTop.style.display='none'; }
