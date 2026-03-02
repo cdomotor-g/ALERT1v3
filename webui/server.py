@@ -136,6 +136,7 @@ tr.ok{background:rgba(75,160,98,.10)}
 tr.warn{background:rgba(220,170,80,.12)}
 tr.error{background:rgba(200,80,80,.14)}
 tr.inline-detail td{background:#0f141a}
+tr.selected td{box-shadow: inset 0 0 0 1px #4fa8ff;background:rgba(79,168,255,.12)}
 pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;border-radius:6px;border:1px solid #2a3948;max-height:240px;overflow:auto}
 .detail-bits{display:flex;flex-wrap:wrap;gap:2px;background:#0f141a;border:1px solid #2a3948;border-radius:6px;padding:.35rem;margin-top:.4rem}
 .detail-bits .b{width:10px;height:14px;border-radius:2px;display:inline-block}
@@ -177,7 +178,13 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     </div>
 
     <div id='detailTop' class='card'>
-      <div id='detailTopHeader' class='muted' style='cursor:pointer'>Drill-down (click a row, click this header to close)</div>
+      <div id='detailTopHeader' class='muted' style='cursor:pointer;display:flex;align-items:center;gap:.4rem;justify-content:space-between'>
+        <span>Drill-down (click this header to close)</span>
+        <span>
+          <button id='detailPrev'>◀ Prev</button>
+          <button id='detailNext'>Next ▶</button>
+        </span>
+      </div>
       <pre id='detailText'>No event selected.</pre>
       <div class='muted small' style='margin-top:.35rem'>Frame bits (graphical)</div>
       <div id='detailBits' class='detail-bits'></div>
@@ -240,15 +247,46 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   var detailBits=document.getElementById('detailBits');
   var detailTop=document.getElementById('detailTop');
   var detailTopHeader=document.getElementById('detailTopHeader');
+  var detailPrev=document.getElementById('detailPrev');
+  var detailNext=document.getElementById('detailNext');
   if(detailTop && !isEventsPage){ detailTop.style.display='none'; }
+  function eventKey(evt){ return String(g(evt,'ts','')) + '|' + String(g(g(evt,'decode',{}),'sensor_id','')) + '|' + String(g(g(evt,'decode',{}),'data_val','')); }
+
   if(detailTopHeader){
-    detailTopHeader.addEventListener('click', function(){
+    detailTopHeader.addEventListener('click', function(ev){
+      if(ev && ev.target && (ev.target.id==='detailPrev' || ev.target.id==='detailNext')) return;
       selectedDetailKey='';
       if(detailTop){ detailTop.style.display='none'; }
       if(detailBits){ detailBits.innerHTML=''; }
       clearInlineDetail();
+      render();
     });
   }
+
+  function filteredEventsDesc(){
+    var out=[];
+    for(var i=events.length-1;i>=0;i--){ var ev=events[i]; if(passFilter(ev)) out.push(ev); }
+    return out;
+  }
+
+  function navDetail(step){
+    var list=filteredEventsDesc();
+    if(!list.length) return;
+    var idx=0;
+    if(selectedDetailKey){
+      for(var i=0;i<list.length;i++){ if(eventKey(list[i])===selectedDetailKey){ idx=i; break; } }
+    }
+    var ni=idx+step;
+    if(ni<0) ni=0;
+    if(ni>=list.length) ni=list.length-1;
+    var ev=list[ni];
+    selectedDetailKey=eventKey(ev);
+    if(detailTop){ detailTop.style.display='block'; detailText.textContent=detailPayload(ev); }
+    renderDetailBits(ev);
+    render();
+  }
+  if(detailPrev){ detailPrev.addEventListener('click', function(e){ e.stopPropagation(); navDetail(1); }); }
+  if(detailNext){ detailNext.addEventListener('click', function(e){ e.stopPropagation(); navDetail(-1); }); }
   if(isEventsPage && window.innerWidth<=860 && filtersInner){ filtersInner.style.display='none'; if(filtersToggle) filtersToggle.textContent='Show filters'; }
   if(isEventsPage){
     var t=document.getElementById('pageTitle');
@@ -399,7 +437,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   }
 
   function showDetail(tr, evt){
-    var key = String(g(evt,'ts','')) + '|' + String(g(g(evt,'decode',{}),'sensor_id','')) + '|' + String(g(g(evt,'decode',{}),'data_val',''));
+    var key = eventKey(evt);
     if(selectedDetailKey === key){
       selectedDetailKey = '';
       clearInlineDetail();
@@ -450,6 +488,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     for(var i=events.length-1;i>=0;i--){
       var ev=events[i]; if(!passFilter(ev)) continue; shown++;
       var tr=document.createElement('tr'); tr.className=g(ev,'status','');
+      if(selectedDetailKey && eventKey(ev)===selectedDetailKey){ tr.classList.add('selected'); }
       var q=g(g(ev,'quality',{}),'score',null); q=(typeof q==='number')?q.toFixed(3):'';
       var qy=g(ev,'quality',{});
       var c=g(qy,'confidence','');
