@@ -27,6 +27,7 @@ def _build_stamp():
     return sha[:12]
 
 BUILD_STAMP = _build_stamp()
+RX_AGG_JSON_PATH = Path('rf_log/rx_agg.json')
 NAV_HTML = f"""
 <style>
 :root{{--sidebar-w:212px;--sidebar-w-c:64px;--content-gap:14px;}}
@@ -168,6 +169,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     </div>
 
     <div id='rx-section' class='card'>
+      <div class='muted small'>Rx charts source: <span id='rx-source'>fallback</span></div>
       <div class='muted small'>Rx packets per 2 min (last 30 min)</div>
       <div id='rx-chart' style='height:150px'></div>
       <div class='muted small' style='margin-top:.55rem'>Rx packets per 30 min (last 24 h)</div>
@@ -327,6 +329,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   }); }
   var rxChartEl=document.getElementById('rx-chart');
   var rxChart=(window.echarts && rxChartEl) ? echarts.init(rxChartEl) : null;
+  var rxSourceEl=document.getElementById('rx-source');
   var rxChart24El=document.getElementById('rx-chart-24h');
   var rxChart24=(window.echarts && rxChart24El) ? echarts.init(rxChart24El) : null;
   var rfFreqNow=document.getElementById('rf-freq-now'), rfGainNow=document.getElementById('rf-gain-now'), rfSqNow=document.getElementById('rf-sq-now');
@@ -334,6 +337,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   var rfApply=document.getElementById('rf-apply'), rfMsg=document.getElementById('rf-msg');
   var rxStart=document.getElementById('rx-start'), rxStop=document.getElementById('rx-stop'), rxRestart=document.getElementById('rx-restart');
   var events=[];
+  var rxAgg=null;
   var inlineRow=null;
   var selectedDetailKey='';
   var tailMode=true;
@@ -357,20 +361,26 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     var windowMs = 30*60*1000;
     var binMs = windowMs / bins;
 
-    for(var b=0;b<bins;b++){
-      var ageStartMin = Math.round(((bins-b)*binMs)/60000);
-      var ageEndMin = Math.round((((bins-b)-1)*binMs)/60000);
-      labels[b] = '-' + ageStartMin + 'm';
-      if (b === bins-1) labels[b] = 'now';
-    }
+    if(rxAgg && rxAgg.rx_2m_30m && rxAgg.rx_2m_30m.counts && rxAgg.rx_2m_30m.labels){
+      counts = rxAgg.rx_2m_30m.counts.slice(0, bins);
+      labels = rxAgg.rx_2m_30m.labels.slice(0, bins);
+      if(rxSourceEl){ rxSourceEl.textContent='sidecar'; rxSourceEl.className='good'; }
+    } else {
+      if(rxSourceEl){ rxSourceEl.textContent='fallback'; rxSourceEl.className='warn'; }
+      for(var b=0;b<bins;b++){
+        var ageStartMin = Math.round(((bins-b)*binMs)/60000);
+        labels[b] = '-' + ageStartMin + 'm';
+        if (b === bins-1) labels[b] = 'now';
+      }
 
-    for(var i=0;i<events.length;i++){
-      var t = Date.parse(g(events[i],'ts',''));
-      if(!isFinite(t)) continue;
-      var age = now - t;
-      if(age < 0 || age > windowMs) continue;
-      var idx = bins - 1 - Math.floor(age / binMs);
-      if(idx>=0 && idx<bins) counts[idx]++;
+      for(var i=0;i<events.length;i++){
+        var t = Date.parse(g(events[i],'ts',''));
+        if(!isFinite(t)) continue;
+        var age = now - t;
+        if(age < 0 || age > windowMs) continue;
+        var idx = bins - 1 - Math.floor(age / binMs);
+        if(idx>=0 && idx<bins) counts[idx]++;
+      }
     }
 
     rxChart.setOption({
@@ -386,21 +396,27 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
       var bins24=48; // 48 x 30min = 24h
       var counts24=new Array(bins24).fill(0);
       var labels24=new Array(bins24);
-      var windowMs24=24*60*60*1000;
-      var binMs24=30*60*1000;
-      var phaseMs=15*60*1000; // shift bins to :15/:45 boundaries
-      for(var b2=0;b2<bins24;b2++){
-        var ageH=((bins24-b2)*binMs24)/3600000;
-        labels24[b2]='-'+Math.round(ageH)+'h';
-        if(b2===bins24-1) labels24[b2]='now';
-      }
-      for(var ii=0;ii<events.length;ii++){
-        var t2=Date.parse(g(events[ii],'ts',''));
-        if(!isFinite(t2)) continue;
-        var age2=now-t2;
-        if(age2<0 || age2>windowMs24) continue;
-        var idx2=bins24-1-Math.floor((age2+phaseMs)/binMs24);
-        if(idx2>=0 && idx2<bins24) counts24[idx2]++;
+
+      if(rxAgg && rxAgg.rx_30m_24h && rxAgg.rx_30m_24h.counts && rxAgg.rx_30m_24h.labels){
+        counts24 = rxAgg.rx_30m_24h.counts.slice(0, bins24);
+        labels24 = rxAgg.rx_30m_24h.labels.slice(0, bins24);
+      } else {
+        var windowMs24=24*60*60*1000;
+        var binMs24=30*60*1000;
+        var phaseMs=15*60*1000; // shift bins to :15/:45 boundaries
+        for(var b2=0;b2<bins24;b2++){
+          var ageH=((bins24-b2)*binMs24)/3600000;
+          labels24[b2]='-'+Math.round(ageH)+'h';
+          if(b2===bins24-1) labels24[b2]='now';
+        }
+        for(var ii=0;ii<events.length;ii++){
+          var t2=Date.parse(g(events[ii],'ts',''));
+          if(!isFinite(t2)) continue;
+          var age2=now-t2;
+          if(age2<0 || age2>windowMs24) continue;
+          var idx2=bins24-1-Math.floor((age2+phaseMs)/binMs24);
+          if(idx2>=0 && idx2<bins24) counts24[idx2]++;
+        }
       }
       rxChart24.setOption({
         animation:false,
@@ -654,9 +670,13 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
       el.className = (mode==='emergency'||mode==='critical') ? 'bad' : (mode==='warn' ? 'warn' : 'good');
     })['catch'](function(){});
   }
+  function pollRxAgg(){
+    fetch('/api/rx_agg').then(function(r){ if(!r.ok) return null; return r.json(); }).then(function(d){ if(d){ rxAgg=d; drawRxBars(); } else { rxAgg=null; drawRxBars(); } })['catch'](function(){ rxAgg=null; drawRxBars(); });
+  }
   pollHost(); setInterval(pollHost,3000);
   pollReceiver(); setInterval(pollReceiver,5000);
   pollStorage(); setInterval(pollStorage,10000);
+  pollRxAgg(); setInterval(pollRxAgg,10000);
 
   var es=new EventSource('/api/live');
   es.onmessage=function(m){
@@ -2024,6 +2044,16 @@ class Handler(BaseHTTPRequestHandler):
             q = parse_qs(parsed.query)
             limit = int(q.get('limit', ['300'])[0])
             return self._json(_forensics_bundle(self.store, limit=limit))
+
+        if parsed.path == '/api/rx_agg':
+            if RX_AGG_JSON_PATH.exists():
+                try:
+                    d = json.loads(RX_AGG_JSON_PATH.read_text(encoding='utf-8', errors='replace'))
+                    d['source'] = str(RX_AGG_JSON_PATH)
+                    return self._json(d)
+                except Exception as e:
+                    return self._json({'error': f'parse_failed: {e}', 'source': str(RX_AGG_JSON_PATH)}, code=500)
+            return self._json({'error': 'not_ready', 'source': str(RX_AGG_JSON_PATH)}, code=404)
 
         if parsed.path == '/api/events':
             q = parse_qs(parsed.query)
