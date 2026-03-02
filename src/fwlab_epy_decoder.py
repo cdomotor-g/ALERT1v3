@@ -2,6 +2,7 @@ import numpy as np
 from gnuradio import gr
 import pmt
 import datetime
+import json
 
 
 class alert_protocol_decoder(gr.basic_block):
@@ -41,6 +42,7 @@ class alert_protocol_decoder(gr.basic_block):
         strict_mode=True,
         enforce_fixed_pairs=True,
         fixed_pair_hard_reject=False,
+        fixed_pair_patterns_json='[[[1,0],[1,0],[1,1],[1,1]]]',
     ):
         gr.basic_block.__init__(
             self,
@@ -60,6 +62,30 @@ class alert_protocol_decoder(gr.basic_block):
         self.strict_mode = bool(strict_mode)
         self.enforce_fixed_pairs = bool(enforce_fixed_pairs)
         self.fixed_pair_hard_reject = bool(fixed_pair_hard_reject)
+
+        self.fixed_pair_patterns = [
+            [[1, 0], [1, 0], [1, 1], [1, 1]],
+        ]
+        try:
+            parsed = json.loads(str(fixed_pair_patterns_json))
+            if isinstance(parsed, list) and parsed:
+                norm = []
+                for pat in parsed:
+                    if not isinstance(pat, list) or len(pat) != 4:
+                        continue
+                    p = []
+                    ok = True
+                    for w in pat:
+                        if not isinstance(w, list) or len(w) != 2:
+                            ok = False
+                            break
+                        p.append([1 if int(w[0]) else 0, 1 if int(w[1]) else 0])
+                    if ok:
+                        norm.append(p)
+                if norm:
+                    self.fixed_pair_patterns = norm
+        except Exception:
+            pass
 
         self.message_port_register_out(pmt.intern("debug_out"))
         self.message_port_register_out(pmt.intern("stats_out"))
@@ -231,20 +257,21 @@ class alert_protocol_decoder(gr.basic_block):
         errors = []
         # ALERT Binary fixed pair bits validation:
         # p1[6:8]=10, p2[6:8]=10, p3[6:8]=11, p4[6:8]=11
+        observed_pairs = [list(p1[6:8]), list(p2[6:8]), list(p3[6:8]), list(p4[6:8])]
         fixed_pair_mismatch = False
+        fixed_pair_pattern_id = None
         if self.enforce_fixed_pairs:
-            if p1[6:8] != [1, 0]:
-                errors.append({"code": "decode.fixed_pair_mismatch_w1", "message": f"w1 pair={p1[6:8]} expected [1,0]"})
+            for i, pat in enumerate(self.fixed_pair_patterns):
+                if pat == observed_pairs:
+                    fixed_pair_pattern_id = i
+                    break
+            if fixed_pair_pattern_id is None:
                 fixed_pair_mismatch = True
-            if p2[6:8] != [1, 0]:
-                errors.append({"code": "decode.fixed_pair_mismatch_w2", "message": f"w2 pair={p2[6:8]} expected [1,0]"})
-                fixed_pair_mismatch = True
-            if p3[6:8] != [1, 1]:
-                errors.append({"code": "decode.fixed_pair_mismatch_w3", "message": f"w3 pair={p3[6:8]} expected [1,1]"})
-                fixed_pair_mismatch = True
-            if p4[6:8] != [1, 1]:
-                errors.append({"code": "decode.fixed_pair_mismatch_w4", "message": f"w4 pair={p4[6:8]} expected [1,1]"})
-                fixed_pair_mismatch = True
+                for wi, pair in enumerate(observed_pairs, start=1):
+                    errors.append({
+                        "code": f"decode.fixed_pair_mismatch_w{wi}",
+                        "message": f"w{wi} pair={pair} no configured pattern matched",
+                    })
 
         # Extract ALERT AU binary fields (LSB-first per spec).
         a_bits = []
@@ -304,6 +331,9 @@ class alert_protocol_decoder(gr.basic_block):
                 "invert_bits": self.invert_bits,
                 "enforce_fixed_pairs": self.enforce_fixed_pairs,
                 "fixed_pair_hard_reject": self.fixed_pair_hard_reject,
+                "fixed_pair_patterns": self.fixed_pair_patterns,
+                "fixed_pair_observed": observed_pairs,
+                "fixed_pair_pattern_id": fixed_pair_pattern_id,
                 "symbol_samples": [round(float(x), 4) for x in (symbol_samples or [])],
             },
             "errors": errors,
@@ -312,6 +342,7 @@ class alert_protocol_decoder(gr.basic_block):
                 "format_id": format_id,
                 "is_binary": bool(is_binary),
                 "data_val": int(data_val),
+                "fixed_pair_pattern_id": fixed_pair_pattern_id,
             },
             "quality": quality,
             "rx": {
