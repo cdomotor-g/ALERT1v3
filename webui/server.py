@@ -499,10 +499,19 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
       var or=g(qy,'ones_ratio',null); or=(typeof or==='number')?or.toFixed(3):'';
       var snr=g(qy,'snr_db_proxy',null); snr=(typeof snr==='number')?snr.toFixed(2):'';
       var errs=g(ev,'errors',[]); var errN=(errs&&errs.length)?errs.length:0;
+      var errCodes=(errs||[]).map(function(e){return g(e,'code','');});
+      function hasErr(prefix){ for(var ei=0;ei<errCodes.length;ei++){ if(String(errCodes[ei]).indexOf(prefix)===0) return true; } return false; }
       var de=g(ev,'decode',{});
       var sid=g(de,'sensor_id','');
       var sidLink = (sid!=='' && sid!==null && sid!==undefined) ? ('<a style="color:#7fc8ff" href="/trends?sensor_id='+encodeURIComponent(String(sid))+'&window=24h">'+sid+'</a>') : '';
-      tr.innerHTML='<td>'+fmtTs(g(ev,'ts',''))+'</td><td>'+g(ev,'status','')+'</td><td>'+q+'</td><td>'+or+'</td><td>'+snr+'</td><td>'+c+'</td><td>'+errN+'</td><td>'+sidLink+'</td><td>'+g(de,'format_id','')+'</td><td>'+g(de,'data_val','')+'</td><td>'+g(ev,'summary','')+'</td>';
+
+      var orHtml = hasErr('signal.bit_balance_extreme') ? ('<span class="bad">'+or+'</span>') : or;
+      var snrHtml = hasErr('signal.low_snr_proxy') ? ('<span class="bad">'+snr+'</span>') : snr;
+      var fmtHtml = hasErr('decode.invalid_format_id') ? ('<span class="bad">'+g(de,'format_id','')+'</span>') : g(de,'format_id','');
+      var sidHtml = hasErr('decode.zero_sensor_id') ? ('<span class="bad">'+sidLink+'</span>') : sidLink;
+      var summaryHtml = (errN>0) ? ('<span class="warn">'+g(ev,'summary','')+'</span>') : g(ev,'summary','');
+
+      tr.innerHTML='<td>'+fmtTs(g(ev,'ts',''))+'</td><td>'+g(ev,'status','')+'</td><td>'+q+'</td><td>'+orHtml+'</td><td>'+snrHtml+'</td><td>'+c+'</td><td>'+errN+'</td><td>'+sidHtml+'</td><td>'+fmtHtml+'</td><td>'+g(de,'data_val','')+'</td><td>'+summaryHtml+'</td>';
       (function(t,e){ t.addEventListener('click', function(){ showDetail(t,e); }); })(tr,ev);
       rows.appendChild(tr);
       if(shown>=300) break;
