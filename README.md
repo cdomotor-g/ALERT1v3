@@ -67,6 +67,8 @@ Tip: if mobile appears blocked, use **Load Audio** then press play on the native
 
 ## Documentation
 
+- Pi-light operations profile: `docs/PI_LIGHT_MODE.md`
+
 - Architecture: `docs/ARCHITECTURE.md`
 - Protocol decode notes: `docs/PROTOCOL.md`
 - MQTT integration notes: `docs/MQTT.md`
