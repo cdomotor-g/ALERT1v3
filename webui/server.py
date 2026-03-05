@@ -840,6 +840,14 @@ View name <input id='viewName' style='width:120px' placeholder='optional'>
 <select id='savedViews'><option value=''>saved views</option></select>
 <span id='msg'></span></div>
 <div class='card'>Latest: <span id='latest'>-</span> · Min: <span id='min'>-</span> · Max: <span id='max'>-</span> · Avg: <span id='avg'>-</span></div>
+<div class='card'>
+  <div class='muted small'>Coverage (hot vs cold)</div>
+  <div style='height:10px;background:#0f141a;border:1px solid #2a3948;border-radius:6px;overflow:hidden;margin:.3rem 0'>
+    <div id='covLocal' style='height:100%;width:0%;background:#5fa8ff;float:left'></div>
+    <div id='covArchive' style='height:100%;width:0%;background:#5bbf7a;float:left'></div>
+  </div>
+  <div class='small'>hot/local: <span id='covLocalCount'>0</span> · cold/archive: <span id='covArchiveCount'>0</span></div>
+</div>
 <div class='card'><div id='chart'></div></div>
 <script>
 (function(){
@@ -848,6 +856,8 @@ View name <input id='viewName' style='width:120px' placeholder='optional'>
   var viewName=document.getElementById('viewName'), saveView=document.getElementById('saveView'), savedViews=document.getElementById('savedViews');
   var ymin=document.getElementById('ymin'), ymax=document.getElementById('ymax');
   var latest=document.getElementById('latest'), minv=document.getElementById('min'), maxv=document.getElementById('max'), avgv=document.getElementById('avg');
+  var covLocal=document.getElementById('covLocal'), covArchive=document.getElementById('covArchive');
+  var covLocalCount=document.getElementById('covLocalCount'), covArchiveCount=document.getElementById('covArchiveCount');
   var chart = echarts.init(document.getElementById('chart'));
   var lastPoints=[];
 
@@ -881,6 +891,13 @@ View name <input id='viewName' style='width:120px' placeholder='optional'>
       minv.textContent=(d.stats && d.stats.min!=null)?d.stats.min:'-';
       maxv.textContent=(d.stats && d.stats.max!=null)?d.stats.max:'-';
       avgv.textContent=(d.stats && d.stats.avg!=null)?d.stats.avg:'-';
+      var lc=(d.stats && d.stats.local_count!=null)?Number(d.stats.local_count):0;
+      var ac=(d.stats && d.stats.archive_count!=null)?Number(d.stats.archive_count):0;
+      var tot=Math.max(1,lc+ac);
+      if(covLocal) covLocal.style.width=(100*lc/tot).toFixed(1)+'%';
+      if(covArchive) covArchive.style.width=(100*ac/tot).toFixed(1)+'%';
+      if(covLocalCount) covLocalCount.textContent=String(lc);
+      if(covArchiveCount) covArchiveCount.textContent=String(ac);
       draw(pts);
     }).catch(function(){ msg.textContent=' failed'; draw([]); }); }
 
