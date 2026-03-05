@@ -1,0 +1,17 @@
+[Unit]
+Description=FW-LAB RX Aggregation Sidecar
+After=network-online.target fwlab-receiver.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=cdomotor
+Group=cdomotor
+WorkingDirectory=/home/cdomotor/.openclaw/workspace/projects/ALERT1v3
+ExecStart=/usr/bin/python3 /home/cdomotor/.openclaw/workspace/projects/ALERT1v3/tools/rx_agg_sidecar.py --log-dir /home/cdomotor/rf_log --out /home/cdomotor/.openclaw/workspace/projects/ALERT1v3/rf_log/rx_agg.json --interval 10
+Restart=always
+RestartSec=2
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

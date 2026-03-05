@@ -41,9 +41,15 @@ Current goals:
 - `/` Dashboard
 - `/events` Event table + filters
 - `/radio` Live RF health, waveform/waterfall, and browser audio monitor
-- `/trends` Sensor trends/analytics
+- `/data` Data explorer (hot+cold query modes; `/trends` alias retained)
 - `/admin` Runtime policy/control
 - `/forensics` Deep diagnostics page (flowgraph inventory/connectivity + decode review checklist)
+
+`/data` source modes:
+- `auto` (default): prefer hot/local when sufficient, backfill with cold/archive when sparse
+- `combined`: merge hot + cold with timestamp de-dup
+- `local`: hot store only
+- `archive`: cold store only
 - `/about` About page (renders this README + repo link)
 
 ### Browser audio monitor

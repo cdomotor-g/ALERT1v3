@@ -85,7 +85,7 @@ h2{{font-weight:650;letter-spacing:.2px;}}
       <a href='/'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 10.5 12 3l9 7.5'/><path d='M5 9.5V21h14V9.5'/></svg></span><span class='fw-label'>Dashboard</span></a>
       <a href='/events'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='4' width='16' height='16' rx='2'/><path d='M8 9h8M8 13h8M8 17h5'/></svg></span><span class='fw-label'>Events</span></a>
       <a href='/radio'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 12h3m12 0h3'/><circle cx='12' cy='12' r='2.5'/><path d='M6.5 8.5a8 8 0 0 1 0 7M17.5 8.5a8 8 0 0 1 0 7'/></svg></span><span class='fw-label'>Radio</span></a>
-      <a href='/trends'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 19h16'/><path d='m6 15 4-4 3 2 5-6'/><path d='m18 7 0 3h-3'/></svg></span><span class='fw-label'>Trends</span></a>
+      <a href='/data'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 19h16'/><path d='m6 15 4-4 3 2 5-6'/><path d='m18 7 0 3h-3'/></svg></span><span class='fw-label'>Data</span></a>
       <a href='/admin'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='3'/><path d='M19.4 15a1 1 0 0 0 .2 1.1l.1.1a2 2 0 0 1-2.8 2.8l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V20a2 2 0 0 1-4 0v-.2a1 1 0 0 0-.6-.9 1 1 0 0 0-1.1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H4a2 2 0 0 1 0-4h.2a1 1 0 0 0 .9-.6 1 1 0 0 0-.2-1.1l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1 1 0 0 0 1.1.2h0a1 1 0 0 0 .6-.9V4a2 2 0 0 1 4 0v.2a1 1 0 0 0 .6.9h0a1 1 0 0 0 1.1-.2l.1-.1a2 2 0 0 1 2.8 2.8l-.1.1a1 1 0 0 0-.2 1.1v0a1 1 0 0 0 .9.6H20a2 2 0 0 1 0 4h-.2a1 1 0 0 0-.9.6z'/></svg></span><span class='fw-label'>Admin</span></a>
       <a href='/forensics'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='6.5'/><path d='M20 20l-4.2-4.2'/><path d='M11 8.5v5M8.5 11h5'/></svg></span><span class='fw-label'>Forensics</span></a>
       <a href='/about'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M12 11v5'/><circle cx='12' cy='8' r='1'/></svg></span><span class='fw-label'>About</span></a>
@@ -576,7 +576,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
       function hasErr(prefix){ for(var ei=0;ei<errCodes.length;ei++){ if(String(errCodes[ei]).indexOf(prefix)===0) return true; } return false; }
       var de=g(ev,'decode',{});
       var sid=g(de,'sensor_id','');
-      var sidLink = (sid!=='' && sid!==null && sid!==undefined) ? ('<a style="color:#7fc8ff" href="/trends?sensor_id='+encodeURIComponent(String(sid))+'&window=24h">'+sid+'</a>') : '';
+      var sidLink = (sid!=='' && sid!==null && sid!==undefined) ? ('<a style="color:#7fc8ff" href="/data?sensor_id='+encodeURIComponent(String(sid))+'&window=24h">'+sid+'</a>') : '';
 
       var orHtml = hasErr('signal.bit_balance_extreme') ? ('<span class="bad">'+or+'</span>') : or;
       var snrHtml = hasErr('signal.low_snr_proxy') ? ('<span class="bad">'+snr+'</span>') : snr;
@@ -817,18 +817,18 @@ __NAV__
 })();
 </script></div></body></html>"""
 
-TRENDS_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Trends</title>
+TRENDS_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Data</title>
 <script src='https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js'></script>
 <style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,select,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}a{color:#7fc8ff}#chart{height:420px}.controls{display:flex;flex-wrap:wrap;gap:.35rem .5rem;align-items:center}@media(max-width:860px){.controls{display:grid;grid-template-columns:1fr 1fr;gap:.45rem}#chart{height:320px}input,select,button{min-height:40px;font-size:16px}}</style></head>
 <body><div class='page'>
-<h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 19h16'/><path d='m6 15 4-4 3 2 5-6'/><path d='m18 7 0 3h-3'/></svg></span><span>Trends</span></h2>
+<h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 19h16'/><path d='m6 15 4-4 3 2 5-6'/><path d='m18 7 0 3h-3'/></svg></span><span>Data</span></h2>
 __NAV__<br><br>
 <div class='card controls'>
 Sensor ID: <input id='sensor' list='sensorList' style='width:120px' placeholder='e.g. 4099'>
 <datalist id='sensorList'></datalist>
 <button id='refreshSensors'>Sensors</button>
 Window: <select id='window'><option value='15m'>15m</option><option value='1h'>1h</option><option value='6h'>6h</option><option value='24h' selected>24h</option></select>
-Source: <select id='sourceMode'><option value='local' selected>local</option><option value='archive'>archive</option></select>
+Source: <select id='sourceMode'><option value='auto' selected>auto</option><option value='combined'>combined</option><option value='local'>local</option><option value='archive'>archive</option></select>
 Metric: <select id='metricMode'><option value='raw' selected>raw</option><option value='delta'>delta</option><option value='ror'>rate/min</option></select>
 Threshold ≥ <input id='threshold' style='width:90px' placeholder='off'>
 Time: <select id='timeMode'><option value='local' selected>local</option><option value='zulu'>zulu</option></select>
@@ -951,7 +951,7 @@ View name <input id='viewName' style='width:120px' placeholder='optional'>
   var qpThreshold = params.get('threshold');
   if(qpSensor){ sensor.value = qpSensor; }
   if(qpWindow && ['15m','1h','6h','24h'].indexOf(qpWindow) >= 0){ win.value = qpWindow; }
-  if(qpSource && ['local','archive'].indexOf(qpSource) >= 0){ sourceMode.value = qpSource; }
+  if(qpSource && ['auto','combined','local','archive'].indexOf(qpSource) >= 0){ sourceMode.value = qpSource; }
   if(qpMetric && ['raw','delta','ror'].indexOf(qpMetric) >= 0){ metricMode.value = qpMetric; }
   if(qpThreshold){ threshold.value = qpThreshold; }
   loadSensors();
@@ -1783,8 +1783,33 @@ def sensor_ids_from_archive(limit_entries: int = 200):
     return sorted(ids)
 
 
+def merge_points(local_points, archive_points, limit: int):
+    by_ts = {}
+    for p in archive_points or []:
+        ts = p.get('ts')
+        if ts:
+            by_ts[ts] = {'ts': ts, 'value': float(p.get('value', 0.0))}
+    for p in local_points or []:
+        ts = p.get('ts')
+        if ts:
+            by_ts[ts] = {'ts': ts, 'value': float(p.get('value', 0.0))}
+    out = sorted(by_ts.values(), key=lambda p: p['ts'])
+    return out[-limit:]
+
+
+_ARCHIVE_TRENDS_CACHE = {}
+
+
 def trends_from_archive(sensor_id: str, win: str, limit: int):
-    cutoff = time.time() - window_seconds(win)
+    now = time.time()
+    manifest_path = Path('rf_log/archive_state/manifest.json')
+    mtime = manifest_path.stat().st_mtime if manifest_path.exists() else 0
+    ck = (str(sensor_id), str(win), int(limit), int(mtime))
+    cached = _ARCHIVE_TRENDS_CACHE.get(ck)
+    if cached and (now - cached.get('ts', 0) < 30):
+        return cached['value']
+
+    cutoff = now - window_seconds(win)
     entries = [e for e in _archive_manifest() if e.get('status') == 'uploaded' and e.get('chunk_path')]
     entries = sorted(entries, key=lambda e: e.get('first_ts') or '')
 
@@ -1825,7 +1850,9 @@ def trends_from_archive(sensor_id: str, win: str, limit: int):
         'max': max(vals) if vals else None,
         'avg': round(sum(vals)/len(vals), 3) if vals else None,
     }
-    return {'points': points, 'stats': stats, 'source': src}
+    out = {'points': points, 'stats': stats, 'source': src}
+    _ARCHIVE_TRENDS_CACHE[ck] = {'ts': now, 'value': out}
+    return out
 
 
 class EventStore:
@@ -1996,7 +2023,7 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(payload)
             return
 
-        if parsed.path == '/trends':
+        if parsed.path in ['/trends', '/data']:
             payload = TRENDS_HTML.replace('__NAV__', NAV_HTML).encode('utf-8')
             self.send_response(HTTPStatus.OK)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
@@ -2159,18 +2186,29 @@ class Handler(BaseHTTPRequestHandler):
 
         if parsed.path == '/api/sensors':
             q = parse_qs(parsed.query)
-            source_mode = (q.get('source', ['local'])[0] or 'local').strip().lower()
-            if source_mode == 'archive':
-                return self._json({'source_mode': 'archive', 'sensor_ids': sensor_ids_from_archive()})
+            source_mode = (q.get('source', ['auto'])[0] or 'auto').strip().lower()
+            archive_ids = set(sensor_ids_from_archive()) if source_mode in ('archive', 'combined', 'auto') else set()
 
-            self.store.poll_new()
-            ids = set()
-            for ev in list(self.store.events):
-                de = ev.get('decode') or {}
-                sid = de.get('sensor_id')
-                if sid is not None:
-                    ids.add(str(sid))
-            return self._json({'source_mode': 'local', 'sensor_ids': sorted(ids)})
+            local_ids = set()
+            if source_mode in ('local', 'combined', 'auto'):
+                self.store.poll_new()
+                for ev in list(self.store.events):
+                    de = ev.get('decode') or {}
+                    sid = de.get('sensor_id')
+                    if sid is not None:
+                        local_ids.add(str(sid))
+
+            if source_mode == 'archive':
+                ids = archive_ids
+            elif source_mode == 'local':
+                ids = local_ids
+            elif source_mode == 'combined':
+                ids = local_ids | archive_ids
+            else:  # auto
+                ids = local_ids | archive_ids
+                source_mode = 'auto'
+
+            return self._json({'source_mode': source_mode, 'sensor_ids': sorted(ids)})
 
         if parsed.path == '/api/views':
             return self._json({'views': load_saved_views()})
@@ -2179,27 +2217,16 @@ class Handler(BaseHTTPRequestHandler):
             q = parse_qs(parsed.query)
             sensor_id = (q.get('sensor_id', [''])[0] or '').strip()
             win = q.get('window', ['24h'])[0]
-            source_mode = (q.get('source', ['local'])[0] or 'local').strip().lower()
+            source_mode = (q.get('source', ['auto'])[0] or 'auto').strip().lower()
             metric = (q.get('metric', ['raw'])[0] or 'raw').strip().lower()
             threshold = q.get('threshold', [None])[0]
             limit = int(q.get('limit', ['2000'])[0])
             limit = max(100, min(limit, 10000))
 
-            if source_mode == 'archive':
-                res = trends_from_archive(sensor_id, win, limit)
-                points = apply_metric(res['points'], metric, threshold)
-                vals = [p['value'] for p in points]
-                stats = {
-                    'latest': vals[-1] if vals else None,
-                    'min': min(vals) if vals else None,
-                    'max': max(vals) if vals else None,
-                    'avg': round(sum(vals)/len(vals), 3) if vals else None,
-                }
-                return self._json({'sensor_id': sensor_id, 'window': win, 'source_mode': 'archive', 'metric': metric, 'points': points, 'stats': stats, 'source': res['source']})
-
+            # local points
             self.store.poll_new()
             cutoff = time.time() - window_seconds(win)
-            points = []
+            local_points = []
             for ev in list(self.store.events):
                 de = ev.get('decode') or {}
                 if str(de.get('sensor_id', '')) != sensor_id:
@@ -2210,18 +2237,52 @@ class Handler(BaseHTTPRequestHandler):
                     continue
                 v = de.get('data_val')
                 if isinstance(v, (int, float)):
-                    points.append({'ts': ts, 'value': float(v)})
+                    local_points.append({'ts': ts, 'value': float(v)})
+            local_points = local_points[-limit:]
 
-            points = points[-limit:]
-            points = apply_metric(points, metric, threshold)
+            # archive points
+            archive_res = {'points': [], 'source': 'archive:none'}
+            if source_mode in ('archive', 'combined', 'auto'):
+                archive_res = trends_from_archive(sensor_id, win, limit)
+            archive_points = archive_res['points']
+
+            if source_mode == 'archive':
+                base_points = archive_points
+                resolved_source = 'archive'
+            elif source_mode == 'local':
+                base_points = local_points
+                resolved_source = 'local'
+            elif source_mode == 'combined':
+                base_points = merge_points(local_points, archive_points, limit)
+                resolved_source = 'combined'
+            else:  # auto
+                # prefer local for freshness, backfill from archive when local sparse
+                if len(local_points) >= max(20, limit // 10):
+                    base_points = local_points
+                    resolved_source = 'local'
+                else:
+                    base_points = merge_points(local_points, archive_points, limit)
+                    resolved_source = 'auto'
+
+            points = apply_metric(base_points, metric, threshold)
             vals = [p['value'] for p in points]
             stats = {
                 'latest': vals[-1] if vals else None,
                 'min': min(vals) if vals else None,
                 'max': max(vals) if vals else None,
                 'avg': round(sum(vals)/len(vals), 3) if vals else None,
+                'local_count': len(local_points),
+                'archive_count': len(archive_points),
             }
-            return self._json({'sensor_id': sensor_id, 'window': win, 'source_mode': 'local', 'metric': metric, 'points': points, 'stats': stats, 'source': str(self.store.path)})
+            return self._json({
+                'sensor_id': sensor_id,
+                'window': win,
+                'source_mode': resolved_source,
+                'metric': metric,
+                'points': points,
+                'stats': stats,
+                'source': {'local': str(self.store.path), 'archive': archive_res.get('source', 'archive:none')}
+            })
 
         if parsed.path == '/api/storage_status':
             return self._json(storage_status())
