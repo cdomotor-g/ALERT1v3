@@ -1775,12 +1775,25 @@ def _archive_manifest(path='rf_log/archive_state/manifest.json'):
         return []
 
 
+def _resolve_chunk_path(ent):
+    cp = Path(str(ent.get('chunk_path', '')))
+    if cp.exists():
+        return cp
+    # Off-prem mirror fallback: use local archive_state/chunks by basename.
+    b = cp.name
+    if b:
+        local_cp = Path('rf_log/archive_state/chunks') / b
+        if local_cp.exists():
+            return local_cp
+    return None
+
+
 def sensor_ids_from_archive(limit_entries: int = 200):
     ids = set()
     entries = [e for e in _archive_manifest() if e.get('status') == 'uploaded' and e.get('chunk_path')]
     for ent in entries[-max(1, limit_entries):]:
-        cp = Path(ent.get('chunk_path'))
-        if not cp.exists():
+        cp = _resolve_chunk_path(ent)
+        if not cp:
             continue
         try:
             with gzip.open(cp, 'rt', encoding='utf-8', errors='replace') as gz:
@@ -1833,8 +1846,8 @@ def trends_from_archive(sensor_id: str, win: str, limit: int):
     points = []
     src = 'archive:none'
     for ent in entries:
-        cp = Path(ent.get('chunk_path'))
-        if not cp.exists():
+        cp = _resolve_chunk_path(ent)
+        if not cp:
             continue
         src = str(cp)
         try:

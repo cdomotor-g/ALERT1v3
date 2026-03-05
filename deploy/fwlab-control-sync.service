@@ -1,0 +1,11 @@
+[Unit]
+Description=FW-LAB sync data-plane logs to off-prem control-plane
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=cdomotor
+Group=cdomotor
+WorkingDirectory=/home/cdomotor/.openclaw/workspace/projects/ALERT1v3
+ExecStart=/home/cdomotor/.openclaw/workspace/projects/ALERT1v3/tools/sync_control_plane.sh
