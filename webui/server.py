@@ -8,6 +8,7 @@ import subprocess
 import html
 import os
 import re
+import math
 import yaml
 from datetime import datetime
 from collections import deque
@@ -86,6 +87,7 @@ h2{{font-weight:650;letter-spacing:.2px;}}
       <a href='/events'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='4' width='16' height='16' rx='2'/><path d='M8 9h8M8 13h8M8 17h5'/></svg></span><span class='fw-label'>Events</span></a>
       <a href='/radio'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 12h3m12 0h3'/><circle cx='12' cy='12' r='2.5'/><path d='M6.5 8.5a8 8 0 0 1 0 7M17.5 8.5a8 8 0 0 1 0 7'/></svg></span><span class='fw-label'>Radio</span></a>
       <a href='/data'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 19h16'/><path d='m6 15 4-4 3 2 5-6'/><path d='m18 7 0 3h-3'/></svg></span><span class='fw-label'>Data</span></a>
+      <a href='/path'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 20V9'/><path d='M4 9c2.5-1.5 5.5-1.5 8 0s5.5 1.5 8 0v11c-2.5 1.5-5.5 1.5-8 0s-5.5-1.5-8 0'/><circle cx='4' cy='9' r='1.2'/><circle cx='20' cy='9' r='1.2'/></svg></span><span class='fw-label'>Path</span></a>
       <a href='/admin'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='3'/><path d='M19.4 15a1 1 0 0 0 .2 1.1l.1.1a2 2 0 0 1-2.8 2.8l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V20a2 2 0 0 1-4 0v-.2a1 1 0 0 0-.6-.9 1 1 0 0 0-1.1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H4a2 2 0 0 1 0-4h.2a1 1 0 0 0 .9-.6 1 1 0 0 0-.2-1.1l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1 1 0 0 0 1.1.2h0a1 1 0 0 0 .6-.9V4a2 2 0 0 1 4 0v.2a1 1 0 0 0 .6.9h0a1 1 0 0 0 1.1-.2l.1-.1a2 2 0 0 1 2.8 2.8l-.1.1a1 1 0 0 0-.2 1.1v0a1 1 0 0 0 .9.6H20a2 2 0 0 1 0 4h-.2a1 1 0 0 0-.9.6z'/></svg></span><span class='fw-label'>Admin</span></a>
       <a href='/forensics'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='6.5'/><path d='M20 20l-4.2-4.2'/><path d='M11 8.5v5M8.5 11h5'/></svg></span><span class='fw-label'>Forensics</span></a>
       <a href='/about'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M12 11v5'/><circle cx='12' cy='8' r='1'/></svg></span><span class='fw-label'>About</span></a>
@@ -699,6 +701,56 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   window.addEventListener('resize', function(){ if(rxChart) rxChart.resize(); if(rxChart24) rxChart24.resize(); });
 })();
 </script></body></html>"""
+
+PATH_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Path</title>
+<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button,select{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}a{color:#7fc8ff}.grid{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:.5rem}.muted{color:#9fb0c3}.good{color:#6dd17c}.warn{color:#f2c14e}.bad{color:#f36f6f}#profile{height:320px}@media(max-width:860px){.grid{grid-template-columns:1fr 1fr}input,button,select{min-height:40px;font-size:16px}}</style>
+<script src='https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js'></script></head><body><div class='page'>
+<h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 20V9'/><path d='M4 9c2.5-1.5 5.5-1.5 8 0s5.5 1.5 8 0v11c-2.5 1.5-5.5 1.5-8 0s-5.5-1.5-8 0'/><circle cx='4' cy='9' r='1.2'/><circle cx='20' cy='9' r='1.2'/></svg></span><span>Path</span></h2>
+__NAV__
+<div class='card grid'>
+  <label>TX Lat<br><input id='txLat' value='-27.4698'></label>
+  <label>TX Lon<br><input id='txLon' value='153.0251'></label>
+  <label>TX AGL m<br><input id='txH' value='10'></label>
+  <label>TX Pwr dBm<br><input id='txP' value='37'></label>
+  <label>RX Lat<br><input id='rxLat' value='-27.56'></label>
+  <label>RX Lon<br><input id='rxLon' value='152.98'></label>
+  <label>RX AGL m<br><input id='rxH' value='8'></label>
+  <label>Freq MHz<br><input id='freq' value='173.9'></label>
+  <label>TX Gain dBi<br><input id='txG' value='3'></label>
+  <label>RX Gain dBi<br><input id='rxG' value='3'></label>
+  <label>TX Loss dB<br><input id='txL' value='1.5'></label>
+  <label>RX Loss dB<br><input id='rxL' value='1.5'></label>
+  <label>RX Sens dBm<br><input id='rxS' value='-110'></label>
+  <label>Step m<br><input id='step' value='100'></label>
+  <div style='align-self:end'><button id='run'>Analyze</button></div>
+</div>
+<div class='card'>Distance: <span id='dist'>-</span> km · Path loss: <span id='loss'>-</span> dB · Rx: <span id='rx'>-</span> dBm · Fade margin: <span id='margin'>-</span> dB (<span id='mclass'>-</span>)</div>
+<div class='card'><div id='profile'></div></div>
+<div class='card'><div class='muted'>Assumptions / warnings</div><pre id='warn' style='white-space:pre-wrap'></pre></div>
+<script>
+(function(){
+  function v(id){ return Number(document.getElementById(id).value); }
+  var chart=echarts.init(document.getElementById('profile'));
+  function draw(profile){
+    var d=profile.distance_m||[], t=profile.terrain_m_asl||[], l=profile.los_m_asl||[];
+    chart.setOption({animation:false,grid:{left:46,right:12,top:20,bottom:30},tooltip:{trigger:'axis'},xAxis:{type:'category',data:d.map(function(x){return (x/1000).toFixed(2);}),name:'km'},yAxis:{type:'value',name:'m'},series:[{name:'terrain',type:'line',data:t,symbol:'none',lineStyle:{color:'#5bbf7a'}},{name:'los',type:'line',data:l,symbol:'none',lineStyle:{color:'#ff8a8a'}}]});
+  }
+  function run(){
+    var req={schema:'fwlab.path.request.v1',tx:{lat:v('txLat'),lon:v('txLon'),antenna_agl_m:v('txH')},rx:{lat:v('rxLat'),lon:v('rxLon'),antenna_agl_m:v('rxH')},rf:{frequency_mhz:v('freq'),tx_power_dbm:v('txP'),tx_antenna_gain_dbi:v('txG'),rx_antenna_gain_dbi:v('rxG'),tx_system_loss_db:v('txL'),rx_system_loss_db:v('rxL'),rx_sensitivity_dbm:v('rxS')},sampling:{profile_step_m:v('step')}};
+    fetch('/api/path/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(req)}).then(function(r){return r.json();}).then(function(d){
+      var s=d.summary||{}; document.getElementById('dist').textContent=s.distance_km??'-'; document.getElementById('loss').textContent=s.path_loss_db??'-'; document.getElementById('rx').textContent=s.predicted_rx_dbm??'-'; document.getElementById('margin').textContent=s.fade_margin_db??'-';
+      var mc=document.getElementById('mclass'); mc.textContent=s.margin_class||'-'; mc.className=s.margin_class==='good'?'good':(s.margin_class==='marginal'?'warn':'bad');
+      draw(d.profile||{});
+      var warn=(d.warnings||[]).join('\n');
+      var asm=d.assumptions||{};
+      document.getElementById('warn').textContent=(warn||'none')+'\n'+JSON.stringify(asm,null,2);
+    }).catch(function(e){ document.getElementById('warn').textContent='analyze failed: '+e; });
+  }
+  document.getElementById('run').addEventListener('click',run);
+  run();
+  window.addEventListener('resize', function(){ chart.resize(); });
+})();
+</script></div></body></html>"""
 
 ADMIN_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Admin</title>
 <style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button,select{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}a{color:#7fc8ff}.row{margin:.35rem 0}.grid{display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:.6rem}.good{color:#6dd17c}.warn{color:#f2c14e}.bad{color:#f36f6f}pre{white-space:pre-wrap;max-height:220px;overflow:auto;background:#0f141a;border:1px solid #2a3948;padding:.55rem;border-radius:6px}@media(max-width:860px){.grid{grid-template-columns:1fr}input,button,select{min-height:40px;font-size:16px}}</style></head>
@@ -1703,6 +1755,91 @@ def window_seconds(w: str) -> int:
     return {'15m': 900, '1h': 3600, '6h': 21600, '24h': 86400}.get(w, 3600)
 
 
+def _haversine_km(lat1, lon1, lat2, lon2):
+    r = 6371.0
+    p1 = math.radians(float(lat1)); p2 = math.radians(float(lat2))
+    dp = math.radians(float(lat2) - float(lat1))
+    dl = math.radians(float(lon2) - float(lon1))
+    a = math.sin(dp/2)**2 + math.cos(p1)*math.cos(p2)*math.sin(dl/2)**2
+    return 2 * r * math.atan2(math.sqrt(a), math.sqrt(max(1e-12, 1-a)))
+
+
+def _fspl_db(distance_km, freq_mhz):
+    d = max(float(distance_km), 1e-6)
+    f = max(float(freq_mhz), 1e-6)
+    return 32.44 + 20*math.log10(d) + 20*math.log10(f)
+
+
+def _path_analyze(req):
+    tx = req.get('tx') or {}
+    rx = req.get('rx') or {}
+    rf = req.get('rf') or {}
+    sampling = req.get('sampling') or {}
+
+    lat1 = float(tx.get('lat')); lon1 = float(tx.get('lon'))
+    lat2 = float(rx.get('lat')); lon2 = float(rx.get('lon'))
+    tx_agl = float(tx.get('antenna_agl_m', 0.0)); rx_agl = float(rx.get('antenna_agl_m', 0.0))
+    freq = float(rf.get('frequency_mhz'))
+    tx_pwr = float(rf.get('tx_power_dbm'))
+    tx_gain = float(rf.get('tx_antenna_gain_dbi', 0.0)); rx_gain = float(rf.get('rx_antenna_gain_dbi', 0.0))
+    tx_loss = float(rf.get('tx_system_loss_db', 0.0)); rx_loss = float(rf.get('rx_system_loss_db', 0.0))
+    rx_sens = float(rf.get('rx_sensitivity_dbm'))
+
+    distance_km = _haversine_km(lat1, lon1, lat2, lon2)
+    path_loss = _fspl_db(distance_km, freq)
+    predicted_rx = tx_pwr + tx_gain - tx_loss - path_loss + rx_gain - rx_loss
+    fade_margin = predicted_rx - rx_sens
+    margin_class = 'good' if fade_margin >= 20 else ('marginal' if fade_margin >= 10 else 'poor')
+
+    step_m = max(10.0, float(sampling.get('profile_step_m', 100.0)))
+    total_m = max(distance_km * 1000.0, 1.0)
+    points = min(2000, max(8, int(total_m / step_m) + 1))
+    dists = [i * (total_m / (points - 1)) for i in range(points)]
+    terrain = [0.0 for _ in dists]
+    los = [tx_agl + (rx_agl - tx_agl) * (i / (points - 1)) for i in range(points)]
+    fres = []
+    for di in dists:
+        d1 = max(di, 0.001); d2 = max(total_m - di, 0.001)
+        fres.append(17.32 * math.sqrt((d1/1000.0)*(d2/1000.0)/(max(freq,1e-6)*(total_m/1000.0))))
+
+    return {
+        'schema': 'fwlab.path.result.v1',
+        'ts': datetime.utcnow().isoformat() + 'Z',
+        'request_schema': 'fwlab.path.request.v1',
+        'summary': {
+            'distance_km': round(distance_km, 4),
+            'path_loss_db': round(path_loss, 3),
+            'predicted_rx_dbm': round(predicted_rx, 3),
+            'fade_margin_db': round(fade_margin, 3),
+            'margin_class': margin_class,
+        },
+        'budget': {
+            'tx_power_dbm': tx_pwr,
+            'tx_antenna_gain_dbi': tx_gain,
+            'tx_system_loss_db': tx_loss,
+            'path_loss_db': round(path_loss, 3),
+            'rx_antenna_gain_dbi': rx_gain,
+            'rx_system_loss_db': rx_loss,
+            'predicted_rx_dbm': round(predicted_rx, 3),
+            'rx_sensitivity_dbm': rx_sens,
+            'fade_margin_db': round(fade_margin, 3),
+        },
+        'profile': {
+            'distance_m': [round(x, 2) for x in dists],
+            'terrain_m_asl': terrain,
+            'los_m_asl': [round(x, 3) for x in los],
+            'fresnel60_radius_m': [round(x, 3) for x in fres],
+            'clearance_m': [round(l - t, 3) for l, t in zip(los, terrain)],
+        },
+        'assumptions': {
+            'propagation_model': 'fspl_mvp',
+            'terrain_mode': 'flat_placeholder',
+            'note': 'MVP baseline; terrain-aware parity mode planned in #40/#38',
+        },
+        'warnings': ['Terrain-aware propagation not yet enabled in MVP baseline.']
+    }
+
+
 def load_saved_views(path='config/saved_views.json'):
     p = Path(path)
     if not p.exists():
@@ -1963,6 +2100,18 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urlparse(self.path)
+        if parsed.path == '/api/path/analyze':
+            try:
+                length = int(self.headers.get('Content-Length', '0'))
+                raw = self.rfile.read(length) if length > 0 else b'{}'
+                body = json.loads(raw.decode('utf-8'))
+                if not isinstance(body, dict):
+                    raise ValueError('body must be object')
+                out = _path_analyze(body)
+                return self._json(out)
+            except Exception as e:
+                return self._json({'ok': False, 'error': str(e)}, code=400)
+
         if parsed.path == '/api/views':
             try:
                 length = int(self.headers.get('Content-Length', '0'))
@@ -2055,6 +2204,15 @@ class Handler(BaseHTTPRequestHandler):
 
         if parsed.path in ['/trends', '/data']:
             payload = TRENDS_HTML.replace('__NAV__', NAV_HTML).encode('utf-8')
+            self.send_response(HTTPStatus.OK)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Content-Length', str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
+
+        if parsed.path == '/path':
+            payload = PATH_HTML.replace('__NAV__', NAV_HTML).encode('utf-8')
             self.send_response(HTTPStatus.OK)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
             self.send_header('Content-Length', str(len(payload)))
