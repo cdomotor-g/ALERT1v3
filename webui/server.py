@@ -750,9 +750,9 @@ __NAV__
       var mc=document.getElementById('mclass'); var mcls=gv(s,'margin_class','-');
       mc.textContent=mcls; mc.className=mcls==='good'?'good':(mcls==='marginal'?'warn':'bad');
       draw(d.profile||{});
-      var warn=(d.warnings||[]).join('\n');
+      var warn=(d.warnings||[]).join('\\n');
       var asm=d.assumptions||{};
-      document.getElementById('warn').textContent=(warn||'none')+'\n'+JSON.stringify(asm,null,2);
+      document.getElementById('warn').textContent=(warn||'none')+'\\n'+JSON.stringify(asm,null,2);
     }).catch(function(e){ document.getElementById('warn').textContent='analyze failed: '+e; });
   }
   document.getElementById('run').addEventListener('click',run);
