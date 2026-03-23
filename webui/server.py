@@ -722,7 +722,7 @@ __NAV__
   <label>RX Loss dB<br><input id='rxL' value='1.5'></label>
   <label>RX Sens dBm<br><input id='rxS' value='-110'></label>
   <label>Step m<br><input id='step' value='100'></label>
-  <div style='align-self:end'><button id='run'>Analyze</button></div>
+  <div style='align-self:end'><button id='run'>Analyze</button> <button id='export'>Export JSON</button></div>
 </div>
 <div class='card'>Distance: <span id='dist'>-</span> km · Path loss: <span id='loss'>-</span> dB · Rx: <span id='rx'>-</span> dBm · Fade margin: <span id='margin'>-</span> dB (<span id='mclass'>-</span>)</div>
 <div class='card'><div id='profile'></div></div>
@@ -730,16 +730,25 @@ __NAV__
 <script>
 (function(){
   function v(id){ return Number(document.getElementById(id).value); }
+  function gv(o,k,d){ return (o && o[k]!==undefined && o[k]!==null) ? o[k] : d; }
   var chart=echarts.init(document.getElementById('profile'));
+  var lastResult=null;
   function draw(profile){
     var d=profile.distance_m||[], t=profile.terrain_m_asl||[], l=profile.los_m_asl||[];
     chart.setOption({animation:false,grid:{left:46,right:12,top:20,bottom:30},tooltip:{trigger:'axis'},xAxis:{type:'category',data:d.map(function(x){return (x/1000).toFixed(2);}),name:'km'},yAxis:{type:'value',name:'m'},series:[{name:'terrain',type:'line',data:t,symbol:'none',lineStyle:{color:'#5bbf7a'}},{name:'los',type:'line',data:l,symbol:'none',lineStyle:{color:'#ff8a8a'}}]});
   }
   function run(){
+    document.getElementById('warn').textContent='running...';
     var req={schema:'fwlab.path.request.v1',tx:{lat:v('txLat'),lon:v('txLon'),antenna_agl_m:v('txH')},rx:{lat:v('rxLat'),lon:v('rxLon'),antenna_agl_m:v('rxH')},rf:{frequency_mhz:v('freq'),tx_power_dbm:v('txP'),tx_antenna_gain_dbi:v('txG'),rx_antenna_gain_dbi:v('rxG'),tx_system_loss_db:v('txL'),rx_system_loss_db:v('rxL'),rx_sensitivity_dbm:v('rxS')},sampling:{profile_step_m:v('step')}};
     fetch('/api/path/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(req)}).then(function(r){return r.json();}).then(function(d){
-      var s=d.summary||{}; document.getElementById('dist').textContent=s.distance_km??'-'; document.getElementById('loss').textContent=s.path_loss_db??'-'; document.getElementById('rx').textContent=s.predicted_rx_dbm??'-'; document.getElementById('margin').textContent=s.fade_margin_db??'-';
-      var mc=document.getElementById('mclass'); mc.textContent=s.margin_class||'-'; mc.className=s.margin_class==='good'?'good':(s.margin_class==='marginal'?'warn':'bad');
+      lastResult=d;
+      var s=d.summary||{};
+      document.getElementById('dist').textContent=gv(s,'distance_km','-');
+      document.getElementById('loss').textContent=gv(s,'path_loss_db','-');
+      document.getElementById('rx').textContent=gv(s,'predicted_rx_dbm','-');
+      document.getElementById('margin').textContent=gv(s,'fade_margin_db','-');
+      var mc=document.getElementById('mclass'); var mcls=gv(s,'margin_class','-');
+      mc.textContent=mcls; mc.className=mcls==='good'?'good':(mcls==='marginal'?'warn':'bad');
       draw(d.profile||{});
       var warn=(d.warnings||[]).join('\n');
       var asm=d.assumptions||{};
@@ -747,6 +756,12 @@ __NAV__
     }).catch(function(e){ document.getElementById('warn').textContent='analyze failed: '+e; });
   }
   document.getElementById('run').addEventListener('click',run);
+  document.getElementById('export').addEventListener('click', function(){
+    if(!lastResult){ document.getElementById('warn').textContent='nothing to export yet'; return; }
+    var blob=new Blob([JSON.stringify(lastResult,null,2)],{type:'application/json;charset=utf-8'});
+    var url=URL.createObjectURL(blob); var a=document.createElement('a');
+    a.href=url; a.download='path_analysis_result.json'; a.click(); URL.revokeObjectURL(url);
+  });
   run();
   window.addEventListener('resize', function(){ chart.resize(); });
 })();
@@ -1775,6 +1790,17 @@ def _path_analyze(req):
     rx = req.get('rx') or {}
     rf = req.get('rf') or {}
     sampling = req.get('sampling') or {}
+
+    required = [
+        ('tx.lat', tx.get('lat')), ('tx.lon', tx.get('lon')),
+        ('rx.lat', rx.get('lat')), ('rx.lon', rx.get('lon')),
+        ('rf.frequency_mhz', rf.get('frequency_mhz')),
+        ('rf.tx_power_dbm', rf.get('tx_power_dbm')),
+        ('rf.rx_sensitivity_dbm', rf.get('rx_sensitivity_dbm')),
+    ]
+    miss = [k for k, v in required if v is None or str(v) == '']
+    if miss:
+        raise ValueError('missing required fields: ' + ', '.join(miss))
 
     lat1 = float(tx.get('lat')); lon1 = float(tx.get('lon'))
     lat2 = float(rx.get('lat')); lon2 = float(rx.get('lon'))
