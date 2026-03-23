@@ -722,6 +722,10 @@ __NAV__
   <label>RX Loss dB<br><input id='rxL' value='1.5'></label>
   <label>RX Sens dBm<br><input id='rxS' value='-110'></label>
   <label>Step m<br><input id='step' value='100'></label>
+  <label>Model<br><select id='model'><option value='fspl_mvp' selected>FSPL baseline</option><option value='fspl_diffraction_proxy'>FSPL + diffraction proxy</option></select></label>
+  <label>Terrain base m ASL<br><input id='tBase' value='0'></label>
+  <div style='grid-column:1/-1' class='muted small'>Optional terrain profile override (comma-separated m ASL):</div>
+  <div style='grid-column:1/-1'><input id='tOverride' placeholder='e.g. 40,40.2,41.1,42.0' style='width:100%'></div>
   <div style='align-self:end'><button id='run'>Analyze</button> <button id='export'>Export JSON</button></div>
 </div>
 <div class='card'>Distance: <span id='dist'>-</span> km · Path loss: <span id='loss'>-</span> dB · Rx: <span id='rx'>-</span> dBm · Fade margin: <span id='margin'>-</span> dB (<span id='mclass'>-</span>)</div>
@@ -739,12 +743,15 @@ __NAV__
   }
   function run(){
     document.getElementById('warn').textContent='running...';
-    var req={schema:'fwlab.path.request.v1',tx:{lat:v('txLat'),lon:v('txLon'),antenna_agl_m:v('txH')},rx:{lat:v('rxLat'),lon:v('rxLon'),antenna_agl_m:v('rxH')},rf:{frequency_mhz:v('freq'),tx_power_dbm:v('txP'),tx_antenna_gain_dbi:v('txG'),rx_antenna_gain_dbi:v('rxG'),tx_system_loss_db:v('txL'),rx_system_loss_db:v('rxL'),rx_sensitivity_dbm:v('rxS')},sampling:{profile_step_m:v('step')}};
+    var to=document.getElementById('tOverride').value.trim();
+    var ov=null;
+    if(to){ ov=to.split(',').map(function(x){return Number(String(x).trim());}).filter(function(x){return isFinite(x);}); if(!ov.length) ov=null; }
+    var req={schema:'fwlab.path.request.v1',tx:{lat:v('txLat'),lon:v('txLon'),antenna_agl_m:v('txH')},rx:{lat:v('rxLat'),lon:v('rxLon'),antenna_agl_m:v('rxH')},rf:{frequency_mhz:v('freq'),tx_power_dbm:v('txP'),tx_antenna_gain_dbi:v('txG'),rx_antenna_gain_dbi:v('rxG'),tx_system_loss_db:v('txL'),rx_system_loss_db:v('rxL'),rx_sensitivity_dbm:v('rxS')},model:{mode:document.getElementById('model').value},sampling:{profile_step_m:v('step'),terrain_base_m_asl:v('tBase'),terrain_profile_m_asl:ov}};
     fetch('/api/path/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(req)}).then(function(r){return r.json();}).then(function(d){
       lastResult=d;
       var s=d.summary||{};
       document.getElementById('dist').textContent=gv(s,'distance_km','-');
-      document.getElementById('loss').textContent=gv(s,'path_loss_db','-');
+      document.getElementById('loss').textContent=gv(s,'path_loss_db','-')+' (fspl '+gv(s,'fspl_db','-')+' + diff '+gv(s,'diffraction_proxy_db','0')+')';
       document.getElementById('rx').textContent=gv(s,'predicted_rx_dbm','-');
       document.getElementById('margin').textContent=gv(s,'fade_margin_db','-');
       var mc=document.getElementById('mclass'); var mcls=gv(s,'margin_class','-');
@@ -1789,6 +1796,7 @@ def _path_analyze(req):
     tx = req.get('tx') or {}
     rx = req.get('rx') or {}
     rf = req.get('rf') or {}
+    model = req.get('model') or {}
     sampling = req.get('sampling') or {}
 
     required = [
@@ -1812,21 +1820,46 @@ def _path_analyze(req):
     rx_sens = float(rf.get('rx_sensitivity_dbm'))
 
     distance_km = _haversine_km(lat1, lon1, lat2, lon2)
-    path_loss = _fspl_db(distance_km, freq)
-    predicted_rx = tx_pwr + tx_gain - tx_loss - path_loss + rx_gain - rx_loss
-    fade_margin = predicted_rx - rx_sens
-    margin_class = 'good' if fade_margin >= 20 else ('marginal' if fade_margin >= 10 else 'poor')
 
     step_m = max(10.0, float(sampling.get('profile_step_m', 100.0)))
     total_m = max(distance_km * 1000.0, 1.0)
     points = min(2000, max(8, int(total_m / step_m) + 1))
     dists = [i * (total_m / (points - 1)) for i in range(points)]
-    terrain = [0.0 for _ in dists]
-    los = [tx_agl + (rx_agl - tx_agl) * (i / (points - 1)) for i in range(points)]
+    terrain_override = sampling.get('terrain_profile_m_asl')
+    if isinstance(terrain_override, list) and len(terrain_override) >= 2:
+        # simple nearest-neighbor remap to analysis point count
+        src = [float(x) for x in terrain_override]
+        terrain = []
+        for i in range(points):
+            j = int(round(i * (len(src) - 1) / max(1, points - 1)))
+            terrain.append(src[j])
+    else:
+        base_terrain = float(sampling.get('terrain_base_m_asl', 0.0))
+        terrain = [base_terrain for _ in dists]
+
+    tx_asl = terrain[0] + tx_agl
+    rx_asl = terrain[-1] + rx_agl
+    los = [tx_asl + (rx_asl - tx_asl) * (i / (points - 1)) for i in range(points)]
+
     fres = []
     for di in dists:
         d1 = max(di, 0.001); d2 = max(total_m - di, 0.001)
         fres.append(17.32 * math.sqrt((d1/1000.0)*(d2/1000.0)/(max(freq,1e-6)*(total_m/1000.0))))
+
+    clearance = [l - t for l, t in zip(los, terrain)]
+    fresnel60_clear = [c - 0.6*f for c, f in zip(clearance, fres)]
+    min_f60 = min(fresnel60_clear) if fresnel60_clear else 0.0
+
+    fspl = _fspl_db(distance_km, freq)
+    mode = str(model.get('mode', 'fspl_mvp')).strip().lower() or 'fspl_mvp'
+    diff_penalty = 0.0
+    if mode == 'fspl_diffraction_proxy' and min_f60 < 0:
+        diff_penalty = min(30.0, abs(min_f60) * 0.8)
+
+    path_loss = fspl + diff_penalty
+    predicted_rx = tx_pwr + tx_gain - tx_loss - path_loss + rx_gain - rx_loss
+    fade_margin = predicted_rx - rx_sens
+    margin_class = 'good' if fade_margin >= 20 else ('marginal' if fade_margin >= 10 else 'poor')
 
     return {
         'schema': 'fwlab.path.result.v1',
@@ -1835,6 +1868,8 @@ def _path_analyze(req):
         'summary': {
             'distance_km': round(distance_km, 4),
             'path_loss_db': round(path_loss, 3),
+            'fspl_db': round(fspl, 3),
+            'diffraction_proxy_db': round(diff_penalty, 3),
             'predicted_rx_dbm': round(predicted_rx, 3),
             'fade_margin_db': round(fade_margin, 3),
             'margin_class': margin_class,
@@ -1844,6 +1879,8 @@ def _path_analyze(req):
             'tx_antenna_gain_dbi': tx_gain,
             'tx_system_loss_db': tx_loss,
             'path_loss_db': round(path_loss, 3),
+            'fspl_db': round(fspl, 3),
+            'diffraction_proxy_db': round(diff_penalty, 3),
             'rx_antenna_gain_dbi': rx_gain,
             'rx_system_loss_db': rx_loss,
             'predicted_rx_dbm': round(predicted_rx, 3),
@@ -1855,14 +1892,16 @@ def _path_analyze(req):
             'terrain_m_asl': terrain,
             'los_m_asl': [round(x, 3) for x in los],
             'fresnel60_radius_m': [round(x, 3) for x in fres],
-            'clearance_m': [round(l - t, 3) for l, t in zip(los, terrain)],
+            'clearance_m': [round(c, 3) for c in clearance],
+            'fresnel60_clearance_m': [round(x, 3) for x in fresnel60_clear],
         },
         'assumptions': {
-            'propagation_model': 'fspl_mvp',
-            'terrain_mode': 'flat_placeholder',
-            'note': 'MVP baseline; terrain-aware parity mode planned in #40/#38',
+            'propagation_model': mode,
+            'terrain_mode': ('override_profile' if isinstance(terrain_override, list) and len(terrain_override) >= 2 else 'flat_base'),
+            'fresnel60_min_clearance_m': round(min_f60, 3),
+            'note': 'Diffraction proxy mode is interim; Radio Mobile parity calibration still pending.',
         },
-        'warnings': ['Terrain-aware propagation not yet enabled in MVP baseline.']
+        'warnings': ([] if mode == 'fspl_diffraction_proxy' else ['Using FSPL-only baseline. Select fspl_diffraction_proxy for interim terrain obstruction penalty.'])
     }
 
 

@@ -36,7 +36,7 @@ This document defines a versioned request/response contract for single-link path
     "rx_sensitivity_dbm": -110.0
   },
   "model": {
-    "mode": "itm_parity",
+    "mode": "fspl_mvp",
     "reliability_percent": 50,
     "climate": "continental_temperate",
     "polarization": "vertical",
@@ -125,6 +125,13 @@ This document defines a versioned request/response contract for single-link path
   "details": ["tx.lat out of range"]
 }
 ```
+
+## Interim model modes currently available
+
+- `fspl_mvp`: free-space baseline only
+- `fspl_diffraction_proxy`: FSPL plus interim obstruction penalty derived from Fresnel clearance
+
+> The diffraction proxy is a temporary engineering aid, not final Radio Mobile parity.
 
 ## Notes
 
