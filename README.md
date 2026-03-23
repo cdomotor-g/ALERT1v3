@@ -68,6 +68,7 @@ Tip: if mobile appears blocked, use **Load Audio** then press play on the native
 ## Documentation
 
 - Pi-light operations profile: `docs/PI_LIGHT_MODE.md`
+- Path analysis API draft: `docs/PATH_ANALYSIS_API.md`
 
 - Architecture: `docs/ARCHITECTURE.md`
 - Protocol decode notes: `docs/PROTOCOL.md`
