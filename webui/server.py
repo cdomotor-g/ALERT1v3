@@ -15,7 +15,8 @@ from collections import deque
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlparse, quote
+import urllib.request
 
 def _build_stamp():
     sha = os.environ.get('FWLAB_BUILD', '').strip()
@@ -708,22 +709,23 @@ PATH_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='view
 <h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 20V9'/><path d='M4 9c2.5-1.5 5.5-1.5 8 0s5.5 1.5 8 0v11c-2.5 1.5-5.5 1.5-8 0s-5.5-1.5-8 0'/><circle cx='4' cy='9' r='1.2'/><circle cx='20' cy='9' r='1.2'/></svg></span><span>Path</span></h2>
 __NAV__
 <div class='card grid'>
-  <label>TX Lat<br><input id='txLat' value='-27.4698'></label>
-  <label>TX Lon<br><input id='txLon' value='153.0251'></label>
-  <label>TX AGL m<br><input id='txH' value='10'></label>
-  <label>TX Pwr dBm<br><input id='txP' value='37'></label>
-  <label>RX Lat<br><input id='rxLat' value='-27.56'></label>
-  <label>RX Lon<br><input id='rxLon' value='152.98'></label>
-  <label>RX AGL m<br><input id='rxH' value='8'></label>
-  <label>Freq MHz<br><input id='freq' value='173.9'></label>
-  <label>TX Gain dBi<br><input id='txG' value='3'></label>
-  <label>RX Gain dBi<br><input id='rxG' value='3'></label>
-  <label>TX Loss dB<br><input id='txL' value='1.5'></label>
-  <label>RX Loss dB<br><input id='rxL' value='1.5'></label>
-  <label>RX Sens dBm<br><input id='rxS' value='-110'></label>
-  <label>Step m<br><input id='step' value='100'></label>
-  <label>Model<br><select id='model'><option value='fspl_mvp' selected>FSPL baseline</option><option value='fspl_diffraction_proxy'>FSPL + diffraction proxy</option></select></label>
-  <label>Terrain base m ASL<br><input id='tBase' value='0'></label>
+  <label><span title='Transmitter latitude in decimal degrees. Example: -27.4698'>TX Lat ⓘ</span><br><input id='txLat' value='-27.4698'></label>
+  <label><span title='Transmitter longitude in decimal degrees. Example: 153.0251'>TX Lon ⓘ</span><br><input id='txLon' value='153.0251'></label>
+  <label><span title='Antenna height above local ground level (meters).'>TX AGL m ⓘ</span><br><input id='txH' value='10'></label>
+  <label><span title='Transmit power at radio output in dBm.'>TX Pwr dBm ⓘ</span><br><input id='txP' value='37'></label>
+  <label><span title='Receiver latitude in decimal degrees.'>RX Lat ⓘ</span><br><input id='rxLat' value='-27.56'></label>
+  <label><span title='Receiver longitude in decimal degrees.'>RX Lon ⓘ</span><br><input id='rxLon' value='152.98'></label>
+  <label><span title='Receiver antenna height above local ground (meters).'>RX AGL m ⓘ</span><br><input id='rxH' value='8'></label>
+  <label><span title='RF center frequency in MHz. Example: 173.9'>Freq MHz ⓘ</span><br><input id='freq' value='173.9'></label>
+  <label><span title='Transmitter antenna gain in dBi.'>TX Gain dBi ⓘ</span><br><input id='txG' value='3'></label>
+  <label><span title='Receiver antenna gain in dBi.'>RX Gain dBi ⓘ</span><br><input id='rxG' value='3'></label>
+  <label><span title='Aggregate transmitter-side losses (cable/connectors/etc) in dB.'>TX Loss dB ⓘ</span><br><input id='txL' value='1.5'></label>
+  <label><span title='Aggregate receiver-side losses (cable/connectors/etc) in dB.'>RX Loss dB ⓘ</span><br><input id='rxL' value='1.5'></label>
+  <label><span title='Receiver sensitivity threshold in dBm used for fade margin.'>RX Sens dBm ⓘ</span><br><input id='rxS' value='-110'></label>
+  <label><span title='Path profile sample spacing in meters.'>Step m ⓘ</span><br><input id='step' value='100'></label>
+  <label><span title='Propagation mode. FSPL is baseline; diffraction proxy adds interim obstruction penalty.'>Model ⓘ</span><br><select id='model'><option value='fspl_mvp' selected>FSPL baseline</option><option value='fspl_diffraction_proxy'>FSPL + diffraction proxy</option></select></label>
+  <label><span title='Flat terrain elevation baseline (m ASL) when no terrain profile/provider is used.'>Terrain base m ASL ⓘ</span><br><input id='tBase' value='0'></label>
+  <label><span title='Terrain source. OpenTopoData uses public SRTM API (best-effort).'>Terrain provider ⓘ</span><br><select id='tProvider'><option value='flat' selected>flat</option><option value='opentopodata'>OpenTopoData SRTM</option></select></label>
   <div style='grid-column:1/-1' class='muted small'>Optional terrain profile override (comma-separated m ASL):</div>
   <div style='grid-column:1/-1'><input id='tOverride' placeholder='e.g. 40,40.2,41.1,42.0' style='width:100%'></div>
   <div style='align-self:end'><button id='run'>Analyze</button> <button id='export'>Export JSON</button></div>
@@ -746,7 +748,7 @@ __NAV__
     var to=document.getElementById('tOverride').value.trim();
     var ov=null;
     if(to){ ov=to.split(',').map(function(x){return Number(String(x).trim());}).filter(function(x){return isFinite(x);}); if(!ov.length) ov=null; }
-    var req={schema:'fwlab.path.request.v1',tx:{lat:v('txLat'),lon:v('txLon'),antenna_agl_m:v('txH')},rx:{lat:v('rxLat'),lon:v('rxLon'),antenna_agl_m:v('rxH')},rf:{frequency_mhz:v('freq'),tx_power_dbm:v('txP'),tx_antenna_gain_dbi:v('txG'),rx_antenna_gain_dbi:v('rxG'),tx_system_loss_db:v('txL'),rx_system_loss_db:v('rxL'),rx_sensitivity_dbm:v('rxS')},model:{mode:document.getElementById('model').value},sampling:{profile_step_m:v('step'),terrain_base_m_asl:v('tBase'),terrain_profile_m_asl:ov}};
+    var req={schema:'fwlab.path.request.v1',tx:{lat:v('txLat'),lon:v('txLon'),antenna_agl_m:v('txH')},rx:{lat:v('rxLat'),lon:v('rxLon'),antenna_agl_m:v('rxH')},rf:{frequency_mhz:v('freq'),tx_power_dbm:v('txP'),tx_antenna_gain_dbi:v('txG'),rx_antenna_gain_dbi:v('rxG'),tx_system_loss_db:v('txL'),rx_system_loss_db:v('rxL'),rx_sensitivity_dbm:v('rxS')},model:{mode:document.getElementById('model').value},sampling:{profile_step_m:v('step'),terrain_base_m_asl:v('tBase'),terrain_provider:document.getElementById('tProvider').value,terrain_profile_m_asl:ov}};
     fetch('/api/path/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(req)}).then(function(r){return r.json();}).then(function(d){
       lastResult=d;
       var s=d.summary||{};
@@ -1792,6 +1794,36 @@ def _fspl_db(distance_km, freq_mhz):
     return 32.44 + 20*math.log10(d) + 20*math.log10(f)
 
 
+def _line_points(lat1, lon1, lat2, lon2, n):
+    pts = []
+    for i in range(n):
+        t = i / max(1, n - 1)
+        pts.append((lat1 + (lat2 - lat1) * t, lon1 + (lon2 - lon1) * t))
+    return pts
+
+
+def _terrain_from_opentopodata(points, dataset='srtm90m'):
+    # Public API; best-effort only. Returns list or None.
+    vals = []
+    try:
+        chunk = 90
+        for i in range(0, len(points), chunk):
+            part = points[i:i+chunk]
+            loc = '|'.join([f"{lat:.6f},{lon:.6f}" for lat, lon in part])
+            url = f"https://api.opentopodata.org/v1/{dataset}?locations={quote(loc, safe='|,.-')}"
+            with urllib.request.urlopen(url, timeout=8) as resp:
+                d = json.loads(resp.read().decode('utf-8', errors='replace'))
+            rs = d.get('results') or []
+            if len(rs) != len(part):
+                return None
+            for r in rs:
+                e = r.get('elevation')
+                vals.append(float(e) if e is not None else 0.0)
+        return vals
+    except Exception:
+        return None
+
+
 def _path_analyze(req):
     tx = req.get('tx') or {}
     rx = req.get('rx') or {}
@@ -1823,19 +1855,42 @@ def _path_analyze(req):
 
     step_m = max(10.0, float(sampling.get('profile_step_m', 100.0)))
     total_m = max(distance_km * 1000.0, 1.0)
-    points = min(2000, max(8, int(total_m / step_m) + 1))
+    points = min(int(sampling.get('max_points', 2000)), max(8, int(total_m / step_m) + 1))
+    points = max(8, min(points, 2000))
     dists = [i * (total_m / (points - 1)) for i in range(points)]
+
+    warnings = []
+    terrain_mode = 'flat_base'
     terrain_override = sampling.get('terrain_profile_m_asl')
     if isinstance(terrain_override, list) and len(terrain_override) >= 2:
-        # simple nearest-neighbor remap to analysis point count
+        terrain_mode = 'override_profile'
         src = [float(x) for x in terrain_override]
         terrain = []
         for i in range(points):
             j = int(round(i * (len(src) - 1) / max(1, points - 1)))
             terrain.append(src[j])
     else:
-        base_terrain = float(sampling.get('terrain_base_m_asl', 0.0))
-        terrain = [base_terrain for _ in dists]
+        provider = str(sampling.get('terrain_provider', 'flat')).strip().lower()
+        if provider in ('opentopodata', 'srtm90m'):
+            terrain_mode = 'opentopodata_srtm90m'
+            # keep API workload reasonable for MVP
+            points_api = min(points, 200)
+            pts = _line_points(lat1, lon1, lat2, lon2, points_api)
+            terr = _terrain_from_opentopodata(pts, dataset='srtm90m')
+            if terr and len(terr) == points_api:
+                # resample to analysis point count
+                terrain = []
+                for i in range(points):
+                    j = int(round(i * (points_api - 1) / max(1, points - 1)))
+                    terrain.append(float(terr[j]))
+            else:
+                base_terrain = float(sampling.get('terrain_base_m_asl', 0.0))
+                terrain = [base_terrain for _ in dists]
+                warnings.append('Terrain provider failed/unavailable; fell back to flat base terrain.')
+                terrain_mode = 'flat_base_fallback'
+        else:
+            base_terrain = float(sampling.get('terrain_base_m_asl', 0.0))
+            terrain = [base_terrain for _ in dists]
 
     tx_asl = terrain[0] + tx_agl
     rx_asl = terrain[-1] + rx_agl
@@ -1897,11 +1952,11 @@ def _path_analyze(req):
         },
         'assumptions': {
             'propagation_model': mode,
-            'terrain_mode': ('override_profile' if isinstance(terrain_override, list) and len(terrain_override) >= 2 else 'flat_base'),
+            'terrain_mode': terrain_mode,
             'fresnel60_min_clearance_m': round(min_f60, 3),
             'note': 'Diffraction proxy mode is interim; Radio Mobile parity calibration still pending.',
         },
-        'warnings': ([] if mode == 'fspl_diffraction_proxy' else ['Using FSPL-only baseline. Select fspl_diffraction_proxy for interim terrain obstruction penalty.'])
+        'warnings': (warnings + ([] if mode == 'fspl_diffraction_proxy' else ['Using FSPL-only baseline. Select fspl_diffraction_proxy for interim terrain obstruction penalty.']))
     }
 
 
