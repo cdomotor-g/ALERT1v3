@@ -723,11 +723,13 @@ __NAV__
   <label><span title='Aggregate receiver-side losses (cable/connectors/etc) in dB.'>RX Loss dB ⓘ</span><br><input id='rxL' value='1.5'></label>
   <label><span title='Receiver sensitivity threshold in dBm used for fade margin.'>RX Sens dBm ⓘ</span><br><input id='rxS' value='-110'></label>
   <label><span title='Path profile sample spacing in meters.'>Step m ⓘ</span><br><input id='step' value='100'></label>
-  <label><span title='Propagation mode. FSPL is baseline; diffraction proxy adds interim obstruction penalty.'>Model ⓘ</span><br><select id='model'><option value='fspl_mvp' selected>FSPL baseline</option><option value='fspl_diffraction_proxy'>FSPL + diffraction proxy</option></select></label>
+  <label><span title='Propagation mode. FSPL is baseline; diffraction proxy adds interim obstruction penalty.'>Model ⓘ</span><br><select id='model'><option value='fspl_mvp'>FSPL baseline</option><option value='fspl_diffraction_proxy' selected>FSPL + diffraction proxy</option></select></label>
   <label><span title='Flat terrain elevation baseline (m ASL) when no terrain profile/provider is used.'>Terrain base m ASL ⓘ</span><br><input id='tBase' value='0'></label>
-  <label><span title='Terrain source. OpenTopoData uses public SRTM API (best-effort).'>Terrain provider ⓘ</span><br><select id='tProvider'><option value='flat' selected>flat</option><option value='opentopodata'>OpenTopoData SRTM</option></select></label>
+  <label><span title='Terrain source. OpenTopoData uses public SRTM API (best-effort).'>Terrain provider ⓘ</span><br><select id='tProvider'><option value='flat'>flat</option><option value='opentopodata' selected>OpenTopoData SRTM</option></select></label>
   <div style='grid-column:1/-1' class='muted small'>Optional terrain profile override (comma-separated m ASL):</div>
   <div style='grid-column:1/-1'><input id='tOverride' placeholder='e.g. 40,40.2,41.1,42.0' style='width:100%'></div>
+  <label><span title='Optional scenario name for save/load.'>Scenario ⓘ</span><br><input id='scName' placeholder='e.g. SiteA-SiteB-173.9'></label>
+  <div style='align-self:end'><button id='saveSc'>Save scenario</button> <button id='loadSc'>Load scenario</button></div>
   <div style='align-self:end'><button id='run'>Analyze</button> <button id='export'>Export JSON</button></div>
 </div>
 <div class='card'>Distance: <span id='dist'>-</span> km · Path loss: <span id='loss'>-</span> dB · Rx: <span id='rx'>-</span> dBm · Fade margin: <span id='margin'>-</span> dB (<span id='mclass'>-</span>)</div>
@@ -737,18 +739,41 @@ __NAV__
 (function(){
   function v(id){ return Number(document.getElementById(id).value); }
   function gv(o,k,d){ return (o && o[k]!==undefined && o[k]!==null) ? o[k] : d; }
-  var chart=echarts.init(document.getElementById('profile'));
-  var lastResult=null;
-  function draw(profile){
-    var d=profile.distance_m||[], t=profile.terrain_m_asl||[], l=profile.los_m_asl||[];
-    chart.setOption({animation:false,grid:{left:46,right:12,top:20,bottom:30},tooltip:{trigger:'axis'},xAxis:{type:'category',data:d.map(function(x){return (x/1000).toFixed(2);}),name:'km'},yAxis:{type:'value',name:'m'},series:[{name:'terrain',type:'line',data:t,symbol:'none',lineStyle:{color:'#5bbf7a'}},{name:'los',type:'line',data:l,symbol:'none',lineStyle:{color:'#ff8a8a'}}]});
-  }
-  function run(){
-    document.getElementById('warn').textContent='running...';
+  function getReq(){
     var to=document.getElementById('tOverride').value.trim();
     var ov=null;
     if(to){ ov=to.split(',').map(function(x){return Number(String(x).trim());}).filter(function(x){return isFinite(x);}); if(!ov.length) ov=null; }
-    var req={schema:'fwlab.path.request.v1',tx:{lat:v('txLat'),lon:v('txLon'),antenna_agl_m:v('txH')},rx:{lat:v('rxLat'),lon:v('rxLon'),antenna_agl_m:v('rxH')},rf:{frequency_mhz:v('freq'),tx_power_dbm:v('txP'),tx_antenna_gain_dbi:v('txG'),rx_antenna_gain_dbi:v('rxG'),tx_system_loss_db:v('txL'),rx_system_loss_db:v('rxL'),rx_sensitivity_dbm:v('rxS')},model:{mode:document.getElementById('model').value},sampling:{profile_step_m:v('step'),terrain_base_m_asl:v('tBase'),terrain_provider:document.getElementById('tProvider').value,terrain_profile_m_asl:ov}};
+    return {schema:'fwlab.path.request.v1',tx:{lat:v('txLat'),lon:v('txLon'),antenna_agl_m:v('txH')},rx:{lat:v('rxLat'),lon:v('rxLon'),antenna_agl_m:v('rxH')},rf:{frequency_mhz:v('freq'),tx_power_dbm:v('txP'),tx_antenna_gain_dbi:v('txG'),rx_antenna_gain_dbi:v('rxG'),tx_system_loss_db:v('txL'),rx_system_loss_db:v('rxL'),rx_sensitivity_dbm:v('rxS')},model:{mode:document.getElementById('model').value},sampling:{profile_step_m:v('step'),terrain_base_m_asl:v('tBase'),terrain_provider:document.getElementById('tProvider').value,terrain_profile_m_asl:ov}};
+  }
+  function setField(id,val){ if(val!==undefined && val!==null) document.getElementById(id).value=String(val); }
+  var chart=echarts.init(document.getElementById('profile'));
+  var lastResult=null;
+  function draw(profile){
+    var d=profile.distance_m||[], t=profile.terrain_m_asl||[], l=profile.los_m_asl||[], f=profile.fresnel60_radius_m||[];
+    var upper=[], lower=[];
+    for(var i=0;i<l.length;i++){
+      var rr = (f[i]||0)*0.6;
+      upper.push((l[i]||0)+rr);
+      lower.push((l[i]||0)-rr);
+    }
+    chart.setOption({
+      animation:false,
+      grid:{left:46,right:12,top:20,bottom:30},
+      tooltip:{trigger:'axis'},
+      legend:{textStyle:{color:'#b6c2cf'}},
+      xAxis:{type:'category',data:d.map(function(x){return (x/1000).toFixed(2);}),name:'km'},
+      yAxis:{type:'value',name:'m'},
+      series:[
+        {name:'terrain',type:'line',data:t,symbol:'none',lineStyle:{color:'#5bbf7a',width:2}},
+        {name:'fresnel +60%',type:'line',data:upper,symbol:'none',lineStyle:{color:'#6fa8ff',type:'dashed',opacity:0.8,width:1}},
+        {name:'fresnel -60%',type:'line',data:lower,symbol:'none',lineStyle:{color:'#6fa8ff',type:'dashed',opacity:0.8,width:1},areaStyle:{color:'rgba(111,168,255,0.08)'}},
+        {name:'los',type:'line',data:l,symbol:'none',lineStyle:{color:'#ff8a8a',width:2}}
+      ]
+    });
+  }
+  function run(){
+    document.getElementById('warn').textContent='running...';
+    var req=getReq();
     fetch('/api/path/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(req)}).then(function(r){return r.json();}).then(function(d){
       lastResult=d;
       var s=d.summary||{};
@@ -765,6 +790,31 @@ __NAV__
     }).catch(function(e){ document.getElementById('warn').textContent='analyze failed: '+e; });
   }
   document.getElementById('run').addEventListener('click',run);
+  document.getElementById('saveSc').addEventListener('click', function(){
+    var name=document.getElementById('scName').value.trim()||('scenario-'+Date.now());
+    var all={};
+    try{ all=JSON.parse(localStorage.getItem('fwlab_path_scenarios')||'{}'); }catch(e){ all={}; }
+    all[name]=getReq();
+    localStorage.setItem('fwlab_path_scenarios', JSON.stringify(all));
+    document.getElementById('warn').textContent='saved scenario: '+name;
+  });
+  document.getElementById('loadSc').addEventListener('click', function(){
+    var name=document.getElementById('scName').value.trim();
+    var all={};
+    try{ all=JSON.parse(localStorage.getItem('fwlab_path_scenarios')||'{}'); }catch(e){ all={}; }
+    var s=all[name];
+    if(!s){ document.getElementById('warn').textContent='scenario not found: '+name; return; }
+    var tx=s.tx||{}, rx=s.rx||{}, rf=s.rf||{}, md=s.model||{}, sp=s.sampling||{};
+    setField('txLat',tx.lat); setField('txLon',tx.lon); setField('txH',tx.antenna_agl_m);
+    setField('rxLat',rx.lat); setField('rxLon',rx.lon); setField('rxH',rx.antenna_agl_m);
+    setField('freq',rf.frequency_mhz); setField('txP',rf.tx_power_dbm); setField('txG',rf.tx_antenna_gain_dbi); setField('rxG',rf.rx_antenna_gain_dbi);
+    setField('txL',rf.tx_system_loss_db); setField('rxL',rf.rx_system_loss_db); setField('rxS',rf.rx_sensitivity_dbm);
+    setField('step',sp.profile_step_m); setField('tBase',sp.terrain_base_m_asl);
+    document.getElementById('model').value = md.mode || 'fspl_diffraction_proxy';
+    document.getElementById('tProvider').value = sp.terrain_provider || 'opentopodata';
+    document.getElementById('tOverride').value = Array.isArray(sp.terrain_profile_m_asl) ? sp.terrain_profile_m_asl.join(',') : '';
+    document.getElementById('warn').textContent='loaded scenario: '+name;
+  });
   document.getElementById('export').addEventListener('click', function(){
     if(!lastResult){ document.getElementById('warn').textContent='nothing to export yet'; return; }
     var blob=new Blob([JSON.stringify(lastResult,null,2)],{type:'application/json;charset=utf-8'});
