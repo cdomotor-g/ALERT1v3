@@ -94,6 +94,7 @@ h2{{font-weight:650;letter-spacing:.2px;}}
       <a href='/data'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 19h16'/><path d='m6 15 4-4 3 2 5-6'/><path d='m18 7 0 3h-3'/></svg></span><span class='fw-label'>Data</span></a>
       <a href='/path'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 20V9'/><path d='M4 9c2.5-1.5 5.5-1.5 8 0s5.5 1.5 8 0v11c-2.5 1.5-5.5 1.5-8 0s-5.5-1.5-8 0'/><circle cx='4' cy='9' r='1.2'/><circle cx='20' cy='9' r='1.2'/></svg></span><span class='fw-label'>Path</span></a>
       <a href='/stations'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v18'/><path d='M5 8h14'/><path d='M5 16h14'/><circle cx='12' cy='3' r='1.2'/></svg></span><span class='fw-label'>Stations</span></a>
+      <a href='/stations-map'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z'/><path d='M9 4v14'/><path d='M15 6v14'/></svg></span><span class='fw-label'>Stations Map</span></a>
       <a href='/admin'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='3'/><path d='M19.4 15a1 1 0 0 0 .2 1.1l.1.1a2 2 0 0 1-2.8 2.8l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V20a2 2 0 0 1-4 0v-.2a1 1 0 0 0-.6-.9 1 1 0 0 0-1.1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H4a2 2 0 0 1 0-4h.2a1 1 0 0 0 .9-.6 1 1 0 0 0-.2-1.1l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1 1 0 0 0 1.1.2h0a1 1 0 0 0 .6-.9V4a2 2 0 0 1 4 0v.2a1 1 0 0 0 .6.9h0a1 1 0 0 0 1.1-.2l.1-.1a2 2 0 0 1 2.8 2.8l-.1.1a1 1 0 0 0-.2 1.1v0a1 1 0 0 0 .9.6H20a2 2 0 0 1 0 4h-.2a1 1 0 0 0-.9.6z'/></svg></span><span class='fw-label'>Admin</span></a>
       <a href='/forensics'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='6.5'/><path d='M20 20l-4.2-4.2'/><path d='M11 8.5v5M8.5 11h5'/></svg></span><span class='fw-label'>Forensics</span></a>
       <a href='/about'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M12 11v5'/><circle cx='12' cy='8' r='1'/></svg></span><span class='fw-label'>About</span></a>
@@ -1122,7 +1123,7 @@ __NAV__
 </script></div></body></html>"""
 
 STATIONS_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Stations</title>
-<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem}table{width:100%;border-collapse:collapse}th,td{padding:.35rem;border-bottom:1px solid #243243;text-align:left}.muted{color:#9fb0c3}.row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}.mini{font-size:.9em}.num{width:8.5rem}</style></head><body><div class='page'>
+<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem}.muted{color:#9fb0c3}.row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}.mini{font-size:.9em}.num{width:8.5rem}.table-wrap{overflow:auto}.st-table{width:100%;min-width:980px;border-collapse:collapse}.st-table th,.st-table td{padding:.35rem;border-bottom:1px solid #243243;text-align:left}.cards{display:none}.st-card{border:1px solid #2a3948;border-radius:8px;padding:.6rem;margin:.5rem 0;background:#111a22}.st-card .grid{display:grid;grid-template-columns:1fr 1fr;gap:.4rem}.st-card input{width:100%;box-sizing:border-box}@media(max-width:900px){.table-wrap{display:none}.cards{display:block}input,button{min-height:40px;font-size:16px}}</style></head><body><div class='page'>
 <h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v18'/><path d='M5 8h14'/><path d='M5 16h14'/><circle cx='12' cy='3' r='1.2'/></svg></span><span>Stations</span></h2>
 __NAV__
 <div class='card row'>
@@ -1130,10 +1131,12 @@ __NAV__
   <button id='upload'>Upload CSV</button>
   <input id='q' placeholder='Type to filter stations...' style='min-width:280px'>
   <button id='reload'>Reload</button>
+  <a href='/stations-map' style='margin-left:auto;color:#7fc8ff'>Open map view →</a>
   <span id='msg' class='muted'></span>
 </div>
 <div class='card mini'>Stations loaded: <span id='count'>0</span> · Showing: <span id='shown'>0</span></div>
-<div class='card'><table><thead><tr><th>#</th><th>Name</th><th>Lat</th><th>Lon</th><th>Elevation</th><th></th></tr></thead><tbody id='rows'></tbody></table></div>
+<div class='card table-wrap'><table class='st-table'><thead><tr><th>#</th><th>Unit ID</th><th>Name</th><th>Enabled</th><th>Lat</th><th>Lon</th><th>Elevation</th><th>Icon</th><th>Style</th><th>Locked</th><th></th></tr></thead><tbody id='rows'></tbody></table></div>
+<div class='card cards' id='cards'></div>
 <script>
 (function(){
   var all=[];
@@ -1148,11 +1151,18 @@ __NAV__
   function match(r, q){
     if(!q) return true;
     q=q.toLowerCase();
-    return [r.name,r.unitname,r.latitude,r.longitude,r.elevation,r.unitid].some(function(v){ return String(v||'').toLowerCase().indexOf(q)>=0; });
+    return [r.name,r.unitname,r.latitude,r.longitude,r.elevation,r.unitid,r.enabled,r.icon,r.style,r.locked].some(function(v){ return String(v||'').toLowerCase().indexOf(q)>=0; });
+  }
+  function savePatch(patch, idx){
+    fetch('/api/stations/update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)})
+      .then(function(x){ return x.json(); })
+      .then(function(d){ document.getElementById('msg').textContent = d.ok ? ('saved station #'+idx) : ('save failed: '+(d.error||'unknown')); if(d.ok) load(); })
+      .catch(function(){ document.getElementById('msg').textContent='save failed'; });
   }
   function render(){
     var q=(document.getElementById('q').value||'').trim();
     var rowsEl=document.getElementById('rows'); rowsEl.innerHTML='';
+    var cardsEl=document.getElementById('cards'); cardsEl.innerHTML='';
     var shown=0;
     all.forEach(function(r){
       if(!match(r,q)) return;
@@ -1160,23 +1170,58 @@ __NAV__
       var tr=document.createElement('tr');
       tr.innerHTML=''
         +'<td>'+r.index+'</td>'
+        +'<td>'+esc(r.unitid||'')+'</td>'
         +'<td><input data-k="name" value="'+esc(r.name||r.unitname||'')+'" style="min-width:220px"></td>'
+        +'<td><input class="num" data-k="enabled" value="'+esc(r.enabled||'')+'"></td>'
         +'<td><input class="num" data-k="lat" value="'+esc(r.latitude||r.lat||'')+'"></td>'
         +'<td><input class="num" data-k="lon" value="'+esc(r.longitude||r.lon||'')+'"></td>'
         +'<td><input class="num" data-k="elevation" value="'+esc(r.elevation||'')+'"></td>'
+        +'<td><input class="num" data-k="icon" value="'+esc(r.icon||'')+'"></td>'
+        +'<td><input class="num" data-k="style" value="'+esc(r.style||'')+'"></td>'
+        +'<td><input class="num" data-k="locked" value="'+esc(r.locked||'')+'"></td>'
         +'<td><button class="save">Save</button></td>';
       tr.querySelector('.save').addEventListener('click', function(){
-        var patch={ index:r.index };
-        patch.name=tr.querySelector('input[data-k="name"]').value.trim();
-        patch.lat=tr.querySelector('input[data-k="lat"]').value.trim();
-        patch.lon=tr.querySelector('input[data-k="lon"]').value.trim();
-        patch.elevation=tr.querySelector('input[data-k="elevation"]').value.trim();
-        fetch('/api/stations/update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)})
-          .then(function(x){ return x.json(); })
-          .then(function(d){ document.getElementById('msg').textContent = d.ok ? ('saved station #'+r.index) : ('save failed: '+(d.error||'unknown')); if(d.ok) load(); })
-          .catch(function(e){ document.getElementById('msg').textContent='save failed'; });
+        savePatch({
+          index:r.index,
+          name:tr.querySelector('input[data-k="name"]').value.trim(),
+          enabled:tr.querySelector('input[data-k="enabled"]').value.trim(),
+          lat:tr.querySelector('input[data-k="lat"]').value.trim(),
+          lon:tr.querySelector('input[data-k="lon"]').value.trim(),
+          elevation:tr.querySelector('input[data-k="elevation"]').value.trim(),
+          icon:tr.querySelector('input[data-k="icon"]').value.trim(),
+          style:tr.querySelector('input[data-k="style"]').value.trim(),
+          locked:tr.querySelector('input[data-k="locked"]').value.trim()
+        }, r.index);
       });
       rowsEl.appendChild(tr);
+
+      var card=document.createElement('div'); card.className='st-card';
+      card.innerHTML=''
+        +'<div><strong>#'+r.index+' '+esc(r.name||r.unitname||'')+'</strong> <span class="muted">ID '+esc(r.unitid||'-')+'</span></div>'
+        +'<div class="grid">'
+        +'<div><label>Name</label><input data-k="name" value="'+esc(r.name||r.unitname||'')+'"></div>'
+        +'<div><label>Enabled</label><input data-k="enabled" value="'+esc(r.enabled||'')+'"></div>'
+        +'<div><label>Lat</label><input data-k="lat" value="'+esc(r.latitude||r.lat||'')+'"></div>'
+        +'<div><label>Lon</label><input data-k="lon" value="'+esc(r.longitude||r.lon||'')+'"></div>'
+        +'<div><label>Elevation</label><input data-k="elevation" value="'+esc(r.elevation||'')+'"></div>'
+        +'<div><label>Icon</label><input data-k="icon" value="'+esc(r.icon||'')+'"></div>'
+        +'<div><label>Style</label><input data-k="style" value="'+esc(r.style||'')+'"></div>'
+        +'<div><label>Locked</label><input data-k="locked" value="'+esc(r.locked||'')+'"></div>'
+        +'</div><div style="margin-top:.5rem"><button class="save">Save</button></div>';
+      card.querySelector('.save').addEventListener('click', function(){
+        savePatch({
+          index:r.index,
+          name:card.querySelector('input[data-k="name"]').value.trim(),
+          enabled:card.querySelector('input[data-k="enabled"]').value.trim(),
+          lat:card.querySelector('input[data-k="lat"]').value.trim(),
+          lon:card.querySelector('input[data-k="lon"]').value.trim(),
+          elevation:card.querySelector('input[data-k="elevation"]').value.trim(),
+          icon:card.querySelector('input[data-k="icon"]').value.trim(),
+          style:card.querySelector('input[data-k="style"]').value.trim(),
+          locked:card.querySelector('input[data-k="locked"]').value.trim()
+        }, r.index);
+      });
+      cardsEl.appendChild(card);
     });
     document.getElementById('shown').textContent=shown;
   }
@@ -1194,6 +1239,46 @@ __NAV__
     fr.readAsText(f);
   });
   load();
+})();
+</script>
+</div></body></html>"""
+
+STATIONS_MAP_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Stations Map</title>
+<link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'/>
+<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem}#map{height:72vh;border:1px solid #2a3948;border-radius:8px}.muted{color:#9fb0c3}</style>
+<script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script></head><body><div class='page'>
+<h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z'/><path d='M9 4v14'/><path d='M15 6v14'/></svg></span><span>Stations Map</span></h2>
+__NAV__
+<div class='card'>
+  <input id='q' placeholder='Type to filter markers by name/id...' style='min-width:280px'>
+  <span class='muted'>Total: <span id='total'>0</span> · Visible: <span id='vis'>0</span></span>
+</div>
+<div class='card'><div id='map'></div></div>
+<script>
+(function(){
+  var all=[], map=L.map('map');
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+  var layer=L.layerGroup().addTo(map);
+  function match(r,q){ if(!q) return true; q=q.toLowerCase(); return [r.name,r.unitid].some(function(v){return String(v||'').toLowerCase().indexOf(q)>=0;}); }
+  function render(){
+    var q=(document.getElementById('q').value||'').trim();
+    layer.clearLayers();
+    var pts=[];
+    all.forEach(function(r){
+      if(!match(r,q)) return;
+      if(r.latitude===''||r.longitude==='') return;
+      var lat=Number(r.latitude), lon=Number(r.longitude);
+      if(!isFinite(lat)||!isFinite(lon)) return;
+      pts.push([lat,lon]);
+      L.circleMarker([lat,lon],{radius:4,color:'#7fc8ff',fillOpacity:0.8}).bindPopup('<b>'+String(r.name||'')+'</b><br>ID: '+String(r.unitid||'-')+'<br>'+lat+', '+lon).addTo(layer);
+    });
+    document.getElementById('vis').textContent=pts.length;
+    if(pts.length){ map.fitBounds(L.latLngBounds(pts).pad(0.1)); }
+  }
+  fetch('/api/stations/rows?limit=50000').then(function(r){return r.json();}).then(function(d){
+    all=d.rows||[]; document.getElementById('total').textContent=all.length; render();
+  });
+  document.getElementById('q').addEventListener('input', render);
 })();
 </script>
 </div></body></html>"""
@@ -2698,6 +2783,10 @@ class Handler(BaseHTTPRequestHandler):
                 lat = str(body.get('lat', '')).strip()
                 lon = str(body.get('lon', '')).strip()
                 elev = str(body.get('elevation', '')).strip()
+                enabled = str(body.get('enabled', '')).strip()
+                icon = str(body.get('icon', '')).strip()
+                style = str(body.get('style', '')).strip()
+                locked = str(body.get('locked', '')).strip()
                 if nm:
                     if 'unitname' in r:
                         r['unitname'] = nm
@@ -2711,6 +2800,14 @@ class Handler(BaseHTTPRequestHandler):
                     r['longitude'] = lon
                 if elev != '':
                     r['elevation'] = elev
+                if enabled != '':
+                    r['enabled'] = enabled
+                if icon != '':
+                    r['icon'] = icon
+                if style != '':
+                    r['style'] = style
+                if locked != '':
+                    r['locked'] = locked
                 rows[idx] = r
                 _save_stations_rows(rows)
                 return self._json({'ok': True, 'index': idx})
@@ -2844,6 +2941,15 @@ class Handler(BaseHTTPRequestHandler):
 
         if parsed.path == '/stations':
             payload = STATIONS_HTML.replace('__NAV__', NAV_HTML).encode('utf-8')
+            self.send_response(HTTPStatus.OK)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Content-Length', str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
+
+        if parsed.path == '/stations-map':
+            payload = STATIONS_MAP_HTML.replace('__NAV__', NAV_HTML).encode('utf-8')
             self.send_response(HTTPStatus.OK)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
             self.send_header('Content-Length', str(len(payload)))
