@@ -750,12 +750,16 @@ __NAV__
   var lastResult=null;
   function draw(profile){
     var d=profile.distance_m||[], t=profile.terrain_m_asl||[], l=profile.los_m_asl||[], f=profile.fresnel60_radius_m||[];
-    var upper=[], lower=[];
-    for(var i=0;i<l.length;i++){
-      var rr = (f[i]||0)*0.6;
-      upper.push((l[i]||0)+rr);
-      lower.push((l[i]||0)-rr);
+    function band(mult){
+      var up=[], lo=[];
+      for(var i=0;i<l.length;i++){
+        var rr = (f[i]||0)*mult;
+        up.push((l[i]||0)+rr);
+        lo.push((l[i]||0)-rr);
+      }
+      return {up:up, lo:lo};
     }
+    var b20=band(0.2), b40=band(0.4), b60=band(0.6);
     chart.setOption({
       animation:false,
       grid:{left:46,right:12,top:20,bottom:30},
@@ -765,8 +769,12 @@ __NAV__
       yAxis:{type:'value',name:'m'},
       series:[
         {name:'terrain',type:'line',data:t,symbol:'none',lineStyle:{color:'#5bbf7a',width:2}},
-        {name:'fresnel +60%',type:'line',data:upper,symbol:'none',lineStyle:{color:'#6fa8ff',type:'dashed',opacity:0.8,width:1}},
-        {name:'fresnel -60%',type:'line',data:lower,symbol:'none',lineStyle:{color:'#6fa8ff',type:'dashed',opacity:0.8,width:1},areaStyle:{color:'rgba(111,168,255,0.08)'}},
+        {name:'fresnel +20%',type:'line',data:b20.up,symbol:'none',lineStyle:{color:'#6fa8ff',type:'dashed',opacity:0.45,width:1}},
+        {name:'fresnel -20%',type:'line',data:b20.lo,symbol:'none',lineStyle:{color:'#6fa8ff',type:'dashed',opacity:0.45,width:1}},
+        {name:'fresnel +40%',type:'line',data:b40.up,symbol:'none',lineStyle:{color:'#6fa8ff',type:'dashed',opacity:0.6,width:1}},
+        {name:'fresnel -40%',type:'line',data:b40.lo,symbol:'none',lineStyle:{color:'#6fa8ff',type:'dashed',opacity:0.6,width:1}},
+        {name:'fresnel +60%',type:'line',data:b60.up,symbol:'none',lineStyle:{color:'#6fa8ff',type:'dashed',opacity:0.8,width:1}},
+        {name:'fresnel -60%',type:'line',data:b60.lo,symbol:'none',lineStyle:{color:'#6fa8ff',type:'dashed',opacity:0.8,width:1},areaStyle:{color:'rgba(111,168,255,0.08)'}},
         {name:'los',type:'line',data:l,symbol:'none',lineStyle:{color:'#ff8a8a',width:2}}
       ]
     });
