@@ -893,7 +893,6 @@ __NAV__
 <div class='card'>Distance: <span id='dist'>-</span> km · Path loss: <span id='loss'>-</span> dB · Rx: <span id='rx'>-</span> dBm · Fade margin: <span id='margin'>-</span> dB (<span id='mclass'>-</span>)</div>
 <div class='card'><div class='muted'>Top-down path map (TX→RX)</div><div id='pathMap'></div></div>
 <div class='card'><div id='profile'></div></div>
-<div class='card'><div class='muted'>Fresnel zones (LOS-relative)</div><div id='fresnelProfile' style='height:280px'></div></div>
 <div class='card'><div class='muted'>Radio Mobile parity worksheet (copy to compare)</div><pre id='parity' style='white-space:pre-wrap'>run Analyze to populate</pre></div>
 <div class='card'><div class='muted'>Assumptions / warnings</div><pre id='warn' style='white-space:pre-wrap'></pre></div>
 <script>
@@ -923,7 +922,6 @@ __NAV__
     setField('rxStation', st.rx_name || '');
   }
   var chart=echarts.init(document.getElementById('profile'));
-  var fresChart=echarts.init(document.getElementById('fresnelProfile'));
   var stationsByName={};
   function loadStationsCatalog(){
     fetch('/api/stations/catalog?limit=20000').then(function(r){ return r.json(); }).then(function(d){
@@ -1010,51 +1008,18 @@ __NAV__
       yAxis:{type:'value',name:'m'},
       series:[
         {name:'terrain',type:'line',data:t,symbol:'none',lineStyle:{color:'#5bbf7a',width:2},z:2},
-        {name:'fresnel +20%'+(visScale>1?' (vis x'+visScale+')':''),type:'line',data:b20.up,symbol:'none',lineStyle:{color:'#ffd166',type:'dashed',opacity:0.85,width:1.6},z:3},
-        {name:'fresnel -20%'+(visScale>1?' (vis x'+visScale+')':''),type:'line',data:b20.lo,symbol:'none',lineStyle:{color:'#ffd166',type:'dashed',opacity:0.85,width:1.6},z:3},
-        {name:'fresnel +40%'+(visScale>1?' (vis x'+visScale+')':''),type:'line',data:b40.up,symbol:'none',lineStyle:{color:'#ffbf69',type:'dashed',opacity:0.9,width:1.8},z:3},
-        {name:'fresnel -40%'+(visScale>1?' (vis x'+visScale+')':''),type:'line',data:b40.lo,symbol:'none',lineStyle:{color:'#ffbf69',type:'dashed',opacity:0.9,width:1.8},z:3},
-        {name:'fresnel +60%'+(visScale>1?' (vis x'+visScale+')':''),type:'line',data:b60.up,symbol:'none',lineStyle:{color:'#ff9f1c',type:'solid',opacity:0.98,width:2.0},z:4},
-        {name:'fresnel -60%'+(visScale>1?' (vis x'+visScale+')':''),type:'line',data:b60.lo,symbol:'none',lineStyle:{color:'#ff9f1c',type:'solid',opacity:0.98,width:2.0},areaStyle:{color:'rgba(255,159,28,0.16)'},z:4},
+        {name:'F1 +20%'+(visScale>1?' (vis x'+visScale+')':''),type:'line',data:b20.up,symbol:'none',lineStyle:{color:'#ffd166',type:'dashed',opacity:0.85,width:1.6},z:3},
+        {name:'F1 -20%'+(visScale>1?' (vis x'+visScale+')':''),type:'line',data:b20.lo,symbol:'none',lineStyle:{color:'#ffd166',type:'dashed',opacity:0.85,width:1.6},z:3},
+        {name:'F1 +40%'+(visScale>1?' (vis x'+visScale+')':''),type:'line',data:b40.up,symbol:'none',lineStyle:{color:'#ffbf69',type:'dashed',opacity:0.9,width:1.8},z:3},
+        {name:'F1 -40%'+(visScale>1?' (vis x'+visScale+')':''),type:'line',data:b40.lo,symbol:'none',lineStyle:{color:'#ffbf69',type:'dashed',opacity:0.9,width:1.8},z:3},
+        {name:'F1 +60%'+(visScale>1?' (vis x'+visScale+')':''),type:'line',data:b60.up,symbol:'none',lineStyle:{color:'#ff9f1c',type:'solid',opacity:0.98,width:2.0},z:4},
+        {name:'F1 -60%'+(visScale>1?' (vis x'+visScale+')':''),type:'line',data:b60.lo,symbol:'none',lineStyle:{color:'#ff9f1c',type:'solid',opacity:0.98,width:2.0},areaStyle:{color:'rgba(255,159,28,0.16)'},z:4},
         {name:'los',type:'line',data:l,symbol:'none',lineStyle:{color:'#ff8a8a',width:2},z:5}
       ]
     }, true);
     if(!hasF){ document.getElementById('warn').textContent='warning: fresnel radii unavailable in profile output'; }
     else if(visScale>1){ document.getElementById('warn').textContent='note: short path detected; Fresnel guides shown with visual scale x'+visScale+' (numbers in worksheet are unchanged)'; }
   }
-  function drawFresnel(profile){
-    var d=(profile.distance_m||[]).map(function(x){ return Number(x)||0; });
-    var t=(profile.terrain_m_asl||[]).map(function(x){ return Number(x)||0; });
-    var l=(profile.los_m_asl||[]).map(function(x){ return Number(x)||0; });
-    var f60=(profile.fresnel60_radius_m||[]).map(function(x){ return Number(x)||0; });
-    var terrRel=[];
-    var f1p=[],f1n=[],f2p=[],f2n=[],f3p=[],f3n=[];
-    for(var i=0;i<d.length;i++){
-      var f1=(f60[i]||0)/0.6;
-      terrRel.push((t[i]||0)-(l[i]||0));
-      f1p.push(f1); f1n.push(-f1);
-      f2p.push(f1*Math.sqrt(2)); f2n.push(-f1*Math.sqrt(2));
-      f3p.push(f1*Math.sqrt(3)); f3n.push(-f1*Math.sqrt(3));
-    }
-    fresChart.setOption({
-      animation:false,
-      grid:{left:52,right:12,top:24,bottom:32},
-      tooltip:{trigger:'axis'},
-      legend:{textStyle:{color:'#b6c2cf'}},
-      xAxis:{type:'category',data:d.map(function(x){return (x/1000).toFixed(2);}),name:'km'},
-      yAxis:{type:'value',name:'m vs LOS (0)',axisLine:{show:true}},
-      series:[
-        {name:'terrain clearance',type:'line',data:terrRel,symbol:'none',lineStyle:{color:'#5bbf7a',width:2}},
-        {name:'+F1',type:'line',data:f1p,symbol:'none',lineStyle:{color:'#ff9f1c',width:2}},
-        {name:'-F1',type:'line',data:f1n,symbol:'none',lineStyle:{color:'#ff9f1c',width:2}},
-        {name:'+F2',type:'line',data:f2p,symbol:'none',lineStyle:{color:'#ffd166',type:'dashed',width:1.5}},
-        {name:'-F2',type:'line',data:f2n,symbol:'none',lineStyle:{color:'#ffd166',type:'dashed',width:1.5}},
-        {name:'+F3',type:'line',data:f3p,symbol:'none',lineStyle:{color:'#8ecae6',type:'dotted',width:1.4}},
-        {name:'-F3',type:'line',data:f3n,symbol:'none',lineStyle:{color:'#8ecae6',type:'dotted',width:1.4}}
-      ]
-    }, true);
-  }
-
   function parityText(req,d){
     var s=d.summary||{}, b=d.budget||{}, a=d.assumptions||{};
     return [
@@ -1095,7 +1060,6 @@ __NAV__
       mc.textContent=mcls; mc.className=mcls==='good'?'good':(mcls==='marginal'?'warn':'bad');
       var prof=(d.profile||{});
       draw(prof);
-      drawFresnel(prof);
       var warn=(d.warnings||[]).join('\\n');
       var asm=d.assumptions||{};
       var fres=(prof.fresnel60_radius_m||[]).map(function(x){ return Number(x)||0; });
@@ -1154,7 +1118,7 @@ __NAV__
     if(d && d.defaults){ applyReq(d.defaults); }
     run();
   }).catch(function(){ run(); });
-  window.addEventListener('resize', function(){ chart.resize(); if(fresChart) fresChart.resize(); if(map) map.invalidateSize(); });
+  window.addEventListener('resize', function(){ chart.resize(); if(map) map.invalidateSize(); });
 })();
 </script></div></body></html>"""
 
