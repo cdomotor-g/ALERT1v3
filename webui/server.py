@@ -804,7 +804,7 @@ __NAV__
       'Model mode: '+a.propagation_model,
       'Terrain mode: '+a.terrain_mode,
       'Fresnel60 min clearance m: '+a.fresnel60_min_clearance_m,
-      (d.parity ? ('Measured RX dBm: '+d.parity.measured_rx_dbm+'\nDelta (pred-measured) dB: '+d.parity.delta_db+'\nFit class: '+d.parity.fit_class) : 'Measured RX dBm: (not provided)')
+      (d.parity ? ('Measured RX dBm: '+d.parity.measured_rx_dbm+'\\nDelta (pred-measured) dB: '+d.parity.delta_db+'\\nFit class: '+d.parity.fit_class) : 'Measured RX dBm: (not provided)')
     ].join('\\n');
   }
 
