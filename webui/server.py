@@ -33,6 +33,7 @@ def _build_stamp():
 BUILD_STAMP = _build_stamp()
 RX_AGG_JSON_PATH = Path('rf_log/rx_agg.json')
 STATIONS_CSV_PATH = Path('config/stations.csv')
+PATH_DEFAULTS_PATH = Path('config/path_defaults.json')
 NAV_HTML = f"""
 <style>
 :root{{--sidebar-w:212px;--sidebar-w-c:64px;--content-gap:14px;}}
@@ -810,6 +811,23 @@ def _pairs_within_km(rows, max_km=100.0, limit=2000):
     return out
 
 
+def _load_path_defaults():
+    if not PATH_DEFAULTS_PATH.exists():
+        return {}
+    try:
+        d = json.loads(PATH_DEFAULTS_PATH.read_text(encoding='utf-8', errors='replace'))
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def _save_path_defaults(d):
+    if not isinstance(d, dict):
+        raise ValueError('defaults must be object')
+    PATH_DEFAULTS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    PATH_DEFAULTS_PATH.write_text(json.dumps(d, indent=2), encoding='utf-8')
+
+
 PATH_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Path</title>
 <style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button,select{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}a{color:#7fc8ff}.grid{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:.5rem}.muted{color:#9fb0c3}.good{color:#6dd17c}.warn{color:#f2c14e}.bad{color:#f36f6f}#profile{height:320px}#pathMap{height:320px;border:1px solid #2a3948;border-radius:8px}@media(max-width:860px){.grid{grid-template-columns:1fr 1fr}input,button,select{min-height:40px;font-size:16px}}</style>
 <link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'/>
@@ -844,6 +862,7 @@ __NAV__
   <div style='grid-column:1/-1'><input id='tOverride' placeholder='e.g. 40,40.2,41.1,42.0' style='width:100%'></div>
   <label><span title='Optional scenario name for save/load.'>Scenario ⓘ</span><br><input id='scName' placeholder='e.g. SiteA-SiteB-173.9'></label>
   <div style='align-self:end'><button id='saveSc'>Save scenario</button> <button id='loadSc'>Load scenario</button></div>
+  <div style='align-self:end'><button id='saveDef'>Save as defaults</button> <button id='loadDef'>Load defaults</button></div>
   <div style='align-self:end'><button id='run'>Analyze</button> <button id='export'>Export JSON</button></div>
 </div>
 <div class='card'>Distance: <span id='dist'>-</span> km · Path loss: <span id='loss'>-</span> dB · Rx: <span id='rx'>-</span> dBm · Fade margin: <span id='margin'>-</span> dB (<span id='mclass'>-</span>)</div>
@@ -860,9 +879,23 @@ __NAV__
     var ov=null;
     if(to){ ov=to.split(',').map(function(x){return Number(String(x).trim());}).filter(function(x){return isFinite(x);}); if(!ov.length) ov=null; }
     var m=document.getElementById('rxM').value.trim();
-    return {schema:'fwlab.path.request.v1',tx:{lat:v('txLat'),lon:v('txLon'),antenna_agl_m:v('txH')},rx:{lat:v('rxLat'),lon:v('rxLon'),antenna_agl_m:v('rxH')},rf:{frequency_mhz:v('freq'),tx_power_dbm:v('txP'),tx_antenna_gain_dbi:v('txG'),rx_antenna_gain_dbi:v('rxG'),tx_system_loss_db:v('txL'),rx_system_loss_db:v('rxL'),rx_sensitivity_dbm:v('rxS')},measured:{rx_dbm:(m===''?null:Number(m))},model:{mode:document.getElementById('model').value},sampling:{profile_step_m:v('step'),terrain_base_m_asl:v('tBase'),terrain_provider:document.getElementById('tProvider').value,terrain_profile_m_asl:ov}};
+    return {schema:'fwlab.path.request.v1',tx:{lat:v('txLat'),lon:v('txLon'),antenna_agl_m:v('txH')},rx:{lat:v('rxLat'),lon:v('rxLon'),antenna_agl_m:v('rxH')},rf:{frequency_mhz:v('freq'),tx_power_dbm:v('txP'),tx_antenna_gain_dbi:v('txG'),rx_antenna_gain_dbi:v('rxG'),tx_system_loss_db:v('txL'),rx_system_loss_db:v('rxL'),rx_sensitivity_dbm:v('rxS')},measured:{rx_dbm:(m===''?null:Number(m))},model:{mode:document.getElementById('model').value},sampling:{profile_step_m:v('step'),terrain_base_m_asl:v('tBase'),terrain_provider:document.getElementById('tProvider').value,terrain_profile_m_asl:ov},stations:{tx_name:(document.getElementById('txStation').value||'').trim(),rx_name:(document.getElementById('rxStation').value||'').trim()}};
   }
   function setField(id,val){ if(val!==undefined && val!==null) document.getElementById(id).value=String(val); }
+  function applyReq(s){
+    var tx=s.tx||{}, rx=s.rx||{}, rf=s.rf||{}, md=s.model||{}, sp=s.sampling||{}, st=s.stations||{};
+    setField('txLat',tx.lat); setField('txLon',tx.lon); setField('txH',tx.antenna_agl_m);
+    setField('rxLat',rx.lat); setField('rxLon',rx.lon); setField('rxH',rx.antenna_agl_m);
+    setField('freq',rf.frequency_mhz); setField('txP',rf.tx_power_dbm); setField('txG',rf.tx_antenna_gain_dbi); setField('rxG',rf.rx_antenna_gain_dbi);
+    setField('txL',rf.tx_system_loss_db); setField('rxL',rf.rx_system_loss_db); setField('rxS',rf.rx_sensitivity_dbm);
+    setField('rxM',(s.measured||{}).rx_dbm);
+    setField('step',sp.profile_step_m); setField('tBase',sp.terrain_base_m_asl);
+    document.getElementById('model').value = md.mode || 'fspl_diffraction_proxy';
+    document.getElementById('tProvider').value = sp.terrain_provider || 'opentopodata';
+    document.getElementById('tOverride').value = Array.isArray(sp.terrain_profile_m_asl) ? sp.terrain_profile_m_asl.join(',') : '';
+    setField('txStation', st.tx_name || '');
+    setField('rxStation', st.rx_name || '');
+  }
   var chart=echarts.init(document.getElementById('profile'));
   var stationsByName={};
   function loadStationsCatalog(){
@@ -1016,18 +1049,24 @@ __NAV__
     try{ all=JSON.parse(localStorage.getItem('fwlab_path_scenarios')||'{}'); }catch(e){ all={}; }
     var s=all[name];
     if(!s){ document.getElementById('warn').textContent='scenario not found: '+name; return; }
-    var tx=s.tx||{}, rx=s.rx||{}, rf=s.rf||{}, md=s.model||{}, sp=s.sampling||{};
-    setField('txLat',tx.lat); setField('txLon',tx.lon); setField('txH',tx.antenna_agl_m);
-    setField('rxLat',rx.lat); setField('rxLon',rx.lon); setField('rxH',rx.antenna_agl_m);
-    setField('freq',rf.frequency_mhz); setField('txP',rf.tx_power_dbm); setField('txG',rf.tx_antenna_gain_dbi); setField('rxG',rf.rx_antenna_gain_dbi);
-    setField('txL',rf.tx_system_loss_db); setField('rxL',rf.rx_system_loss_db); setField('rxS',rf.rx_sensitivity_dbm);
-    setField('rxM',(s.measured||{}).rx_dbm);
-    setField('step',sp.profile_step_m); setField('tBase',sp.terrain_base_m_asl);
-    document.getElementById('model').value = md.mode || 'fspl_diffraction_proxy';
-    document.getElementById('tProvider').value = sp.terrain_provider || 'opentopodata';
-    document.getElementById('tOverride').value = Array.isArray(sp.terrain_profile_m_asl) ? sp.terrain_profile_m_asl.join(',') : '';
+    applyReq(s);
     document.getElementById('warn').textContent='loaded scenario: '+name;
   });
+  document.getElementById('saveDef').addEventListener('click', function(){
+    var req=getReq();
+    fetch('/api/path/defaults',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(req)})
+      .then(function(r){ return r.json(); })
+      .then(function(d){ document.getElementById('warn').textContent = d.ok ? 'saved global path defaults' : ('save defaults failed: '+(d.error||'unknown')); })
+      .catch(function(e){ document.getElementById('warn').textContent='save defaults failed: '+e; });
+  });
+  document.getElementById('loadDef').addEventListener('click', function(){
+    fetch('/api/path/defaults').then(function(r){ return r.json(); }).then(function(d){
+      if(!d || !d.defaults){ document.getElementById('warn').textContent='no saved defaults yet'; return; }
+      applyReq(d.defaults);
+      document.getElementById('warn').textContent='loaded global path defaults';
+    }).catch(function(e){ document.getElementById('warn').textContent='load defaults failed: '+e; });
+  });
+
   document.getElementById('export').addEventListener('click', function(){
     if(!lastResult){ document.getElementById('warn').textContent='nothing to export yet'; return; }
     var blob=new Blob([JSON.stringify(lastResult,null,2)],{type:'application/json;charset=utf-8'});
@@ -1035,7 +1074,10 @@ __NAV__
     a.href=url; a.download='path_analysis_result.json'; a.click(); URL.revokeObjectURL(url);
   });
   loadStationsCatalog();
-  run();
+  fetch('/api/path/defaults').then(function(r){ return r.json(); }).then(function(d){
+    if(d && d.defaults){ applyReq(d.defaults); }
+    run();
+  }).catch(function(){ run(); });
   window.addEventListener('resize', function(){ chart.resize(); if(map) map.invalidateSize(); });
 })();
 </script></div></body></html>"""
@@ -2559,6 +2601,18 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 return self._json({'ok': False, 'error': str(e)}, code=400)
 
+        if parsed.path == '/api/path/defaults':
+            try:
+                length = int(self.headers.get('Content-Length', '0'))
+                raw = self.rfile.read(length) if length > 0 else b'{}'
+                body = json.loads(raw.decode('utf-8', errors='replace'))
+                if not isinstance(body, dict):
+                    return self._json({'ok': False, 'error': 'body must be object'}, code=400)
+                _save_path_defaults(body)
+                return self._json({'ok': True, 'source': str(PATH_DEFAULTS_PATH)})
+            except Exception as e:
+                return self._json({'ok': False, 'error': str(e)}, code=400)
+
         if parsed.path == '/api/stations/upload':
             try:
                 length = int(self.headers.get('Content-Length', '0'))
@@ -2841,6 +2895,10 @@ class Handler(BaseHTTPRequestHandler):
             rows = _load_stations()
             pairs = _pairs_within_km(rows, max_km=100.0, limit=5000)
             return self._json({'count': len(rows), 'pairs_100km': pairs, 'source': str(STATIONS_CSV_PATH)})
+
+        if parsed.path == '/api/path/defaults':
+            d = _load_path_defaults()
+            return self._json({'ok': True, 'defaults': d, 'source': str(PATH_DEFAULTS_PATH)})
 
         if parsed.path == '/api/stations/catalog':
             q = urllib.parse.parse_qs(parsed.query)
