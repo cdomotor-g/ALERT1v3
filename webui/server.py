@@ -958,10 +958,13 @@ __NAV__
     var t=(profile.terrain_m_asl||[]).map(function(x){ return Number(x)||0; });
     var l=(profile.los_m_asl||[]).map(function(x){ return Number(x)||0; });
     var f=(profile.fresnel60_radius_m||[]).map(function(x){ return Number(x)||0; });
+    var maxF=0;
+    for(var fi=0;fi<f.length;fi++){ if(f[fi]>maxF) maxF=f[fi]; }
+    var visScale = (maxF>0 && maxF<2.0) ? 10 : 1; // short links: make guides visible
     function band(mult){
       var up=[], lo=[];
       for(var i=0;i<l.length;i++){
-        var rr = ((f[i]||0)*mult);
+        var rr = ((f[i]||0)*mult*visScale);
         up.push((l[i]||0)+rr);
         lo.push((l[i]||0)-rr);
       }
@@ -978,16 +981,17 @@ __NAV__
       yAxis:{type:'value',name:'m'},
       series:[
         {name:'terrain',type:'line',data:t,symbol:'none',lineStyle:{color:'#5bbf7a',width:2},z:2},
-        {name:'fresnel +20%',type:'line',data:b20.up,symbol:'none',lineStyle:{color:'#8fc0ff',type:'dashed',opacity:0.65,width:1},z:3},
-        {name:'fresnel -20%',type:'line',data:b20.lo,symbol:'none',lineStyle:{color:'#8fc0ff',type:'dashed',opacity:0.65,width:1},z:3},
-        {name:'fresnel +40%',type:'line',data:b40.up,symbol:'none',lineStyle:{color:'#77b0ff',type:'dashed',opacity:0.8,width:1},z:3},
-        {name:'fresnel -40%',type:'line',data:b40.lo,symbol:'none',lineStyle:{color:'#77b0ff',type:'dashed',opacity:0.8,width:1},z:3},
-        {name:'fresnel +60%',type:'line',data:b60.up,symbol:'none',lineStyle:{color:'#6fa8ff',type:'solid',opacity:0.95,width:1.2},z:4},
-        {name:'fresnel -60%',type:'line',data:b60.lo,symbol:'none',lineStyle:{color:'#6fa8ff',type:'solid',opacity:0.95,width:1.2},areaStyle:{color:'rgba(111,168,255,0.10)'},z:4},
+        {name:'fresnel +20%'+(visScale>1?' (vis x'+visScale+')':''),type:'line',data:b20.up,symbol:'none',lineStyle:{color:'#8fc0ff',type:'dashed',opacity:0.65,width:1},z:3},
+        {name:'fresnel -20%'+(visScale>1?' (vis x'+visScale+')':''),type:'line',data:b20.lo,symbol:'none',lineStyle:{color:'#8fc0ff',type:'dashed',opacity:0.65,width:1},z:3},
+        {name:'fresnel +40%'+(visScale>1?' (vis x'+visScale+')':''),type:'line',data:b40.up,symbol:'none',lineStyle:{color:'#77b0ff',type:'dashed',opacity:0.8,width:1},z:3},
+        {name:'fresnel -40%'+(visScale>1?' (vis x'+visScale+')':''),type:'line',data:b40.lo,symbol:'none',lineStyle:{color:'#77b0ff',type:'dashed',opacity:0.8,width:1},z:3},
+        {name:'fresnel +60%'+(visScale>1?' (vis x'+visScale+')':''),type:'line',data:b60.up,symbol:'none',lineStyle:{color:'#6fa8ff',type:'solid',opacity:0.95,width:1.2},z:4},
+        {name:'fresnel -60%'+(visScale>1?' (vis x'+visScale+')':''),type:'line',data:b60.lo,symbol:'none',lineStyle:{color:'#6fa8ff',type:'solid',opacity:0.95,width:1.2},areaStyle:{color:'rgba(111,168,255,0.10)'},z:4},
         {name:'los',type:'line',data:l,symbol:'none',lineStyle:{color:'#ff8a8a',width:2},z:5}
       ]
     }, true);
     if(!hasF){ document.getElementById('warn').textContent='warning: fresnel radii unavailable in profile output'; }
+    else if(visScale>1){ document.getElementById('warn').textContent='note: short path detected; Fresnel guides shown with visual scale x'+visScale+' (numbers in worksheet are unchanged)'; }
   }
   function parityText(req,d){
     var s=d.summary||{}, b=d.budget||{}, a=d.assumptions||{};
@@ -1027,10 +1031,14 @@ __NAV__
       document.getElementById('margin').textContent=gv(s,'fade_margin_db','-');
       var mc=document.getElementById('mclass'); var mcls=gv(s,'margin_class','-');
       mc.textContent=mcls; mc.className=mcls==='good'?'good':(mcls==='marginal'?'warn':'bad');
-      draw(d.profile||{});
+      var prof=(d.profile||{});
+      draw(prof);
       var warn=(d.warnings||[]).join('\\n');
       var asm=d.assumptions||{};
-      document.getElementById('warn').textContent=(warn||'none')+'\\n'+JSON.stringify(asm,null,2);
+      var fres=(prof.fresnel60_radius_m||[]).map(function(x){ return Number(x)||0; });
+      var maxF=0; for(var i=0;i<fres.length;i++){ if(fres[i]>maxF) maxF=fres[i]; }
+      var note=(maxF>0 && maxF<2.0) ? ('\\nvisual note: short path; Fresnel guides auto-scaled x10 for visibility') : '';
+      document.getElementById('warn').textContent=(warn||'none')+note+'\\n'+JSON.stringify(asm,null,2);
       document.getElementById('parity').textContent = parityText(req,d);
     }).catch(function(e){ document.getElementById('warn').textContent='analyze failed: '+e; });
   }
