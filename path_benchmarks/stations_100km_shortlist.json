@@ -1,0 +1,156 @@
+{
+  "stations_with_coords": 1147,
+  "pairs_le_100km": 36092,
+  "shortlist": [
+    {
+      "a": "Bloomfield River Bri",
+      "b": "Blue Hills Alert",
+      "km": 0.0
+    },
+    {
+      "a": "Windorah (Long Cross",
+      "b": "Windorah (Main Chann",
+      "km": 1.959
+    },
+    {
+      "a": "Lacks Creek (Middle",
+      "b": "Mullumbimby(Chincoga",
+      "km": 3.221
+    },
+    {
+      "a": "Babinda Post Office",
+      "b": "Clyde Rd Alert",
+      "km": 3.86
+    },
+    {
+      "a": "Brinsmead Alert",
+      "b": "Cairns Airport Alert",
+      "km": 4.424
+    },
+    {
+      "a": "Coopers Shoot Repeat",
+      "b": "Midgen Flat at Newry",
+      "km": 5.021
+    },
+    {
+      "a": "Kataughal Rd (Black",
+      "b": "Mt Margaret Alert",
+      "km": 7.702
+    },
+    {
+      "a": "Bray Park Weir",
+      "b": "Chillingham",
+      "km": 9.96
+    },
+    {
+      "a": "Bushland Beach Al",
+      "b": "Louisa Creek Alert",
+      "km": 11.666
+    },
+    {
+      "a": "Malanda Tm",
+      "b": "Wongabel Tm",
+      "km": 13.421
+    },
+    {
+      "a": "Babinda Post Office",
+      "b": "Garradunga  Alert",
+      "km": 15.007
+    },
+    {
+      "a": "Mosely's Alert",
+      "b": "Upper Goomburra",
+      "km": 18.467
+    },
+    {
+      "a": "Flaggy Creek Alert",
+      "b": "Thomatis Creek Alert",
+      "km": 21.397
+    },
+    {
+      "a": "Eltham (Wilsons Cree",
+      "b": "Tuckurimba (Baxter L",
+      "km": 24.346
+    },
+    {
+      "a": "Goomburra Alert",
+      "b": "Spicers Peak Alert",
+      "km": 27.199
+    },
+    {
+      "a": "Brigalow Bridge Aler",
+      "b": "Jandowae-Macalister",
+      "km": 30.0
+    },
+    {
+      "a": "Glen Allyn Alert",
+      "b": "Gordonvale Alert",
+      "km": 34.408
+    },
+    {
+      "a": "Eltham (Wilsons Cree",
+      "b": "Uki (Tweed River)",
+      "km": 38.507
+    },
+    {
+      "a": "Allora (Dalrymple Cr",
+      "b": "Karara Alert",
+      "km": 42.408
+    },
+    {
+      "a": "Main Camp Road Alert",
+      "b": "Three Mile Bridge Al",
+      "km": 46.366
+    },
+    {
+      "a": "Bellbird Creek Alert",
+      "b": "Mount Stanley TM",
+      "km": 50.0
+    },
+    {
+      "a": "Kynnumboon",
+      "b": "Lismore (Browns Ck P",
+      "km": 55.358
+    },
+    {
+      "a": "Findon Creek",
+      "b": "Lismore (Browns Ck P",
+      "km": 60.474
+    },
+    {
+      "a": "Lumeah Alert",
+      "b": "Upper Emu Ck Alert",
+      "km": 65.368
+    },
+    {
+      "a": "Mt Rawdon Alert",
+      "b": "Quay Street East Ale",
+      "km": 70.114
+    },
+    {
+      "a": "Artunga Alert",
+      "b": "Warwick Alert",
+      "km": 75.002
+    },
+    {
+      "a": "Innisfail Wharf Aler",
+      "b": "Kirrama Range Alert",
+      "km": 80.199
+    },
+    {
+      "a": "Durikai Alert",
+      "b": "Spring Creek Road Al",
+      "km": 85.201
+    },
+    {
+      "a": "Jondaryan Lagoon Crk",
+      "b": "Summerholm Al",
+      "km": 90.227
+    },
+    {
+      "a": "Bolton Road Alert",
+      "b": "Menavale Alert",
+      "km": 95.022
+    }
+  ]
+}
