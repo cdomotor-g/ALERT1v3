@@ -734,6 +734,7 @@ __NAV__
 </div>
 <div class='card'>Distance: <span id='dist'>-</span> km · Path loss: <span id='loss'>-</span> dB · Rx: <span id='rx'>-</span> dBm · Fade margin: <span id='margin'>-</span> dB (<span id='mclass'>-</span>)</div>
 <div class='card'><div id='profile'></div></div>
+<div class='card'><div class='muted'>Radio Mobile parity worksheet (copy to compare)</div><pre id='parity' style='white-space:pre-wrap'>run Analyze to populate</pre></div>
 <div class='card'><div class='muted'>Assumptions / warnings</div><pre id='warn' style='white-space:pre-wrap'></pre></div>
 <script>
 (function(){
@@ -779,6 +780,30 @@ __NAV__
       ]
     });
   }
+  function parityText(req,d){
+    var s=d.summary||{}, b=d.budget||{}, a=d.assumptions||{};
+    return [
+      '=== FW-LAB Path Analysis (for Radio Mobile comparison) ===',
+      'TX lat,lon: '+req.tx.lat+', '+req.tx.lon,
+      'RX lat,lon: '+req.rx.lat+', '+req.rx.lon,
+      'TX/RX antenna AGL m: '+req.tx.antenna_agl_m+' / '+req.rx.antenna_agl_m,
+      'Frequency MHz: '+req.rf.frequency_mhz,
+      'TX power dBm: '+req.rf.tx_power_dbm,
+      'TX/RX antenna gain dBi: '+req.rf.tx_antenna_gain_dbi+' / '+req.rf.rx_antenna_gain_dbi,
+      'TX/RX system losses dB: '+req.rf.tx_system_loss_db+' / '+req.rf.rx_system_loss_db,
+      'RX sensitivity dBm: '+req.rf.rx_sensitivity_dbm,
+      'Distance km: '+s.distance_km,
+      'FSPL dB: '+b.fspl_db,
+      'Diffraction proxy dB: '+b.diffraction_proxy_db,
+      'Total path loss dB: '+s.path_loss_db,
+      'Predicted RX dBm: '+s.predicted_rx_dbm,
+      'Fade margin dB: '+s.fade_margin_db+' ('+s.margin_class+')',
+      'Model mode: '+a.propagation_model,
+      'Terrain mode: '+a.terrain_mode,
+      'Fresnel60 min clearance m: '+a.fresnel60_min_clearance_m
+    ].join('\\n');
+  }
+
   function run(){
     document.getElementById('warn').textContent='running...';
     var req=getReq();
@@ -795,6 +820,7 @@ __NAV__
       var warn=(d.warnings||[]).join('\\n');
       var asm=d.assumptions||{};
       document.getElementById('warn').textContent=(warn||'none')+'\\n'+JSON.stringify(asm,null,2);
+      document.getElementById('parity').textContent = parityText(req,d);
     }).catch(function(e){ document.getElementById('warn').textContent='analyze failed: '+e; });
   }
   document.getElementById('run').addEventListener('click',run);
