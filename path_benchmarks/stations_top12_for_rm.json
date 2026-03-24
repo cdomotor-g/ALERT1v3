@@ -1,0 +1,68 @@
+{
+  "schema": "fwlab.path.benchmark_set.v1",
+  "name": "stations_top12_for_rm",
+  "source": "stations_100km_shortlist.json",
+  "count": 12,
+  "pairs": [
+    {
+      "a": "Bloomfield River Bri",
+      "b": "Blue Hills Alert",
+      "km": 0.0
+    },
+    {
+      "a": "Lacks Creek (Middle",
+      "b": "Mullumbimby(Chincoga",
+      "km": 3.221
+    },
+    {
+      "a": "Coopers Shoot Repeat",
+      "b": "Midgen Flat at Newry",
+      "km": 5.021
+    },
+    {
+      "a": "Bray Park Weir",
+      "b": "Chillingham",
+      "km": 9.96
+    },
+    {
+      "a": "Babinda Post Office",
+      "b": "Garradunga  Alert",
+      "km": 15.007
+    },
+    {
+      "a": "Flaggy Creek Alert",
+      "b": "Thomatis Creek Alert",
+      "km": 21.397
+    },
+    {
+      "a": "Brigalow Bridge Aler",
+      "b": "Jandowae-Macalister",
+      "km": 30.0
+    },
+    {
+      "a": "Eltham (Wilsons Cree",
+      "b": "Uki (Tweed River)",
+      "km": 38.507
+    },
+    {
+      "a": "Bellbird Creek Alert",
+      "b": "Mount Stanley TM",
+      "km": 50.0
+    },
+    {
+      "a": "Findon Creek",
+      "b": "Lismore (Browns Ck P",
+      "km": 60.474
+    },
+    {
+      "a": "Artunga Alert",
+      "b": "Warwick Alert",
+      "km": 75.002
+    },
+    {
+      "a": "Durikai Alert",
+      "b": "Spring Creek Road Al",
+      "km": 85.201
+    }
+  ]
+}

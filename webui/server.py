@@ -818,6 +818,10 @@ PATH_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='view
 <h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 20V9'/><path d='M4 9c2.5-1.5 5.5-1.5 8 0s5.5 1.5 8 0v11c-2.5 1.5-5.5 1.5-8 0s-5.5-1.5-8 0'/><circle cx='4' cy='9' r='1.2'/><circle cx='20' cy='9' r='1.2'/></svg></span><span>Path</span></h2>
 __NAV__
 <div class='card grid'>
+  <div style='grid-column:1/-1' class='muted'>Optional: pick known stations (type to filter)</div>
+  <label style='grid-column:span 2'><span title='Type station name and pick from list to auto-fill TX lat/lon.'>TX Station ⓘ</span><br><input id='txStation' list='stationsList' placeholder='Start typing station name...'></label>
+  <label style='grid-column:span 2'><span title='Type station name and pick from list to auto-fill RX lat/lon.'>RX Station ⓘ</span><br><input id='rxStation' list='stationsList' placeholder='Start typing station name...'></label>
+  <datalist id='stationsList'></datalist>
   <label><span title='Transmitter latitude in decimal degrees. Example: -27.4698'>TX Lat ⓘ</span><br><input id='txLat' value='-27.4698'></label>
   <label><span title='Transmitter longitude in decimal degrees. Example: 153.0251'>TX Lon ⓘ</span><br><input id='txLon' value='153.0251'></label>
   <label><span title='Antenna height above local ground level (meters).'>TX AGL m ⓘ</span><br><input id='txH' value='10'></label>
@@ -860,6 +864,35 @@ __NAV__
   }
   function setField(id,val){ if(val!==undefined && val!==null) document.getElementById(id).value=String(val); }
   var chart=echarts.init(document.getElementById('profile'));
+  var stationsByName={};
+  function loadStationsCatalog(){
+    fetch('/api/stations/catalog?limit=20000').then(function(r){ return r.json(); }).then(function(d){
+      var list=document.getElementById('stationsList');
+      if(!list) return;
+      list.innerHTML='';
+      stationsByName={};
+      (d.stations||[]).forEach(function(s){
+        if(!s || !s.name) return;
+        stationsByName[s.name]=s;
+        var o=document.createElement('option');
+        o.value=s.name;
+        o.label=s.name+' ('+s.lat+', '+s.lon+')';
+        list.appendChild(o);
+      });
+    }).catch(function(){});
+  }
+  function applyStation(prefix){
+    var nm=(document.getElementById(prefix+'Station').value||'').trim();
+    var s=stationsByName[nm];
+    if(!s) return;
+    setField(prefix+'Lat', s.lat);
+    setField(prefix+'Lon', s.lon);
+    if(document.getElementById('scName') && !document.getElementById('scName').value){
+      var other=(prefix==='tx'?'rx':'tx');
+      var on=(document.getElementById(other+'Station').value||'').trim();
+      if(on) document.getElementById('scName').value=(prefix==='tx'?nm:on)+'-'+(prefix==='tx'?on:nm);
+    }
+  }
   var lastResult=null;
   var map=null, mapLine=null, txMark=null, rxMark=null, txDir=null;
   function drawMap(req){
@@ -963,6 +996,11 @@ __NAV__
       document.getElementById('parity').textContent = parityText(req,d);
     }).catch(function(e){ document.getElementById('warn').textContent='analyze failed: '+e; });
   }
+  var txStationEl=document.getElementById('txStation');
+  var rxStationEl=document.getElementById('rxStation');
+  if(txStationEl){ txStationEl.addEventListener('change', function(){ applyStation('tx'); }); txStationEl.addEventListener('input', function(){ applyStation('tx'); }); }
+  if(rxStationEl){ rxStationEl.addEventListener('change', function(){ applyStation('rx'); }); rxStationEl.addEventListener('input', function(){ applyStation('rx'); }); }
+
   document.getElementById('run').addEventListener('click',run);
   document.getElementById('saveSc').addEventListener('click', function(){
     var name=document.getElementById('scName').value.trim()||('scenario-'+Date.now());
@@ -996,6 +1034,7 @@ __NAV__
     var url=URL.createObjectURL(blob); var a=document.createElement('a');
     a.href=url; a.download='path_analysis_result.json'; a.click(); URL.revokeObjectURL(url);
   });
+  loadStationsCatalog();
   run();
   window.addEventListener('resize', function(){ chart.resize(); if(map) map.invalidateSize(); });
 })();
@@ -2802,6 +2841,21 @@ class Handler(BaseHTTPRequestHandler):
             rows = _load_stations()
             pairs = _pairs_within_km(rows, max_km=100.0, limit=5000)
             return self._json({'count': len(rows), 'pairs_100km': pairs, 'source': str(STATIONS_CSV_PATH)})
+
+        if parsed.path == '/api/stations/catalog':
+            q = urllib.parse.parse_qs(parsed.query)
+            try:
+                limit = int((q.get('limit', ['5000'])[0] or '5000'))
+            except Exception:
+                limit = 5000
+            rows = _load_stations(limit=max(1, min(limit, 50000)))
+            out = []
+            for i, r in enumerate(rows):
+                lat, lon = _station_lat_lon(r)
+                if lat is None or lon is None:
+                    continue
+                out.append({'index': i, 'name': _station_name(r, i), 'lat': lat, 'lon': lon})
+            return self._json({'count': len(out), 'stations': out, 'source': str(STATIONS_CSV_PATH)})
 
         if parsed.path == '/api/events':
             q = parse_qs(parsed.query)
