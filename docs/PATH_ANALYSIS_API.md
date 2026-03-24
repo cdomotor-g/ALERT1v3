@@ -5,9 +5,10 @@ Initial implementation target: #39
 
 This document defines a versioned request/response contract for single-link path analysis.
 
-## Endpoint (proposed)
+## Endpoints (current MVP)
 
 - `POST /api/path/analyze`
+- `POST /api/path/compare` (same as analyze + optional measured comparison block)
 
 ## Request schema (`fwlab.path.request.v1`)
 
@@ -34,6 +35,9 @@ This document defines a versioned request/response contract for single-link path
     "tx_system_loss_db": 1.5,
     "rx_system_loss_db": 1.5,
     "rx_sensitivity_dbm": -110.0
+  },
+  "measured": {
+    "rx_dbm": -89.5
   },
   "model": {
     "mode": "fspl_mvp",
@@ -106,7 +110,12 @@ This document defines a versioned request/response contract for single-link path
     "location_percent": 50,
     "time_percent": 50
   },
-  "warnings": []
+  "warnings": [],
+  "parity": {
+    "measured_rx_dbm": -89.5,
+    "delta_db": 3.3,
+    "fit_class": "ok"
+  }
 }
 ```
 

@@ -17,6 +17,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse, quote
 import urllib.request
+import csv
 
 def _build_stamp():
     sha = os.environ.get('FWLAB_BUILD', '').strip()
@@ -722,6 +723,7 @@ __NAV__
   <label><span title='Aggregate transmitter-side losses (cable/connectors/etc) in dB.'>TX Loss dB ⓘ</span><br><input id='txL' value='1.5'></label>
   <label><span title='Aggregate receiver-side losses (cable/connectors/etc) in dB.'>RX Loss dB ⓘ</span><br><input id='rxL' value='1.5'></label>
   <label><span title='Receiver sensitivity threshold in dBm used for fade margin.'>RX Sens dBm ⓘ</span><br><input id='rxS' value='-110'></label>
+  <label><span title='Optional measured receive level for parity comparison (dBm).'>Measured RX dBm ⓘ</span><br><input id='rxM' value=''></label>
   <label><span title='Path profile sample spacing in meters.'>Step m ⓘ</span><br><input id='step' value='100'></label>
   <label><span title='Propagation mode. FSPL is baseline; diffraction proxy adds interim obstruction penalty.'>Model ⓘ</span><br><select id='model'><option value='fspl_mvp'>FSPL baseline</option><option value='fspl_diffraction_proxy' selected>FSPL + diffraction proxy</option></select></label>
   <label><span title='Flat terrain elevation baseline (m ASL) when no terrain profile/provider is used.'>Terrain base m ASL ⓘ</span><br><input id='tBase' value='0'></label>
@@ -744,7 +746,8 @@ __NAV__
     var to=document.getElementById('tOverride').value.trim();
     var ov=null;
     if(to){ ov=to.split(',').map(function(x){return Number(String(x).trim());}).filter(function(x){return isFinite(x);}); if(!ov.length) ov=null; }
-    return {schema:'fwlab.path.request.v1',tx:{lat:v('txLat'),lon:v('txLon'),antenna_agl_m:v('txH')},rx:{lat:v('rxLat'),lon:v('rxLon'),antenna_agl_m:v('rxH')},rf:{frequency_mhz:v('freq'),tx_power_dbm:v('txP'),tx_antenna_gain_dbi:v('txG'),rx_antenna_gain_dbi:v('rxG'),tx_system_loss_db:v('txL'),rx_system_loss_db:v('rxL'),rx_sensitivity_dbm:v('rxS')},model:{mode:document.getElementById('model').value},sampling:{profile_step_m:v('step'),terrain_base_m_asl:v('tBase'),terrain_provider:document.getElementById('tProvider').value,terrain_profile_m_asl:ov}};
+    var m=document.getElementById('rxM').value.trim();
+    return {schema:'fwlab.path.request.v1',tx:{lat:v('txLat'),lon:v('txLon'),antenna_agl_m:v('txH')},rx:{lat:v('rxLat'),lon:v('rxLon'),antenna_agl_m:v('rxH')},rf:{frequency_mhz:v('freq'),tx_power_dbm:v('txP'),tx_antenna_gain_dbi:v('txG'),rx_antenna_gain_dbi:v('rxG'),tx_system_loss_db:v('txL'),rx_system_loss_db:v('rxL'),rx_sensitivity_dbm:v('rxS')},measured:{rx_dbm:(m===''?null:Number(m))},model:{mode:document.getElementById('model').value},sampling:{profile_step_m:v('step'),terrain_base_m_asl:v('tBase'),terrain_provider:document.getElementById('tProvider').value,terrain_profile_m_asl:ov}};
   }
   function setField(id,val){ if(val!==undefined && val!==null) document.getElementById(id).value=String(val); }
   var chart=echarts.init(document.getElementById('profile'));
@@ -800,14 +803,15 @@ __NAV__
       'Fade margin dB: '+s.fade_margin_db+' ('+s.margin_class+')',
       'Model mode: '+a.propagation_model,
       'Terrain mode: '+a.terrain_mode,
-      'Fresnel60 min clearance m: '+a.fresnel60_min_clearance_m
+      'Fresnel60 min clearance m: '+a.fresnel60_min_clearance_m,
+      (d.parity ? ('Measured RX dBm: '+d.parity.measured_rx_dbm+'\nDelta (pred-measured) dB: '+d.parity.delta_db+'\nFit class: '+d.parity.fit_class) : 'Measured RX dBm: (not provided)')
     ].join('\\n');
   }
 
   function run(){
     document.getElementById('warn').textContent='running...';
     var req=getReq();
-    fetch('/api/path/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(req)}).then(function(r){return r.json();}).then(function(d){
+    fetch('/api/path/compare',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(req)}).then(function(r){return r.json();}).then(function(d){
       lastResult=d;
       var s=d.summary||{};
       document.getElementById('dist').textContent=gv(s,'distance_km','-');
@@ -843,6 +847,7 @@ __NAV__
     setField('rxLat',rx.lat); setField('rxLon',rx.lon); setField('rxH',rx.antenna_agl_m);
     setField('freq',rf.frequency_mhz); setField('txP',rf.tx_power_dbm); setField('txG',rf.tx_antenna_gain_dbi); setField('rxG',rf.rx_antenna_gain_dbi);
     setField('txL',rf.tx_system_loss_db); setField('rxL',rf.rx_system_loss_db); setField('rxS',rf.rx_sensitivity_dbm);
+    setField('rxM',(s.measured||{}).rx_dbm);
     setField('step',sp.profile_step_m); setField('tBase',sp.terrain_base_m_asl);
     document.getElementById('model').value = md.mode || 'fspl_diffraction_proxy';
     document.getElementById('tProvider').value = sp.terrain_provider || 'opentopodata';
@@ -1908,6 +1913,24 @@ def _terrain_from_opentopodata(points, dataset='srtm90m'):
         return None
 
 
+def _path_compare(req):
+    out = _path_analyze(req)
+    measured = req.get('measured') or {}
+    rx_meas = measured.get('rx_dbm')
+    if rx_meas is not None:
+        try:
+            rx_meas = float(rx_meas)
+            pred = float((out.get('summary') or {}).get('predicted_rx_dbm'))
+            delta = pred - rx_meas
+            parity = out.setdefault('parity', {})
+            parity['measured_rx_dbm'] = rx_meas
+            parity['delta_db'] = round(delta, 3)
+            parity['fit_class'] = 'good' if abs(delta) <= 3 else ('ok' if abs(delta) <= 6 else 'poor')
+        except Exception:
+            pass
+    return out
+
+
 def _path_analyze(req):
     tx = req.get('tx') or {}
     rx = req.get('rx') or {}
@@ -2304,14 +2327,14 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urlparse(self.path)
-        if parsed.path == '/api/path/analyze':
+        if parsed.path in ['/api/path/analyze', '/api/path/compare']:
             try:
                 length = int(self.headers.get('Content-Length', '0'))
                 raw = self.rfile.read(length) if length > 0 else b'{}'
                 body = json.loads(raw.decode('utf-8'))
                 if not isinstance(body, dict):
                     raise ValueError('body must be object')
-                out = _path_analyze(body)
+                out = _path_compare(body) if parsed.path.endswith('/compare') else _path_analyze(body)
                 return self._json(out)
             except Exception as e:
                 return self._json({'ok': False, 'error': str(e)}, code=400)
