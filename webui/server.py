@@ -705,8 +705,10 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
 </script></body></html>"""
 
 PATH_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Path</title>
-<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button,select{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}a{color:#7fc8ff}.grid{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:.5rem}.muted{color:#9fb0c3}.good{color:#6dd17c}.warn{color:#f2c14e}.bad{color:#f36f6f}#profile{height:320px}@media(max-width:860px){.grid{grid-template-columns:1fr 1fr}input,button,select{min-height:40px;font-size:16px}}</style>
-<script src='https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js'></script></head><body><div class='page'>
+<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button,select{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}a{color:#7fc8ff}.grid{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:.5rem}.muted{color:#9fb0c3}.good{color:#6dd17c}.warn{color:#f2c14e}.bad{color:#f36f6f}#profile{height:320px}#pathMap{height:320px;border:1px solid #2a3948;border-radius:8px}@media(max-width:860px){.grid{grid-template-columns:1fr 1fr}input,button,select{min-height:40px;font-size:16px}}</style>
+<link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'/>
+<script src='https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js'></script>
+<script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script></head><body><div class='page'>
 <h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 20V9'/><path d='M4 9c2.5-1.5 5.5-1.5 8 0s5.5 1.5 8 0v11c-2.5 1.5-5.5 1.5-8 0s-5.5-1.5-8 0'/><circle cx='4' cy='9' r='1.2'/><circle cx='20' cy='9' r='1.2'/></svg></span><span>Path</span></h2>
 __NAV__
 <div class='card grid'>
@@ -735,6 +737,7 @@ __NAV__
   <div style='align-self:end'><button id='run'>Analyze</button> <button id='export'>Export JSON</button></div>
 </div>
 <div class='card'>Distance: <span id='dist'>-</span> km · Path loss: <span id='loss'>-</span> dB · Rx: <span id='rx'>-</span> dBm · Fade margin: <span id='margin'>-</span> dB (<span id='mclass'>-</span>)</div>
+<div class='card'><div class='muted'>Top-down path map (TX→RX)</div><div id='pathMap'></div></div>
 <div class='card'><div id='profile'></div></div>
 <div class='card'><div class='muted'>Radio Mobile parity worksheet (copy to compare)</div><pre id='parity' style='white-space:pre-wrap'>run Analyze to populate</pre></div>
 <div class='card'><div class='muted'>Assumptions / warnings</div><pre id='warn' style='white-space:pre-wrap'></pre></div>
@@ -752,6 +755,32 @@ __NAV__
   function setField(id,val){ if(val!==undefined && val!==null) document.getElementById(id).value=String(val); }
   var chart=echarts.init(document.getElementById('profile'));
   var lastResult=null;
+  var map=null, mapLine=null, txMark=null, rxMark=null, txDir=null;
+  function drawMap(req){
+    if(!(window.L && document.getElementById('pathMap'))) return;
+    var tx=[req.tx.lat, req.tx.lon], rx=[req.rx.lat, req.rx.lon];
+    if(!map){
+      map=L.map('pathMap',{zoomControl:true});
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+    }
+    if(mapLine) map.removeLayer(mapLine);
+    if(txMark) map.removeLayer(txMark);
+    if(rxMark) map.removeLayer(rxMark);
+    if(txDir) map.removeLayer(txDir);
+
+    mapLine=L.polyline([tx,rx],{color:'#6fa8ff',weight:3}).addTo(map);
+    txMark=L.circleMarker(tx,{radius:6,color:'#ff6b6b',fillColor:'#ff6b6b',fillOpacity:0.9}).addTo(map).bindTooltip('TX',{permanent:true,direction:'top'});
+    rxMark=L.circleMarker(rx,{radius:6,color:'#5bbf7a',fillColor:'#5bbf7a',fillOpacity:0.9}).addTo(map).bindTooltip('RX',{permanent:true,direction:'top'});
+
+    // TX direction arrow toward RX
+    var latStep=(rx[0]-tx[0])*0.18, lonStep=(rx[1]-tx[1])*0.18;
+    var p2=[tx[0]+latStep, tx[1]+lonStep];
+    txDir=L.polyline([tx,p2],{color:'#ff8a8a',weight:4,opacity:0.95}).addTo(map);
+
+    map.fitBounds(L.latLngBounds([tx,rx]).pad(0.35));
+    setTimeout(function(){ map.invalidateSize(); }, 30);
+  }
+
   function draw(profile){
     var d=profile.distance_m||[], t=profile.terrain_m_asl||[], l=profile.los_m_asl||[], f=profile.fresnel60_radius_m||[];
     function band(mult){
@@ -814,6 +843,7 @@ __NAV__
     fetch('/api/path/compare',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(req)}).then(function(r){return r.json();}).then(function(d){
       lastResult=d;
       var s=d.summary||{};
+      drawMap(req);
       document.getElementById('dist').textContent=gv(s,'distance_km','-');
       document.getElementById('loss').textContent=gv(s,'path_loss_db','-')+' (fspl '+gv(s,'fspl_db','-')+' + diff '+gv(s,'diffraction_proxy_db','0')+')';
       document.getElementById('rx').textContent=gv(s,'predicted_rx_dbm','-');
@@ -861,7 +891,7 @@ __NAV__
     a.href=url; a.download='path_analysis_result.json'; a.click(); URL.revokeObjectURL(url);
   });
   run();
-  window.addEventListener('resize', function(){ chart.resize(); });
+  window.addEventListener('resize', function(){ chart.resize(); if(map) map.invalidateSize(); });
 })();
 </script></div></body></html>"""
 
