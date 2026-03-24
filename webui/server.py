@@ -2495,7 +2495,10 @@ def _path_analyze(req):
     fres = []
     for di in dists:
         d1 = max(di, 0.001); d2 = max(total_m - di, 0.001)
-        fres.append(17.32 * math.sqrt((d1/1000.0)*(d2/1000.0)/(max(freq,1e-6)*(total_m/1000.0))))
+        # Fresnel radius (meters), with distances in km and frequency in MHz:
+        # r_n = sqrt(n * lambda * d1 * d2 / (d1 + d2)), lambda = 300 / f_MHz (m)
+        # => r1(m) = 547.72 * sqrt(d1_km * d2_km / (f_MHz * D_km))
+        fres.append(547.72 * math.sqrt((d1/1000.0)*(d2/1000.0)/(max(freq,1e-6)*(total_m/1000.0))))
 
     clearance = [l - t for l, t in zip(los, terrain)]
     fresnel60_clear = [c - 0.6*f for c, f in zip(clearance, fres)]
