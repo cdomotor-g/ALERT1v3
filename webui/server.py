@@ -828,6 +828,30 @@ def _save_path_defaults(d):
     PATH_DEFAULTS_PATH.write_text(json.dumps(d, indent=2), encoding='utf-8')
 
 
+def _save_stations_rows(rows):
+    if not isinstance(rows, list):
+        raise ValueError('rows must be list')
+    keys = []
+    seen = set()
+    preferred = ['unitid', 'unitname', 'enabled', 'latitude', 'longitude', 'elevation']
+    for k in preferred:
+        seen.add(k); keys.append(k)
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        for k in r.keys():
+            if k not in seen:
+                seen.add(k)
+                keys.append(k)
+    STATIONS_CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with STATIONS_CSV_PATH.open('w', encoding='utf-8', newline='') as fh:
+        w = csv.DictWriter(fh, fieldnames=keys)
+        w.writeheader()
+        for r in rows:
+            row = {k: str(r.get(k, '') or '') for k in keys}
+            w.writerow(row)
+
+
 PATH_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Path</title>
 <style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button,select{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}a{color:#7fc8ff}.grid{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:.5rem}.muted{color:#9fb0c3}.good{color:#6dd17c}.warn{color:#f2c14e}.bad{color:#f36f6f}#profile{height:320px}#pathMap{height:320px;border:1px solid #2a3948;border-radius:8px}@media(max-width:860px){.grid{grid-template-columns:1fr 1fr}input,button,select{min-height:40px;font-size:16px}}</style>
 <link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'/>
@@ -1098,34 +1122,66 @@ __NAV__
 </script></div></body></html>"""
 
 STATIONS_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Stations</title>
-<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem}table{width:100%;border-collapse:collapse}th,td{padding:.35rem;border-bottom:1px solid #243243;text-align:left}.muted{color:#9fb0c3}</style></head><body><div class='page'>
+<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem}table{width:100%;border-collapse:collapse}th,td{padding:.35rem;border-bottom:1px solid #243243;text-align:left}.muted{color:#9fb0c3}.row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}.mini{font-size:.9em}.num{width:8.5rem}</style></head><body><div class='page'>
 <h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v18'/><path d='M5 8h14'/><path d='M5 16h14'/><circle cx='12' cy='3' r='1.2'/></svg></span><span>Stations</span></h2>
 __NAV__
-<div class='card'>
+<div class='card row'>
   <input id='csvFile' type='file' accept='.csv,text/csv'>
   <button id='upload'>Upload CSV</button>
+  <input id='q' placeholder='Type to filter stations...' style='min-width:280px'>
+  <button id='reload'>Reload</button>
   <span id='msg' class='muted'></span>
 </div>
-<div class='card'>
-  <div>Stations loaded: <span id='count'>0</span></div>
-  <div>Pairs within 100 km: <span id='pairsCount'>0</span></div>
-</div>
-<div class='card'><strong>Nearest pairs (<=100 km)</strong><table><thead><tr><th>A</th><th>B</th><th>Distance km</th></tr></thead><tbody id='pairsRows'></tbody></table></div>
+<div class='card mini'>Stations loaded: <span id='count'>0</span> · Showing: <span id='shown'>0</span></div>
+<div class='card'><table><thead><tr><th>#</th><th>Name</th><th>Lat</th><th>Lon</th><th>Elevation</th><th></th></tr></thead><tbody id='rows'></tbody></table></div>
 <script>
 (function(){
+  var all=[];
+  function esc(s){ return String(s||'').replace(/[&<>\"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
   function load(){
-    fetch('/api/stations').then(r=>r.json()).then(d=>{
-      document.getElementById('count').textContent = (d.count||0);
-      var pairs=d.pairs_100km||[];
-      document.getElementById('pairsCount').textContent = pairs.length;
-      var rows=document.getElementById('pairsRows'); rows.innerHTML='';
-      pairs.slice(0,200).forEach(function(p){
-        var tr=document.createElement('tr');
-        tr.innerHTML='<td>'+p.a_name+'</td><td>'+p.b_name+'</td><td>'+p.distance_km+'</td>';
-        rows.appendChild(tr);
-      });
-    }).catch(()=>{ document.getElementById('msg').textContent='failed to load stations'; });
+    fetch('/api/stations/rows?limit=50000').then(r=>r.json()).then(d=>{
+      all=d.rows||[];
+      document.getElementById('count').textContent = d.count||0;
+      render();
+    }).catch(function(){ document.getElementById('msg').textContent='failed to load stations'; });
   }
+  function match(r, q){
+    if(!q) return true;
+    q=q.toLowerCase();
+    return [r.name,r.unitname,r.latitude,r.longitude,r.elevation,r.unitid].some(function(v){ return String(v||'').toLowerCase().indexOf(q)>=0; });
+  }
+  function render(){
+    var q=(document.getElementById('q').value||'').trim();
+    var rowsEl=document.getElementById('rows'); rowsEl.innerHTML='';
+    var shown=0;
+    all.forEach(function(r){
+      if(!match(r,q)) return;
+      shown++;
+      var tr=document.createElement('tr');
+      tr.innerHTML=''
+        +'<td>'+r.index+'</td>'
+        +'<td><input data-k="name" value="'+esc(r.name||r.unitname||'')+'" style="min-width:220px"></td>'
+        +'<td><input class="num" data-k="lat" value="'+esc(r.latitude||r.lat||'')+'"></td>'
+        +'<td><input class="num" data-k="lon" value="'+esc(r.longitude||r.lon||'')+'"></td>'
+        +'<td><input class="num" data-k="elevation" value="'+esc(r.elevation||'')+'"></td>'
+        +'<td><button class="save">Save</button></td>';
+      tr.querySelector('.save').addEventListener('click', function(){
+        var patch={ index:r.index };
+        patch.name=tr.querySelector('input[data-k="name"]').value.trim();
+        patch.lat=tr.querySelector('input[data-k="lat"]').value.trim();
+        patch.lon=tr.querySelector('input[data-k="lon"]').value.trim();
+        patch.elevation=tr.querySelector('input[data-k="elevation"]').value.trim();
+        fetch('/api/stations/update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)})
+          .then(function(x){ return x.json(); })
+          .then(function(d){ document.getElementById('msg').textContent = d.ok ? ('saved station #'+r.index) : ('save failed: '+(d.error||'unknown')); if(d.ok) load(); })
+          .catch(function(e){ document.getElementById('msg').textContent='save failed'; });
+      });
+      rowsEl.appendChild(tr);
+    });
+    document.getElementById('shown').textContent=shown;
+  }
+  document.getElementById('q').addEventListener('input', render);
+  document.getElementById('reload').addEventListener('click', load);
   document.getElementById('upload').addEventListener('click', function(){
     var f=document.getElementById('csvFile').files[0];
     if(!f){ document.getElementById('msg').textContent='select csv first'; return; }
@@ -1133,7 +1189,7 @@ __NAV__
     fr.onload=function(){
       fetch('/api/stations/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:f.name,csv_text:String(fr.result||'')})})
         .then(r=>r.json()).then(d=>{ document.getElementById('msg').textContent = d.ok ? ('uploaded '+(d.count||0)+' rows') : ('upload failed: '+(d.error||'unknown')); load(); })
-        .catch(e=>{ document.getElementById('msg').textContent='upload failed'; });
+        .catch(function(){ document.getElementById('msg').textContent='upload failed'; });
     };
     fr.readAsText(f);
   });
@@ -2628,6 +2684,39 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 return self._json({'ok': False, 'error': str(e)}, code=400)
 
+        if parsed.path == '/api/stations/update':
+            try:
+                length = int(self.headers.get('Content-Length', '0'))
+                raw = self.rfile.read(length) if length > 0 else b'{}'
+                body = json.loads(raw.decode('utf-8', errors='replace'))
+                idx = int(body.get('index'))
+                rows = _load_stations(limit=100000)
+                if idx < 0 or idx >= len(rows):
+                    return self._json({'ok': False, 'error': 'index_out_of_range'}, code=400)
+                r = rows[idx]
+                nm = str(body.get('name', '')).strip()
+                lat = str(body.get('lat', '')).strip()
+                lon = str(body.get('lon', '')).strip()
+                elev = str(body.get('elevation', '')).strip()
+                if nm:
+                    if 'unitname' in r:
+                        r['unitname'] = nm
+                    elif 'name' in r:
+                        r['name'] = nm
+                    else:
+                        r['name'] = nm
+                if lat != '':
+                    r['latitude'] = lat
+                if lon != '':
+                    r['longitude'] = lon
+                if elev != '':
+                    r['elevation'] = elev
+                rows[idx] = r
+                _save_stations_rows(rows)
+                return self._json({'ok': True, 'index': idx})
+            except Exception as e:
+                return self._json({'ok': False, 'error': str(e)}, code=400)
+
         if parsed.path == '/api/stations/upload':
             try:
                 length = int(self.headers.get('Content-Length', '0'))
@@ -2929,6 +3018,24 @@ class Handler(BaseHTTPRequestHandler):
                     continue
                 out.append({'index': i, 'name': _station_name(r, i), 'lat': lat, 'lon': lon})
             return self._json({'count': len(out), 'stations': out, 'source': str(STATIONS_CSV_PATH)})
+
+        if parsed.path == '/api/stations/rows':
+            q = urllib.parse.parse_qs(parsed.query)
+            try:
+                limit = int((q.get('limit', ['5000'])[0] or '5000'))
+            except Exception:
+                limit = 5000
+            rows = _load_stations(limit=max(1, min(limit, 50000)))
+            out = []
+            for i, r in enumerate(rows):
+                rec = dict(r)
+                rec['index'] = i
+                rec['name'] = _station_name(r, i)
+                lat, lon = _station_lat_lon(r)
+                rec['latitude'] = '' if lat is None else lat
+                rec['longitude'] = '' if lon is None else lon
+                out.append(rec)
+            return self._json({'count': len(out), 'rows': out, 'source': str(STATIONS_CSV_PATH)})
 
         if parsed.path == '/api/events':
             q = parse_qs(parsed.query)
