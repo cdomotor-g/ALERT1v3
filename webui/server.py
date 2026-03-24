@@ -1245,21 +1245,37 @@ __NAV__
 
 STATIONS_MAP_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Stations Map</title>
 <link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'/>
-<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem}#map{height:72vh;border:1px solid #2a3948;border-radius:8px}.muted{color:#9fb0c3}</style>
-<script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script></head><body><div class='page'>
+<link rel='stylesheet' href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css'/>
+<link rel='stylesheet' href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css'/>
+<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem}#map{height:72vh;border:1px solid #2a3948;border-radius:8px}.muted{color:#9fb0c3}.touch-note{font-size:.9em;color:#9fb0c3}@media(max-width:900px){input{min-height:40px;font-size:16px}#map{height:76vh}}</style>
+<script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script><script src='https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js'></script></head><body><div class='page'>
 <h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z'/><path d='M9 4v14'/><path d='M15 6v14'/></svg></span><span>Stations Map</span></h2>
 __NAV__
 <div class='card'>
   <input id='q' placeholder='Type to filter markers by name/id...' style='min-width:280px'>
   <span class='muted'>Total: <span id='total'>0</span> · Visible: <span id='vis'>0</span></span>
+  <div class='touch-note'>Clustered markers enabled. Tap a cluster to zoom. Marker touch targets enlarged for mobile.</div>
 </div>
 <div class='card'><div id='map'></div></div>
 <script>
 (function(){
-  var all=[], map=L.map('map');
+  var all=[], map=L.map('map',{tapTolerance:25});
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
-  var layer=L.layerGroup().addTo(map);
-  function match(r,q){ if(!q) return true; q=q.toLowerCase(); return [r.name,r.unitid].some(function(v){return String(v||'').toLowerCase().indexOf(q)>=0;}); }
+  var layer=L.markerClusterGroup({
+    chunkedLoading:true,
+    showCoverageOnHover:false,
+    spiderfyOnMaxZoom:true,
+    disableClusteringAtZoom:13,
+    maxClusterRadius:45
+  });
+  map.addLayer(layer);
+  function match(r,q){ if(!q) return true; q=q.toLowerCase(); return [r.name,r.unitname,r.unitid].some(function(v){return String(v||'').toLowerCase().indexOf(q)>=0;}); }
+  function markerHtml(r, lat, lon){
+    return '<b>'+String(r.name||r.unitname||'')+'</b>'
+      +'<br>ID: '+String(r.unitid||'-')
+      +'<br>Lat/Lon: '+lat+', '+lon
+      +(r.elevation?('<br>Elevation: '+r.elevation):'');
+  }
   function render(){
     var q=(document.getElementById('q').value||'').trim();
     layer.clearLayers();
@@ -1270,10 +1286,19 @@ __NAV__
       var lat=Number(r.latitude), lon=Number(r.longitude);
       if(!isFinite(lat)||!isFinite(lon)) return;
       pts.push([lat,lon]);
-      L.circleMarker([lat,lon],{radius:4,color:'#7fc8ff',fillOpacity:0.8}).bindPopup('<b>'+String(r.name||'')+'</b><br>ID: '+String(r.unitid||'-')+'<br>'+lat+', '+lon).addTo(layer);
+      var m=L.circleMarker([lat,lon],{
+        radius:8,
+        weight:2,
+        color:'#7fc8ff',
+        fillColor:'#2f8fd9',
+        fillOpacity:0.9
+      });
+      m.bindPopup(markerHtml(r,lat,lon));
+      m.on('click', function(){ m.openPopup(); });
+      layer.addLayer(m);
     });
     document.getElementById('vis').textContent=pts.length;
-    if(pts.length){ map.fitBounds(L.latLngBounds(pts).pad(0.1)); }
+    if(pts.length){ map.fitBounds(L.latLngBounds(pts).pad(0.12)); }
   }
   fetch('/api/stations/rows?limit=50000').then(function(r){return r.json();}).then(function(d){
     all=d.rows||[]; document.getElementById('total').textContent=all.length; render();
