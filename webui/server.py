@@ -707,44 +707,83 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
 })();
 </script></body></html>"""
 
-def _load_stations(limit=5000):
-    rows = []
-    if not STATIONS_CSV_PATH.exists():
-        return rows
+def _norm_key(s):
+    s = (s or '').strip().strip('"').strip("'").lower()
+    return ''.join(ch for ch in s if ch.isalnum() or ch == '_')
+
+
+def _norm_val(s):
+    return (s or '').strip().strip('"').strip("'")
+
+
+def _parse_stations_csv_text(text, limit=5000):
+    lines = [ln for ln in (text or '').splitlines() if ln.strip()]
+    if not lines:
+        return []
+    sample = '\n'.join(lines[:30])
     try:
-        with STATIONS_CSV_PATH.open('r', encoding='utf-8', errors='replace', newline='') as fh:
-            rdr = csv.DictReader(fh)
-            for i, r in enumerate(rdr):
-                if i >= limit:
-                    break
-                rows.append({k: (v or '').strip() for k, v in r.items()})
+        dialect = csv.Sniffer().sniff(sample, delimiters=',;\t|')
+    except Exception:
+        dialect = csv.excel
+    raw_rows = list(csv.reader(lines, dialect))
+    if not raw_rows:
+        return []
+
+    # Find header row by looking for lat/lon-like column names.
+    header_idx = 0
+    for i, row in enumerate(raw_rows[:12]):
+        keys = [_norm_key(c) for c in row]
+        if any(k in keys for k in ['latitude', 'lat']) and any(k in keys for k in ['longitude', 'lon', 'lng']):
+            header_idx = i
+            break
+        if 'unitname' in keys and any(k in keys for k in ['latitude', 'longitude']):
+            header_idx = i
+            break
+
+    headers = [_norm_key(c) or f'col{j+1}' for j, c in enumerate(raw_rows[header_idx])]
+    out = []
+    for row in raw_rows[header_idx+1:]:
+        if len(out) >= limit:
+            break
+        if not any((c or '').strip() for c in row):
+            continue
+        rec = {}
+        for j, h in enumerate(headers):
+            rec[h] = _norm_val(row[j]) if j < len(row) else ''
+        out.append(rec)
+    return out
+
+
+def _load_stations(limit=5000):
+    if not STATIONS_CSV_PATH.exists():
+        return []
+    try:
+        txt = STATIONS_CSV_PATH.read_text(encoding='utf-8', errors='replace')
+        return _parse_stations_csv_text(txt, limit=limit)
     except Exception:
         return []
-    return rows
 
 
 def _station_lat_lon(r):
-    for lk in ['lat', 'latitude', 'site_lat', 'y']:
+    lat = None
+    lon = None
+    for lk in ['lat', 'latitude', 'sitelat', 'y']:
         if lk in r and r[lk] != '':
             try:
                 lat = float(r[lk]); break
             except Exception:
-                lat = None
-        else:
-            lat = None
-    for ok in ['lon', 'longitude', 'lng', 'site_lon', 'x']:
+                pass
+    for ok in ['lon', 'longitude', 'lng', 'sitelon', 'x']:
         if ok in r and r[ok] != '':
             try:
                 lon = float(r[ok]); break
             except Exception:
-                lon = None
-        else:
-            lon = None
+                pass
     return lat, lon
 
 
 def _station_name(r, idx):
-    for nk in ['name', 'station', 'site', 'id', 'station_id']:
+    for nk in ['name', 'unitname', 'station', 'site', 'id', 'unitid', 'stationid']:
         if nk in r and r[nk]:
             return r[nk]
     return f'station_{idx+1}'
@@ -2485,14 +2524,16 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 length = int(self.headers.get('Content-Length', '0'))
                 raw = self.rfile.read(length) if length > 0 else b'{}'
-                body = json.loads(raw.decode('utf-8'))
+                body = json.loads(raw.decode('utf-8', errors='replace'))
                 txt = str(body.get('csv_text', ''))
                 if not txt.strip():
                     return self._json({'ok': False, 'error': 'empty_csv'}, code=400)
+                parsed_rows = _parse_stations_csv_text(txt, limit=50000)
+                if not parsed_rows:
+                    return self._json({'ok': False, 'error': 'parse_failed_no_rows', 'hint': 'check delimiter/header includes Latitude/Longitude'}, code=400)
                 STATIONS_CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
                 STATIONS_CSV_PATH.write_text(txt, encoding='utf-8')
-                rows = _load_stations()
-                return self._json({'ok': True, 'count': len(rows), 'source': str(STATIONS_CSV_PATH)})
+                return self._json({'ok': True, 'count': len(parsed_rows), 'source': str(STATIONS_CSV_PATH)})
             except Exception as e:
                 return self._json({'ok': False, 'error': str(e)}, code=400)
 
