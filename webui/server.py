@@ -954,17 +954,21 @@ __NAV__
   }
 
   function draw(profile){
-    var d=profile.distance_m||[], t=profile.terrain_m_asl||[], l=profile.los_m_asl||[], f=profile.fresnel60_radius_m||[];
+    var d=(profile.distance_m||[]).map(function(x){ return Number(x)||0; });
+    var t=(profile.terrain_m_asl||[]).map(function(x){ return Number(x)||0; });
+    var l=(profile.los_m_asl||[]).map(function(x){ return Number(x)||0; });
+    var f=(profile.fresnel60_radius_m||[]).map(function(x){ return Number(x)||0; });
     function band(mult){
       var up=[], lo=[];
       for(var i=0;i<l.length;i++){
-        var rr = (f[i]||0)*mult;
+        var rr = ((f[i]||0)*mult);
         up.push((l[i]||0)+rr);
         lo.push((l[i]||0)-rr);
       }
       return {up:up, lo:lo};
     }
     var b20=band(0.2), b40=band(0.4), b60=band(0.6);
+    var hasF = f.some(function(x){ return x>0.0001; });
     chart.setOption({
       animation:false,
       grid:{left:46,right:12,top:20,bottom:30},
@@ -973,16 +977,17 @@ __NAV__
       xAxis:{type:'category',data:d.map(function(x){return (x/1000).toFixed(2);}),name:'km'},
       yAxis:{type:'value',name:'m'},
       series:[
-        {name:'terrain',type:'line',data:t,symbol:'none',lineStyle:{color:'#5bbf7a',width:2}},
-        {name:'fresnel +20%',type:'line',data:b20.up,symbol:'none',lineStyle:{color:'#6fa8ff',type:'dashed',opacity:0.45,width:1}},
-        {name:'fresnel -20%',type:'line',data:b20.lo,symbol:'none',lineStyle:{color:'#6fa8ff',type:'dashed',opacity:0.45,width:1}},
-        {name:'fresnel +40%',type:'line',data:b40.up,symbol:'none',lineStyle:{color:'#6fa8ff',type:'dashed',opacity:0.6,width:1}},
-        {name:'fresnel -40%',type:'line',data:b40.lo,symbol:'none',lineStyle:{color:'#6fa8ff',type:'dashed',opacity:0.6,width:1}},
-        {name:'fresnel +60%',type:'line',data:b60.up,symbol:'none',lineStyle:{color:'#6fa8ff',type:'dashed',opacity:0.8,width:1}},
-        {name:'fresnel -60%',type:'line',data:b60.lo,symbol:'none',lineStyle:{color:'#6fa8ff',type:'dashed',opacity:0.8,width:1},areaStyle:{color:'rgba(111,168,255,0.08)'}},
-        {name:'los',type:'line',data:l,symbol:'none',lineStyle:{color:'#ff8a8a',width:2}}
+        {name:'terrain',type:'line',data:t,symbol:'none',lineStyle:{color:'#5bbf7a',width:2},z:2},
+        {name:'fresnel +20%',type:'line',data:b20.up,symbol:'none',lineStyle:{color:'#8fc0ff',type:'dashed',opacity:0.65,width:1},z:3},
+        {name:'fresnel -20%',type:'line',data:b20.lo,symbol:'none',lineStyle:{color:'#8fc0ff',type:'dashed',opacity:0.65,width:1},z:3},
+        {name:'fresnel +40%',type:'line',data:b40.up,symbol:'none',lineStyle:{color:'#77b0ff',type:'dashed',opacity:0.8,width:1},z:3},
+        {name:'fresnel -40%',type:'line',data:b40.lo,symbol:'none',lineStyle:{color:'#77b0ff',type:'dashed',opacity:0.8,width:1},z:3},
+        {name:'fresnel +60%',type:'line',data:b60.up,symbol:'none',lineStyle:{color:'#6fa8ff',type:'solid',opacity:0.95,width:1.2},z:4},
+        {name:'fresnel -60%',type:'line',data:b60.lo,symbol:'none',lineStyle:{color:'#6fa8ff',type:'solid',opacity:0.95,width:1.2},areaStyle:{color:'rgba(111,168,255,0.10)'},z:4},
+        {name:'los',type:'line',data:l,symbol:'none',lineStyle:{color:'#ff8a8a',width:2},z:5}
       ]
-    });
+    }, true);
+    if(!hasF){ document.getElementById('warn').textContent='warning: fresnel radii unavailable in profile output'; }
   }
   function parityText(req,d){
     var s=d.summary||{}, b=d.budget||{}, a=d.assumptions||{};
