@@ -18,6 +18,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse, quote
 import urllib.request
 import csv
+import io
 
 def _build_stamp():
     sha = os.environ.get('FWLAB_BUILD', '').strip()
@@ -31,6 +32,7 @@ def _build_stamp():
 
 BUILD_STAMP = _build_stamp()
 RX_AGG_JSON_PATH = Path('rf_log/rx_agg.json')
+STATIONS_CSV_PATH = Path('config/stations.csv')
 NAV_HTML = f"""
 <style>
 :root{{--sidebar-w:212px;--sidebar-w-c:64px;--content-gap:14px;}}
@@ -90,6 +92,7 @@ h2{{font-weight:650;letter-spacing:.2px;}}
       <a href='/radio'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 12h3m12 0h3'/><circle cx='12' cy='12' r='2.5'/><path d='M6.5 8.5a8 8 0 0 1 0 7M17.5 8.5a8 8 0 0 1 0 7'/></svg></span><span class='fw-label'>Radio</span></a>
       <a href='/data'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 19h16'/><path d='m6 15 4-4 3 2 5-6'/><path d='m18 7 0 3h-3'/></svg></span><span class='fw-label'>Data</span></a>
       <a href='/path'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 20V9'/><path d='M4 9c2.5-1.5 5.5-1.5 8 0s5.5 1.5 8 0v11c-2.5 1.5-5.5 1.5-8 0s-5.5-1.5-8 0'/><circle cx='4' cy='9' r='1.2'/><circle cx='20' cy='9' r='1.2'/></svg></span><span class='fw-label'>Path</span></a>
+      <a href='/stations'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v18'/><path d='M5 8h14'/><path d='M5 16h14'/><circle cx='12' cy='3' r='1.2'/></svg></span><span class='fw-label'>Stations</span></a>
       <a href='/admin'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='3'/><path d='M19.4 15a1 1 0 0 0 .2 1.1l.1.1a2 2 0 0 1-2.8 2.8l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V20a2 2 0 0 1-4 0v-.2a1 1 0 0 0-.6-.9 1 1 0 0 0-1.1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H4a2 2 0 0 1 0-4h.2a1 1 0 0 0 .9-.6 1 1 0 0 0-.2-1.1l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1 1 0 0 0 1.1.2h0a1 1 0 0 0 .6-.9V4a2 2 0 0 1 4 0v.2a1 1 0 0 0 .6.9h0a1 1 0 0 0 1.1-.2l.1-.1a2 2 0 0 1 2.8 2.8l-.1.1a1 1 0 0 0-.2 1.1v0a1 1 0 0 0 .9.6H20a2 2 0 0 1 0 4h-.2a1 1 0 0 0-.9.6z'/></svg></span><span class='fw-label'>Admin</span></a>
       <a href='/forensics'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='6.5'/><path d='M20 20l-4.2-4.2'/><path d='M11 8.5v5M8.5 11h5'/></svg></span><span class='fw-label'>Forensics</span></a>
       <a href='/about'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M12 11v5'/><circle cx='12' cy='8' r='1'/></svg></span><span class='fw-label'>About</span></a>
@@ -704,6 +707,70 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
 })();
 </script></body></html>"""
 
+def _load_stations(limit=5000):
+    rows = []
+    if not STATIONS_CSV_PATH.exists():
+        return rows
+    try:
+        with STATIONS_CSV_PATH.open('r', encoding='utf-8', errors='replace', newline='') as fh:
+            rdr = csv.DictReader(fh)
+            for i, r in enumerate(rdr):
+                if i >= limit:
+                    break
+                rows.append({k: (v or '').strip() for k, v in r.items()})
+    except Exception:
+        return []
+    return rows
+
+
+def _station_lat_lon(r):
+    for lk in ['lat', 'latitude', 'site_lat', 'y']:
+        if lk in r and r[lk] != '':
+            try:
+                lat = float(r[lk]); break
+            except Exception:
+                lat = None
+        else:
+            lat = None
+    for ok in ['lon', 'longitude', 'lng', 'site_lon', 'x']:
+        if ok in r and r[ok] != '':
+            try:
+                lon = float(r[ok]); break
+            except Exception:
+                lon = None
+        else:
+            lon = None
+    return lat, lon
+
+
+def _station_name(r, idx):
+    for nk in ['name', 'station', 'site', 'id', 'station_id']:
+        if nk in r and r[nk]:
+            return r[nk]
+    return f'station_{idx+1}'
+
+
+def _pairs_within_km(rows, max_km=100.0, limit=2000):
+    pts = []
+    for i, r in enumerate(rows):
+        lat, lon = _station_lat_lon(r)
+        if lat is None or lon is None:
+            continue
+        pts.append((i, _station_name(r, i), lat, lon))
+    out = []
+    for a in range(len(pts)):
+        ia, na, la, loa = pts[a]
+        for b in range(a+1, len(pts)):
+            ib, nb, lb, lob = pts[b]
+            d = _haversine_km(la, loa, lb, lob)
+            if d <= max_km:
+                out.append({'a_index': ia, 'a_name': na, 'b_index': ib, 'b_name': nb, 'distance_km': round(d, 3)})
+                if len(out) >= limit:
+                    return out
+    out.sort(key=lambda x: x['distance_km'])
+    return out
+
+
 PATH_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Path</title>
 <style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button,select{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}a{color:#7fc8ff}.grid{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:.5rem}.muted{color:#9fb0c3}.good{color:#6dd17c}.warn{color:#f2c14e}.bad{color:#f36f6f}#profile{height:320px}#pathMap{height:320px;border:1px solid #2a3948;border-radius:8px}@media(max-width:860px){.grid{grid-template-columns:1fr 1fr}input,button,select{min-height:40px;font-size:16px}}</style>
 <link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'/>
@@ -894,6 +961,51 @@ __NAV__
   window.addEventListener('resize', function(){ chart.resize(); if(map) map.invalidateSize(); });
 })();
 </script></div></body></html>"""
+
+STATIONS_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Stations</title>
+<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem}table{width:100%;border-collapse:collapse}th,td{padding:.35rem;border-bottom:1px solid #243243;text-align:left}.muted{color:#9fb0c3}</style></head><body><div class='page'>
+<h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v18'/><path d='M5 8h14'/><path d='M5 16h14'/><circle cx='12' cy='3' r='1.2'/></svg></span><span>Stations</span></h2>
+__NAV__
+<div class='card'>
+  <input id='csvFile' type='file' accept='.csv,text/csv'>
+  <button id='upload'>Upload CSV</button>
+  <span id='msg' class='muted'></span>
+</div>
+<div class='card'>
+  <div>Stations loaded: <span id='count'>0</span></div>
+  <div>Pairs within 100 km: <span id='pairsCount'>0</span></div>
+</div>
+<div class='card'><strong>Nearest pairs (<=100 km)</strong><table><thead><tr><th>A</th><th>B</th><th>Distance km</th></tr></thead><tbody id='pairsRows'></tbody></table></div>
+<script>
+(function(){
+  function load(){
+    fetch('/api/stations').then(r=>r.json()).then(d=>{
+      document.getElementById('count').textContent = (d.count||0);
+      var pairs=d.pairs_100km||[];
+      document.getElementById('pairsCount').textContent = pairs.length;
+      var rows=document.getElementById('pairsRows'); rows.innerHTML='';
+      pairs.slice(0,200).forEach(function(p){
+        var tr=document.createElement('tr');
+        tr.innerHTML='<td>'+p.a_name+'</td><td>'+p.b_name+'</td><td>'+p.distance_km+'</td>';
+        rows.appendChild(tr);
+      });
+    }).catch(()=>{ document.getElementById('msg').textContent='failed to load stations'; });
+  }
+  document.getElementById('upload').addEventListener('click', function(){
+    var f=document.getElementById('csvFile').files[0];
+    if(!f){ document.getElementById('msg').textContent='select csv first'; return; }
+    var fr=new FileReader();
+    fr.onload=function(){
+      fetch('/api/stations/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:f.name,csv_text:String(fr.result||'')})})
+        .then(r=>r.json()).then(d=>{ document.getElementById('msg').textContent = d.ok ? ('uploaded '+(d.count||0)+' rows') : ('upload failed: '+(d.error||'unknown')); load(); })
+        .catch(e=>{ document.getElementById('msg').textContent='upload failed'; });
+    };
+    fr.readAsText(f);
+  });
+  load();
+})();
+</script>
+</div></body></html>"""
 
 ADMIN_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Admin</title>
 <style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button,select{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}a{color:#7fc8ff}.row{margin:.35rem 0}.grid{display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:.6rem}.good{color:#6dd17c}.warn{color:#f2c14e}.bad{color:#f36f6f}pre{white-space:pre-wrap;max-height:220px;overflow:auto;background:#0f141a;border:1px solid #2a3948;padding:.55rem;border-radius:6px}@media(max-width:860px){.grid{grid-template-columns:1fr}input,button,select{min-height:40px;font-size:16px}}</style></head>
@@ -2369,6 +2481,21 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 return self._json({'ok': False, 'error': str(e)}, code=400)
 
+        if parsed.path == '/api/stations/upload':
+            try:
+                length = int(self.headers.get('Content-Length', '0'))
+                raw = self.rfile.read(length) if length > 0 else b'{}'
+                body = json.loads(raw.decode('utf-8'))
+                txt = str(body.get('csv_text', ''))
+                if not txt.strip():
+                    return self._json({'ok': False, 'error': 'empty_csv'}, code=400)
+                STATIONS_CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
+                STATIONS_CSV_PATH.write_text(txt, encoding='utf-8')
+                rows = _load_stations()
+                return self._json({'ok': True, 'count': len(rows), 'source': str(STATIONS_CSV_PATH)})
+            except Exception as e:
+                return self._json({'ok': False, 'error': str(e)}, code=400)
+
         if parsed.path == '/api/views':
             try:
                 length = int(self.headers.get('Content-Length', '0'))
@@ -2470,6 +2597,15 @@ class Handler(BaseHTTPRequestHandler):
 
         if parsed.path == '/path':
             payload = PATH_HTML.replace('__NAV__', NAV_HTML).encode('utf-8')
+            self.send_response(HTTPStatus.OK)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Content-Length', str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
+
+        if parsed.path == '/stations':
+            payload = STATIONS_HTML.replace('__NAV__', NAV_HTML).encode('utf-8')
             self.send_response(HTTPStatus.OK)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
             self.send_header('Content-Length', str(len(payload)))
@@ -2620,6 +2756,11 @@ class Handler(BaseHTTPRequestHandler):
                 except Exception as e:
                     return self._json({'error': f'parse_failed: {e}', 'source': str(RX_AGG_JSON_PATH)}, code=500)
             return self._json({'error': 'not_ready', 'source': str(RX_AGG_JSON_PATH)}, code=404)
+
+        if parsed.path == '/api/stations':
+            rows = _load_stations()
+            pairs = _pairs_within_km(rows, max_km=100.0, limit=5000)
+            return self._json({'count': len(rows), 'pairs_100km': pairs, 'source': str(STATIONS_CSV_PATH)})
 
         if parsed.path == '/api/events':
             q = parse_qs(parsed.query)
