@@ -1253,22 +1253,25 @@ STATIONS_MAP_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta na
 __NAV__
 <div class='card'>
   <input id='q' placeholder='Type to filter markers by name/id...' style='min-width:280px'>
+  <label class='muted' style='margin-left:.6rem'><input id='clustersOn' type='checkbox' checked> clusters</label>
   <span class='muted'>Total: <span id='total'>0</span> · Visible: <span id='vis'>0</span></span>
-  <div class='touch-note'>Clustered markers enabled. Tap a cluster to zoom. Marker touch targets enlarged for mobile.</div>
+  <div class='touch-note'>Tap a cluster to zoom. Marker touch targets enlarged for mobile.</div>
 </div>
 <div class='card'><div id='map'></div></div>
 <script>
 (function(){
   var all=[], map=L.map('map',{tapTolerance:25});
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
-  var layer=L.markerClusterGroup({
+  var clustered=L.markerClusterGroup({
     chunkedLoading:true,
     showCoverageOnHover:false,
     spiderfyOnMaxZoom:true,
     disableClusteringAtZoom:13,
     maxClusterRadius:45
   });
-  map.addLayer(layer);
+  var plain=L.layerGroup();
+  var useClusters=true;
+  map.addLayer(clustered);
   function match(r,q){ if(!q) return true; q=q.toLowerCase(); return [r.name,r.unitname,r.unitid].some(function(v){return String(v||'').toLowerCase().indexOf(q)>=0;}); }
   function markerHtml(r, lat, lon){
     return '<b>'+String(r.name||r.unitname||'')+'</b>'
@@ -1278,7 +1281,8 @@ __NAV__
   }
   function render(){
     var q=(document.getElementById('q').value||'').trim();
-    layer.clearLayers();
+    clustered.clearLayers();
+    plain.clearLayers();
     var pts=[];
     all.forEach(function(r){
       if(!match(r,q)) return;
@@ -1295,7 +1299,7 @@ __NAV__
       });
       m.bindPopup(markerHtml(r,lat,lon));
       m.on('click', function(){ m.openPopup(); });
-      layer.addLayer(m);
+      if(useClusters) clustered.addLayer(m); else plain.addLayer(m);
     });
     document.getElementById('vis').textContent=pts.length;
     if(pts.length){ map.fitBounds(L.latLngBounds(pts).pad(0.12)); }
@@ -1304,6 +1308,12 @@ __NAV__
     all=d.rows||[]; document.getElementById('total').textContent=all.length; render();
   });
   document.getElementById('q').addEventListener('input', render);
+  document.getElementById('clustersOn').addEventListener('change', function(){
+    useClusters=!!this.checked;
+    if(useClusters){ if(map.hasLayer(plain)) map.removeLayer(plain); if(!map.hasLayer(clustered)) map.addLayer(clustered); }
+    else { if(map.hasLayer(clustered)) map.removeLayer(clustered); if(!map.hasLayer(plain)) map.addLayer(plain); }
+    render();
+  });
 })();
 </script>
 </div></body></html>"""
