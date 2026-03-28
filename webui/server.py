@@ -1164,14 +1164,19 @@ __NAV__
       .catch(function(){ document.getElementById('msg').textContent='save failed'; });
   }
   function streetUrl(lat,lon,w,h){
-    return 'https://maps.googleapis.com/maps/api/streetview?size='+(w||640)+'x'+(h||320)+'&location='+encodeURIComponent(lat+','+lon)+'&fov=90&pitch=0';
+    return 'https://maps.googleapis.com/maps/api/streetview?size='+(w||640)+'x'+(h||320)+'&location='+encodeURIComponent(lat+','+lon)+'&fov=90&pitch=0&source=outdoor';
+  }
+  function streetPanoUrl(lat,lon){
+    return 'https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+encodeURIComponent(lat+','+lon);
   }
   function showStreet(name,lat,lon){
     var card=document.getElementById('streetCard'), img=document.getElementById('streetImg'), ttl=document.getElementById('streetTitle'), note=document.getElementById('streetNote');
     card.style.display='block';
     ttl.innerHTML='<strong>Street View:</strong> '+esc(name||'Station');
     note.textContent='';
-    img.onerror=function(){ note.innerHTML='Street image unavailable here. <a style="color:#7fc8ff" target="_blank" rel="noopener" href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+encodeURIComponent(lat+','+lon)+'">Open Street View</a>'; };
+    var pano=streetPanoUrl(lat,lon);
+    note.innerHTML='<a style="color:#7fc8ff" target="_blank" rel="noopener" href="'+pano+'">Open Street View in Google Maps</a>';
+    img.onerror=function(){ note.innerHTML='Street preview unavailable on this device/browser. <a style="color:#7fc8ff" target="_blank" rel="noopener" href="'+pano+'">Open Street View in Google Maps</a>'; };
     img.src=streetUrl(lat,lon,900,360);
   }
   function render(){
@@ -1222,7 +1227,7 @@ __NAV__
       card.innerHTML=''
         +'<summary><strong>'+esc(r.name||r.unitname||('Station #'+r.index))+'</strong> <span class="muted">#'+r.index+' · ID '+esc(r.unitid||'-')+'</span></summary>'
         +'<div class="st-body">'
-        +((cLat&&cLon)?('<div style="margin-bottom:.45rem"><a href="'+cDir+'" target="_blank" rel="noopener" style="color:#7fc8ff">Directions</a> · <button class="street-inline" type="button">Street View</button></div><img class="street-inline-img" style="display:none;width:100%;max-height:180px;object-fit:cover;border:1px solid #2a3948;border-radius:6px">'):'')
+        +((cLat&&cLon)?('<div style="margin-bottom:.45rem"><a href="'+cDir+'" target="_blank" rel="noopener" style="color:#7fc8ff">Directions</a> · <a href="'+streetPanoUrl(cLat,cLon)+'" target="_blank" rel="noopener" style="color:#7fc8ff">Open Street</a> · <button class="street-inline" type="button">Preview</button></div><img class="street-inline-img" style="display:none;width:100%;max-height:180px;object-fit:cover;border:1px solid #2a3948;border-radius:6px">'):'')
         +'<div class="grid">'
         +'<div><label>Name</label><input data-k="name" value="'+esc(r.name||r.unitname||'')+'"></div>'
         +'<div><label>Enabled</label><input data-k="enabled" value="'+esc(r.enabled||'')+'"></div>'
@@ -1309,12 +1314,13 @@ __NAV__
   function match(r,q){ if(!q) return true; q=q.toLowerCase(); return [r.name,r.unitname,r.unitid].some(function(v){return String(v||'').toLowerCase().indexOf(q)>=0;}); }
   function markerHtml(r, lat, lon){
     var dir='https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(String(lat)+','+String(lon))+'&travelmode=driving';
-    var sv='https://maps.googleapis.com/maps/api/streetview?size=360x180&location='+encodeURIComponent(String(lat)+','+String(lon))+'&fov=90&pitch=0';
+    var sv='https://maps.googleapis.com/maps/api/streetview?size=360x180&location='+encodeURIComponent(String(lat)+','+String(lon))+'&fov=90&pitch=0&source=outdoor';
+    var pano='https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+encodeURIComponent(String(lat)+','+String(lon));
     return '<b>'+String(r.name||r.unitname||'')+'</b>'
       +'<br>ID: '+String(r.unitid||'-')
       +'<br>Lat/Lon: '+lat+', '+lon
       +(r.elevation?('<br>Elevation: '+r.elevation):'')
-      +'<br><a href="'+dir+'" target="_blank" rel="noopener" style="color:#7fc8ff">Get directions</a>'
+      +'<br><a href="'+dir+'" target="_blank" rel="noopener" style="color:#7fc8ff">Get directions</a> · <a href="'+pano+'" target="_blank" rel="noopener" style="color:#7fc8ff">Open Street</a>'
       +'<br><img src="'+sv+'" style="margin-top:.3rem;width:100%;max-width:320px;border:1px solid #2a3948;border-radius:6px" onerror="this.style.display=\'none\'">';
   }
   function render(){
