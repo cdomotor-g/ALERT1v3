@@ -1123,7 +1123,7 @@ __NAV__
 </script></div></body></html>"""
 
 STATIONS_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Stations</title>
-<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem;max-width:100%;box-sizing:border-box}.muted{color:#9fb0c3}.row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}.mini{font-size:.9em}.num{width:8.5rem}.table-wrap{overflow:auto}.st-table{width:100%;min-width:980px;border-collapse:collapse}.st-table th,.st-table td{padding:.35rem;border-bottom:1px solid #243243;text-align:left}.cards{display:none}.st-card{border:1px solid #2a3948;border-radius:8px;padding:.6rem;margin:.5rem 0;background:#111a22}.st-card .grid{display:grid;grid-template-columns:1fr 1fr;gap:.4rem}.st-card input{width:100%;box-sizing:border-box}.stack{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}.stack .grow{flex:1 1 260px}@media(max-width:900px){.table-wrap{display:none}.cards{display:block}.row,.stack{flex-direction:column;align-items:stretch}input,button{width:100%;min-height:40px;font-size:16px}.page{padding:.7rem}}</style></head><body><div class='page'>
+<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem;max-width:100%;box-sizing:border-box}.muted{color:#9fb0c3}.row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}.mini{font-size:.9em}.num{width:8.5rem}.table-wrap{overflow:auto}.st-table{width:100%;min-width:980px;border-collapse:collapse}.st-table th,.st-table td{padding:.35rem;border-bottom:1px solid #243243;text-align:left}.cards{display:none}.st-card{border:1px solid #2a3948;border-radius:8px;margin:.5rem 0;background:#111a22}.st-card summary{cursor:pointer;padding:.6rem .65rem;list-style:none}.st-card summary::-webkit-details-marker{display:none}.st-card[open] summary{border-bottom:1px solid #243243}.st-body{padding:.6rem}.st-card .grid{display:grid;grid-template-columns:1fr 1fr;gap:.4rem}.st-card input{width:100%;box-sizing:border-box}.stack{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}.stack .grow{flex:1 1 260px}.filter-card{padding:.45rem .6rem}@media(max-width:900px){.table-wrap{display:none}.cards{display:block}.row,.stack{flex-direction:column;align-items:stretch}input,button{width:100%;min-height:40px;font-size:16px}.filter-card{padding:.35rem .55rem}.page{padding:.7rem}}</style></head><body><div class='page'>
 <h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v18'/><path d='M5 8h14'/><path d='M5 16h14'/><circle cx='12' cy='3' r='1.2'/></svg></span><span>Stations</span></h2>
 __NAV__
 <div class='card stack'>
@@ -1133,7 +1133,7 @@ __NAV__
   <a href='/stations-map' style='color:#7fc8ff'>Open map view →</a>
   <span id='msg' class='muted'></span>
 </div>
-<div class='card stack'>
+<div class='card filter-card'>
   <input id='q' class='grow' placeholder='Type to filter stations...'>
 </div>
 <div class='card mini'>Stations loaded: <span id='count'>0</span> · Showing: <span id='shown'>0</span></div>
@@ -1200,13 +1200,13 @@ __NAV__
       });
       rowsEl.appendChild(tr);
 
-      var card=document.createElement('div'); card.className='st-card';
+      var card=document.createElement('details'); card.className='st-card';
       var cLat=esc(r.latitude||r.lat||''), cLon=esc(r.longitude||r.lon||'');
       var cDir=(cLat&&cLon)?('https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(cLat+','+cLon)+'&travelmode=driving'):'#';
       card.innerHTML=''
-        +'<div><strong>#'+r.index+' '+esc(r.name||r.unitname||'')+'</strong> <span class="muted">ID '+esc(r.unitid||'-')+'</span>'
-        +((cLat&&cLon)?(' · <a href="'+cDir+'" target="_blank" rel="noopener" style="color:#7fc8ff">Directions</a>'):'')
-        +'</div>'
+        +'<summary><strong>'+esc(r.name||r.unitname||('Station #'+r.index))+'</strong> <span class="muted">#'+r.index+' · ID '+esc(r.unitid||'-')+'</span></summary>'
+        +'<div class="st-body">'
+        +((cLat&&cLon)?('<div style="margin-bottom:.45rem"><a href="'+cDir+'" target="_blank" rel="noopener" style="color:#7fc8ff">Directions</a></div>'):'')
         +'<div class="grid">'
         +'<div><label>Name</label><input data-k="name" value="'+esc(r.name||r.unitname||'')+'"></div>'
         +'<div><label>Enabled</label><input data-k="enabled" value="'+esc(r.enabled||'')+'"></div>'
@@ -1216,7 +1216,8 @@ __NAV__
         +'<div><label>Icon</label><input data-k="icon" value="'+esc(r.icon||'')+'"></div>'
         +'<div><label>Style</label><input data-k="style" value="'+esc(r.style||'')+'"></div>'
         +'<div><label>Locked</label><input data-k="locked" value="'+esc(r.locked||'')+'"></div>'
-        +'</div><div style="margin-top:.5rem"><button class="save">Save</button></div>';
+        +'</div><div style="margin-top:.5rem"><button class="save">Save</button></div>'
+        +'</div>';
       card.querySelector('.save').addEventListener('click', function(){
         savePatch({
           index:r.index,
