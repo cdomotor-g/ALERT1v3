@@ -1243,8 +1243,12 @@ __NAV__
       if(sbtn){ sbtn.addEventListener('click', function(){
         var im=card.querySelector('.street-inline-img');
         if(!im) return;
+        var pano=streetPanoUrl(cLat,cLon);
         im.style.display='block';
-        im.onerror=function(){ im.style.display='none'; };
+        im.onerror=function(){
+          im.style.display='none';
+          window.open(pano, '_blank');
+        };
         im.src=streetUrl(cLat,cLon,640,280);
       }); }
       card.querySelector('.save').addEventListener('click', function(){
