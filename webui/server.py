@@ -1354,7 +1354,14 @@ __NAV__
 </div>
 <div class='card'><div class='muted'>Tap map to add waypoint. Blue dots are known stations (tap to add).</div><div id='map'></div></div>
 <div class='card'>
-  <div class='row'><strong>Waypoints</strong><span class='muted'>(<span id='count'>0</span>)</span><button id='clear' style='margin-left:auto'>Clear</button></div>
+  <div class='row'>
+    <strong>Waypoints</strong><span class='muted'>(<span id='count'>0</span>)</span>
+    <label class='muted' style='margin-left:.5rem'><input id='optTime' type='checkbox' checked> optimize for travel time</label>
+    <button id='buildRoute'>Build route</button>
+    <button id='navGoogle'>Navigate in Google Maps</button>
+    <button id='clear' style='margin-left:auto'>Clear</button>
+  </div>
+  <div id='routeInfo' class='muted' style='margin:.35rem 0'></div>
   <div id='wps'></div>
 </div>
 <script>
@@ -1364,9 +1371,12 @@ __NAV__
   var map=L.map('map',{tapTolerance:25, keyboard:false});
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
   map.setView([-27.47,153.03],8);
-  var waypoints=[]; var markers=L.layerGroup().addTo(map); var stationLayer=L.layerGroup().addTo(map); var stationsByName={};
+  var waypoints=[]; var markers=L.layerGroup().addTo(map); var stationLayer=L.layerGroup().addTo(map); var routeLayer=L.layerGroup().addTo(map); var stationsByName={};
 
   function esc(s){ return String(s||'').replace(/[&<>\"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  function fmtDur(s){ s=Math.round(Number(s)||0); var h=Math.floor(s/3600), m=Math.round((s%3600)/60); return (h? (h+'h '):'')+m+'m'; }
+  function fmtKm(m){ return ((Number(m)||0)/1000).toFixed(1)+' km'; }
+
   function render(){
     markers.clearLayers();
     var el=document.getElementById('wps'); el.innerHTML='';
@@ -1418,6 +1428,56 @@ __NAV__
     });
   }
 
+  function googleNavUrl(points){
+    if(!points || points.length<2) return '';
+    var origin=points[0].lat+','+points[0].lon;
+    var dest=points[points.length-1].lat+','+points[points.length-1].lon;
+    var mid=points.slice(1,-1).map(function(p){ return p.lat+','+p.lon; }).join('|');
+    var u='https://www.google.com/maps/dir/?api=1&travelmode=driving&origin='+encodeURIComponent(origin)+'&destination='+encodeURIComponent(dest);
+    if(mid) u += '&waypoints='+encodeURIComponent(mid);
+    return u;
+  }
+
+  function buildRoute(){
+    if(waypoints.length<2){ document.getElementById('routeInfo').textContent='Need at least 2 waypoints'; return; }
+    routeLayer.clearLayers();
+    var optimize=!!document.getElementById('optTime').checked;
+    var ordered=waypoints.slice();
+    var coords=ordered.map(function(w){ return w.lon+','+w.lat; }).join(';');
+
+    function drawFromCoords(arr, dist, dur){
+      var latlngs=arr.map(function(c){ return [c[1],c[0]]; });
+      L.polyline(latlngs,{color:'#ff9f1c',weight:4,opacity:0.9}).addTo(routeLayer);
+      document.getElementById('routeInfo').textContent='Route: '+fmtKm(dist)+' · '+fmtDur(dur)+(optimize?' · optimized':'');
+      if(latlngs.length) map.fitBounds(L.latLngBounds(latlngs).pad(0.12));
+    }
+
+    var routeWithOrder=function(orderPoints){
+      var c2=orderPoints.map(function(w){ return w.lon+','+w.lat; }).join(';');
+      return fetch('https://router.project-osrm.org/route/v1/driving/'+c2+'?overview=full&geometries=geojson')
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          if(!d || !d.routes || !d.routes.length) throw new Error('route not found');
+          var rt=d.routes[0];
+          drawFromCoords(rt.geometry.coordinates||[], rt.distance||0, rt.duration||0);
+          waypoints=orderPoints; render();
+        });
+    };
+
+    if(optimize && waypoints.length>2){
+      fetch('https://router.project-osrm.org/trip/v1/driving/'+coords+'?source=first&destination=last&roundtrip=false&overview=false')
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          if(!d || !d.waypoints || !d.waypoints.length) throw new Error('optimize failed');
+          var ord=d.waypoints.slice().sort(function(a,b){ return a.waypoint_index-b.waypoint_index; }).map(function(w){ return waypoints[w.trips_index]; });
+          return routeWithOrder(ord);
+        })
+        .catch(function(){ return routeWithOrder(ordered); });
+    } else {
+      routeWithOrder(ordered).catch(function(e){ document.getElementById('routeInfo').textContent='Route build failed'; });
+    }
+  }
+
   document.getElementById('addStation').addEventListener('click', function(){
     var sp=document.getElementById('stationPick');
     var n=(sp.value||'').trim();
@@ -1435,7 +1495,13 @@ __NAV__
       .then(function(a){ if(!a||!a.length) return; addWp(q, a[0].lat, a[0].lon, 'address'); });
   });
   map.on('click', function(ev){ addWp('Map point', ev.latlng.lat, ev.latlng.lng, 'map'); });
-  document.getElementById('clear').addEventListener('click', function(){ waypoints=[]; render(); });
+  document.getElementById('buildRoute').addEventListener('click', buildRoute);
+  document.getElementById('navGoogle').addEventListener('click', function(){
+    var u=googleNavUrl(waypoints);
+    if(!u){ document.getElementById('routeInfo').textContent='Need at least 2 waypoints for navigation'; return; }
+    window.open(u, '_blank');
+  });
+  document.getElementById('clear').addEventListener('click', function(){ waypoints=[]; routeLayer.clearLayers(); document.getElementById('routeInfo').textContent=''; render(); });
 
   loadStations(); render();
 })();
