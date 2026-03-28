@@ -1333,7 +1333,7 @@ __NAV__
 
 TRIP_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Trip Planning</title>
 <link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'/>
-<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem;box-sizing:border-box;max-width:100%;line-height:1.2}.row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}.grow{flex:1 1 280px}.muted{color:#9fb0c3}#map{height:52vh;border:1px solid #2a3948;border-radius:8px}.wp{padding:.45rem;border:1px solid #2a3948;border-radius:8px;margin:.4rem 0;background:#111a22}.wp b{display:block;margin-bottom:.2rem}@media(max-width:900px){input,button{width:100%;min-height:30px;height:30px;line-height:1.05;font-size:14px;padding:.12rem .4rem}.row{flex-direction:column;align-items:stretch}.page{padding:.7rem}}</style>
+<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem;box-sizing:border-box;max-width:100%;line-height:1.2}input{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}.grow{flex:1 1 280px}.muted{color:#9fb0c3}#map{height:52vh;border:1px solid #2a3948;border-radius:8px}.wp{padding:.45rem;border:1px solid #2a3948;border-radius:8px;margin:.4rem 0;background:#111a22}.wp b{display:block;margin-bottom:.2rem}@media(max-width:900px){input,button{width:100%;min-height:36px;height:36px;line-height:1.15;font-size:16px;padding:.2rem .5rem}.row{flex-direction:column;align-items:stretch}.page{padding:.7rem}}</style>
 <script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script></head><body><div class='page'>
 <h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 7h13'/><path d='M3 12h9'/><path d='M3 17h11'/><path d='M17 7l4 4-4 4'/></svg></span><span>Trip Planning</span></h2>
 __NAV__
@@ -1359,6 +1359,7 @@ __NAV__
 </div>
 <script>
 (function(){
+  window.scrollTo(0,0);
   var map=L.map('map',{tapTolerance:25});
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
   map.setView([-27.47,153.03],8);
