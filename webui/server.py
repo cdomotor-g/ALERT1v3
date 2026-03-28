@@ -1138,7 +1138,8 @@ __NAV__
   <input id='q' class='grow' placeholder='Type to filter stations...'>
 </div>
 <div class='card mini'>Stations loaded: <span id='count'>0</span> · Showing: <span id='shown'>0</span></div>
-<div class='card table-wrap'><table class='st-table'><thead><tr><th>#</th><th>Unit ID</th><th>Name</th><th>Enabled</th><th>Lat</th><th>Lon</th><th>Elevation</th><th>Icon</th><th>Style</th><th>Locked</th><th>Directions</th><th></th></tr></thead><tbody id='rows'></tbody></table></div>
+<div class='card' id='streetCard' style='display:none'><div id='streetTitle' style='margin-bottom:.35rem'></div><img id='streetImg' alt='Street View' style='width:100%;max-height:260px;object-fit:cover;border:1px solid #2a3948;border-radius:6px'><div id='streetNote' class='muted' style='margin-top:.25rem'></div></div>
+<div class='card table-wrap'><table class='st-table'><thead><tr><th>#</th><th>Unit ID</th><th>Name</th><th>Enabled</th><th>Lat</th><th>Lon</th><th>Elevation</th><th>Icon</th><th>Style</th><th>Locked</th><th>Directions</th><th>Street</th><th></th></tr></thead><tbody id='rows'></tbody></table></div>
 <div class='card cards' id='cards'></div>
 <script>
 (function(){
@@ -1161,6 +1162,17 @@ __NAV__
       .then(function(x){ return x.json(); })
       .then(function(d){ document.getElementById('msg').textContent = d.ok ? ('saved station #'+idx) : ('save failed: '+(d.error||'unknown')); if(d.ok) load(); })
       .catch(function(){ document.getElementById('msg').textContent='save failed'; });
+  }
+  function streetUrl(lat,lon,w,h){
+    return 'https://maps.googleapis.com/maps/api/streetview?size='+(w||640)+'x'+(h||320)+'&location='+encodeURIComponent(lat+','+lon)+'&fov=90&pitch=0';
+  }
+  function showStreet(name,lat,lon){
+    var card=document.getElementById('streetCard'), img=document.getElementById('streetImg'), ttl=document.getElementById('streetTitle'), note=document.getElementById('streetNote');
+    card.style.display='block';
+    ttl.innerHTML='<strong>Street View:</strong> '+esc(name||'Station');
+    note.textContent='';
+    img.onerror=function(){ note.innerHTML='Street image unavailable here. <a style="color:#7fc8ff" target="_blank" rel="noopener" href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+encodeURIComponent(lat+','+lon)+'">Open Street View</a>'; };
+    img.src=streetUrl(lat,lon,900,360);
   }
   function render(){
     var q=(document.getElementById('q').value||'').trim();
@@ -1185,7 +1197,10 @@ __NAV__
         +'<td><input class="num" data-k="style" value="'+esc(r.style||'')+'"></td>'
         +'<td><input class="num" data-k="locked" value="'+esc(r.locked||'')+'"></td>'
         +'<td>'+(lat0&&lon0?('<a href="'+gdir+'" target="_blank" rel="noopener" style="color:#7fc8ff">Go</a>'):'-')+'</td>'
+        +'<td>'+(lat0&&lon0?('<button class="street">View</button>'):'-')+'</td>'
         +'<td><button class="save">Save</button></td>';
+      var streetBtn=tr.querySelector('.street');
+      if(streetBtn){ streetBtn.addEventListener('click', function(){ showStreet(r.name||r.unitname||('Station '+r.index), lat0, lon0); }); }
       tr.querySelector('.save').addEventListener('click', function(){
         savePatch({
           index:r.index,
@@ -1207,7 +1222,7 @@ __NAV__
       card.innerHTML=''
         +'<summary><strong>'+esc(r.name||r.unitname||('Station #'+r.index))+'</strong> <span class="muted">#'+r.index+' · ID '+esc(r.unitid||'-')+'</span></summary>'
         +'<div class="st-body">'
-        +((cLat&&cLon)?('<div style="margin-bottom:.45rem"><a href="'+cDir+'" target="_blank" rel="noopener" style="color:#7fc8ff">Directions</a></div>'):'')
+        +((cLat&&cLon)?('<div style="margin-bottom:.45rem"><a href="'+cDir+'" target="_blank" rel="noopener" style="color:#7fc8ff">Directions</a> · <button class="street-inline" type="button">Street View</button></div><img class="street-inline-img" style="display:none;width:100%;max-height:180px;object-fit:cover;border:1px solid #2a3948;border-radius:6px">'):'')
         +'<div class="grid">'
         +'<div><label>Name</label><input data-k="name" value="'+esc(r.name||r.unitname||'')+'"></div>'
         +'<div><label>Enabled</label><input data-k="enabled" value="'+esc(r.enabled||'')+'"></div>'
@@ -1219,6 +1234,14 @@ __NAV__
         +'<div><label>Locked</label><input data-k="locked" value="'+esc(r.locked||'')+'"></div>'
         +'</div><div style="margin-top:.5rem"><button class="save">Save</button></div>'
         +'</div>';
+      var sbtn=card.querySelector('.street-inline');
+      if(sbtn){ sbtn.addEventListener('click', function(){
+        var im=card.querySelector('.street-inline-img');
+        if(!im) return;
+        im.style.display='block';
+        im.onerror=function(){ im.style.display='none'; };
+        im.src=streetUrl(cLat,cLon,640,280);
+      }); }
       card.querySelector('.save').addEventListener('click', function(){
         savePatch({
           index:r.index,
@@ -1286,11 +1309,13 @@ __NAV__
   function match(r,q){ if(!q) return true; q=q.toLowerCase(); return [r.name,r.unitname,r.unitid].some(function(v){return String(v||'').toLowerCase().indexOf(q)>=0;}); }
   function markerHtml(r, lat, lon){
     var dir='https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(String(lat)+','+String(lon))+'&travelmode=driving';
+    var sv='https://maps.googleapis.com/maps/api/streetview?size=360x180&location='+encodeURIComponent(String(lat)+','+String(lon))+'&fov=90&pitch=0';
     return '<b>'+String(r.name||r.unitname||'')+'</b>'
       +'<br>ID: '+String(r.unitid||'-')
       +'<br>Lat/Lon: '+lat+', '+lon
       +(r.elevation?('<br>Elevation: '+r.elevation):'')
-      +'<br><a href="'+dir+'" target="_blank" rel="noopener" style="color:#7fc8ff">Get directions</a>';
+      +'<br><a href="'+dir+'" target="_blank" rel="noopener" style="color:#7fc8ff">Get directions</a>'
+      +'<br><img src="'+sv+'" style="margin-top:.3rem;width:100%;max-width:320px;border:1px solid #2a3948;border-radius:6px" onerror="this.style.display=\'none\'">';
   }
   function render(){
     var q=(document.getElementById('q').value||'').trim();
