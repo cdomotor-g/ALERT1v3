@@ -1391,6 +1391,7 @@ __NAV__
       el.appendChild(d);
     });
     if(pts.length){ map.fitBounds(L.latLngBounds(pts).pad(0.18)); }
+    routeLayer.eachLayer(function(ly){ if(ly.bringToFront) ly.bringToFront(); });
   }
 
   function addWp(name, lat, lon, source){
@@ -1449,7 +1450,8 @@ __NAV__
       routeLayer.clearLayers();
       var latlngs=arr.map(function(c){ return [c[1],c[0]]; });
       if(!latlngs.length) return false;
-      L.polyline(latlngs,{color:'#ff9f1c',weight:4,opacity:0.9}).addTo(routeLayer);
+      var line=L.polyline(latlngs,{color:'#ff2d55',weight:6,opacity:0.95}).addTo(routeLayer);
+      if(line.bringToFront) line.bringToFront();
       document.getElementById('routeInfo').textContent='Route: '+fmtKm(dist)+' · '+fmtDur(dur)+(optimize?' · optimized':'');
       map.fitBounds(L.latLngBounds(latlngs).pad(0.12));
       return true;
@@ -1459,7 +1461,8 @@ __NAV__
       routeLayer.clearLayers();
       var latlngs=orderPoints.map(function(w){ return [Number(w.lat), Number(w.lon)]; }).filter(function(p){ return isFinite(p[0])&&isFinite(p[1]); });
       if(latlngs.length<2){ document.getElementById('routeInfo').textContent='Need at least 2 valid waypoints'; return; }
-      L.polyline(latlngs,{color:'#ff9f1c',weight:3,opacity:0.8,dashArray:'6,6'}).addTo(routeLayer);
+      var line=L.polyline(latlngs,{color:'#ff2d55',weight:5,opacity:0.85,dashArray:'8,6'}).addTo(routeLayer);
+      if(line.bringToFront) line.bringToFront();
       map.fitBounds(L.latLngBounds(latlngs).pad(0.12));
       document.getElementById('routeInfo').textContent='Routing service unavailable; showing straight-line path'+(note?(' ('+note+')'):'');
     }
@@ -1482,7 +1485,10 @@ __NAV__
         .then(function(r){ if(!r.ok) throw new Error('http_'+r.status); return r.json(); })
         .then(function(d){
           if(!d || !d.waypoints || !d.waypoints.length) throw new Error('optimize_failed');
-          var ord=d.waypoints.slice().sort(function(a,b){ return a.waypoint_index-b.waypoint_index; }).map(function(w){ return waypoints[w.trips_index]; });
+          var ord=d.waypoints.map(function(w,idx){ return {w:w, idx:idx}; })
+            .sort(function(a,b){ return (a.w.waypoint_index||0)-(b.w.waypoint_index||0); })
+            .map(function(x){ return waypoints[x.idx]; })
+            .filter(function(x){ return !!x; });
           return routeWithOrder(ord).catch(function(e){ drawFallback(ord, String(e&&e.message||'route failed')); });
         })
         .catch(function(e){ routeWithOrder(ordered).catch(function(e2){ drawFallback(ordered, String((e2&&e2.message)|| (e&&e.message) || 'failed')); }); });
