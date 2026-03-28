@@ -1333,7 +1333,7 @@ __NAV__
 
 TRIP_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Trip Planning</title>
 <link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'/>
-<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem;box-sizing:border-box;max-width:100%}.row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}.grow{flex:1 1 280px}.muted{color:#9fb0c3}#map{height:52vh;border:1px solid #2a3948;border-radius:8px}.wp{padding:.45rem;border:1px solid #2a3948;border-radius:8px;margin:.4rem 0;background:#111a22}.wp b{display:block;margin-bottom:.2rem}@media(max-width:900px){input,button{width:100%;min-height:40px;font-size:16px}.row{flex-direction:column;align-items:stretch}.page{padding:.7rem}}</style>
+<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem;box-sizing:border-box;max-width:100%;line-height:1.2}.row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}.grow{flex:1 1 280px}.muted{color:#9fb0c3}#map{height:52vh;border:1px solid #2a3948;border-radius:8px}.wp{padding:.45rem;border:1px solid #2a3948;border-radius:8px;margin:.4rem 0;background:#111a22}.wp b{display:block;margin-bottom:.2rem}@media(max-width:900px){input,button{width:100%;min-height:34px;height:34px;font-size:15px;padding:.25rem .45rem}.row{flex-direction:column;align-items:stretch}.page{padding:.7rem}}</style>
 <script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script></head><body><div class='page'>
 <h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 7h13'/><path d='M3 12h9'/><path d='M3 17h11'/><path d='M17 7l4 4-4 4'/></svg></span><span>Trip Planning</span></h2>
 __NAV__
@@ -1352,7 +1352,7 @@ __NAV__
   <input id='wpName' class='grow' placeholder='Name (optional)'>
   <button id='addLatLon'>Add lat/lon</button>
 </div>
-<div class='card'><div class='muted'>Tap map to add waypoint</div><div id='map'></div></div>
+<div class='card'><div class='muted'>Tap map to add waypoint. Blue dots are known stations (tap to add).</div><div id='map'></div></div>
 <div class='card'>
   <div class='row'><strong>Waypoints</strong><span class='muted'>(<span id='count'>0</span>)</span><button id='clear' style='margin-left:auto'>Clear</button></div>
   <div id='wps'></div>
@@ -1362,7 +1362,7 @@ __NAV__
   var map=L.map('map',{tapTolerance:25});
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
   map.setView([-27.47,153.03],8);
-  var waypoints=[]; var markers=L.layerGroup().addTo(map); var stationsByName={};
+  var waypoints=[]; var markers=L.layerGroup().addTo(map); var stationLayer=L.layerGroup().addTo(map); var stationsByName={};
 
   function esc(s){ return String(s||'').replace(/[&<>\"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
   function render(){
@@ -1391,18 +1391,37 @@ __NAV__
   function loadStations(){
     fetch('/api/stations/catalog?limit=50000').then(function(r){ return r.json(); }).then(function(d){
       var list=document.getElementById('stationsList'); list.innerHTML='';
+      stationLayer.clearLayers();
       (d.stations||[]).forEach(function(s){
         if(!s||!s.name) return;
         stationsByName[s.name]=s;
         var o=document.createElement('option'); o.value=s.name; o.label=s.name+' ('+s.lat+', '+s.lon+')'; list.appendChild(o);
+        var lat=Number(s.lat), lon=Number(s.lon);
+        if(isFinite(lat)&&isFinite(lon)){
+          var sm=L.circleMarker([lat,lon],{radius:5,color:'#7fc8ff',fillColor:'#2f8fd9',fillOpacity:0.75,weight:1.5});
+          sm.bindPopup('<b>'+esc(s.name)+'</b><br>'+lat+', '+lon+'<br><button class="add-st" data-name="'+esc(s.name)+'" data-lat="'+lat+'" data-lon="'+lon+'">Add waypoint</button>');
+          sm.on('popupopen', function(ev){
+            var btn=ev.popup.getElement().querySelector('.add-st');
+            if(btn){ btn.addEventListener('click', function(){
+              var nm=btn.getAttribute('data-name')||'Station';
+              var bl=Number(btn.getAttribute('data-lat')), bo=Number(btn.getAttribute('data-lon'));
+              if(!isFinite(bl)||!isFinite(bo)) return;
+              addWp(nm, bl, bo, 'station-map');
+              map.closePopup();
+            }); }
+          });
+          stationLayer.addLayer(sm);
+        }
       });
     });
   }
 
   document.getElementById('addStation').addEventListener('click', function(){
-    var n=(document.getElementById('stationPick').value||'').trim();
+    var sp=document.getElementById('stationPick');
+    var n=(sp.value||'').trim();
     var s=stationsByName[n]; if(!s) return;
     addWp(n, s.lat, s.lon, 'station');
+    sp.value='';
   });
   document.getElementById('addLatLon').addEventListener('click', function(){
     addWp((document.getElementById('wpName').value||'').trim(), document.getElementById('lat').value, document.getElementById('lon').value, 'latlon');
