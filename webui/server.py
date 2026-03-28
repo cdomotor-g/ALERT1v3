@@ -1446,35 +1446,48 @@ __NAV__
     var coords=ordered.map(function(w){ return w.lon+','+w.lat; }).join(';');
 
     function drawFromCoords(arr, dist, dur){
+      routeLayer.clearLayers();
       var latlngs=arr.map(function(c){ return [c[1],c[0]]; });
+      if(!latlngs.length) return false;
       L.polyline(latlngs,{color:'#ff9f1c',weight:4,opacity:0.9}).addTo(routeLayer);
       document.getElementById('routeInfo').textContent='Route: '+fmtKm(dist)+' · '+fmtDur(dur)+(optimize?' · optimized':'');
-      if(latlngs.length) map.fitBounds(L.latLngBounds(latlngs).pad(0.12));
+      map.fitBounds(L.latLngBounds(latlngs).pad(0.12));
+      return true;
+    }
+
+    function drawFallback(orderPoints, note){
+      routeLayer.clearLayers();
+      var latlngs=orderPoints.map(function(w){ return [Number(w.lat), Number(w.lon)]; }).filter(function(p){ return isFinite(p[0])&&isFinite(p[1]); });
+      if(latlngs.length<2){ document.getElementById('routeInfo').textContent='Need at least 2 valid waypoints'; return; }
+      L.polyline(latlngs,{color:'#ff9f1c',weight:3,opacity:0.8,dashArray:'6,6'}).addTo(routeLayer);
+      map.fitBounds(L.latLngBounds(latlngs).pad(0.12));
+      document.getElementById('routeInfo').textContent='Routing service unavailable; showing straight-line path'+(note?(' ('+note+')'):'');
     }
 
     var routeWithOrder=function(orderPoints){
       var c2=orderPoints.map(function(w){ return w.lon+','+w.lat; }).join(';');
       return fetch('https://router.project-osrm.org/route/v1/driving/'+c2+'?overview=full&geometries=geojson')
-        .then(function(r){ return r.json(); })
+        .then(function(r){ if(!r.ok) throw new Error('http_'+r.status); return r.json(); })
         .then(function(d){
-          if(!d || !d.routes || !d.routes.length) throw new Error('route not found');
+          if(!d || !d.routes || !d.routes.length) throw new Error('route_not_found');
           var rt=d.routes[0];
-          drawFromCoords(rt.geometry.coordinates||[], rt.distance||0, rt.duration||0);
+          var ok=drawFromCoords(rt.geometry.coordinates||[], rt.distance||0, rt.duration||0);
+          if(!ok) throw new Error('empty_geometry');
           waypoints=orderPoints; render();
         });
     };
 
     if(optimize && waypoints.length>2){
       fetch('https://router.project-osrm.org/trip/v1/driving/'+coords+'?source=first&destination=last&roundtrip=false&overview=false')
-        .then(function(r){ return r.json(); })
+        .then(function(r){ if(!r.ok) throw new Error('http_'+r.status); return r.json(); })
         .then(function(d){
-          if(!d || !d.waypoints || !d.waypoints.length) throw new Error('optimize failed');
+          if(!d || !d.waypoints || !d.waypoints.length) throw new Error('optimize_failed');
           var ord=d.waypoints.slice().sort(function(a,b){ return a.waypoint_index-b.waypoint_index; }).map(function(w){ return waypoints[w.trips_index]; });
-          return routeWithOrder(ord);
+          return routeWithOrder(ord).catch(function(e){ drawFallback(ord, String(e&&e.message||'route failed')); });
         })
-        .catch(function(){ return routeWithOrder(ordered); });
+        .catch(function(e){ routeWithOrder(ordered).catch(function(e2){ drawFallback(ordered, String((e2&&e2.message)|| (e&&e.message) || 'failed')); }); });
     } else {
-      routeWithOrder(ordered).catch(function(e){ document.getElementById('routeInfo').textContent='Route build failed'; });
+      routeWithOrder(ordered).catch(function(e){ drawFallback(ordered, String(e&&e.message||'failed')); });
     }
   }
 
