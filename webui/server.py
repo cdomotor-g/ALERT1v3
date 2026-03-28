@@ -1329,7 +1329,7 @@ __NAV__
       +'<br>Lat/Lon: '+lat+', '+lon
       +(r.elevation?('<br>Elevation: '+r.elevation):'')
       +'<br><a href="'+dir+'" target="_blank" rel="noopener" style="color:#7fc8ff">Get directions</a> · <a href="'+pano+'" target="_blank" rel="noopener" style="color:#7fc8ff">Open Street</a>'
-      +'<br><img src="'+sv+'" style="margin-top:.3rem;width:100%;max-width:320px;border:1px solid #2a3948;border-radius:6px" onerror="this.style.display=\'none\'">';
+      +'<br><img src="'+sv+'" style="margin-top:.3rem;width:100%;max-width:320px;border:1px solid #2a3948;border-radius:6px" onerror="this.style.display=&quot;none&quot;">';
   }
   function render(){
     var q=(document.getElementById('q').value||'').trim();
