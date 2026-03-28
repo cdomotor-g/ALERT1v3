@@ -3234,7 +3234,7 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(payload)
             return
 
-        if parsed.path == '/stations-map':
+        if parsed.path in ['/stations-map', '/map']:
             payload = STATIONS_MAP_HTML.replace('__NAV__', NAV_HTML).encode('utf-8')
             self.send_response(HTTPStatus.OK)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
