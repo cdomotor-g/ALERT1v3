@@ -1309,15 +1309,15 @@ __NAV__
 (function(){
   var all=[], map=L.map('map',{tapTolerance:25});
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
-  var clustered=L.markerClusterGroup({
+  var clustered=(L.markerClusterGroup ? L.markerClusterGroup({
     chunkedLoading:true,
     showCoverageOnHover:false,
     spiderfyOnMaxZoom:true,
     disableClusteringAtZoom:13,
     maxClusterRadius:45
-  });
+  }) : L.layerGroup());
   var plain=L.layerGroup();
-  var useClusters=true;
+  var useClusters=!!L.markerClusterGroup;
   map.addLayer(clustered);
   function match(r,q){ if(!q) return true; q=q.toLowerCase(); return [r.name,r.unitname,r.unitid].some(function(v){return String(v||'').toLowerCase().indexOf(q)>=0;}); }
   function markerHtml(r, lat, lon){
@@ -1358,7 +1358,8 @@ __NAV__
   }
   fetch('/api/stations/rows?limit=50000').then(function(r){return r.json();}).then(function(d){
     all=d.rows||[]; document.getElementById('total').textContent=all.length; render();
-  });
+    setTimeout(function(){ map.invalidateSize(); }, 120);
+  }).catch(function(){ setTimeout(function(){ map.invalidateSize(); }, 120); });
   document.getElementById('q').addEventListener('input', render);
   document.getElementById('clustersOn').addEventListener('change', function(){
     useClusters=!!this.checked;
