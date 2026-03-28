@@ -1135,7 +1135,7 @@ __NAV__
   <span id='msg' class='muted'></span>
 </div>
 <div class='card mini'>Stations loaded: <span id='count'>0</span> · Showing: <span id='shown'>0</span></div>
-<div class='card table-wrap'><table class='st-table'><thead><tr><th>#</th><th>Unit ID</th><th>Name</th><th>Enabled</th><th>Lat</th><th>Lon</th><th>Elevation</th><th>Icon</th><th>Style</th><th>Locked</th><th></th></tr></thead><tbody id='rows'></tbody></table></div>
+<div class='card table-wrap'><table class='st-table'><thead><tr><th>#</th><th>Unit ID</th><th>Name</th><th>Enabled</th><th>Lat</th><th>Lon</th><th>Elevation</th><th>Icon</th><th>Style</th><th>Locked</th><th>Directions</th><th></th></tr></thead><tbody id='rows'></tbody></table></div>
 <div class='card cards' id='cards'></div>
 <script>
 (function(){
@@ -1168,17 +1168,20 @@ __NAV__
       if(!match(r,q)) return;
       shown++;
       var tr=document.createElement('tr');
+      var lat0=esc(r.latitude||r.lat||''), lon0=esc(r.longitude||r.lon||'');
+      var gdir=(lat0 && lon0) ? ('https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(lat0+','+lon0)+'&travelmode=driving') : '#';
       tr.innerHTML=''
         +'<td>'+r.index+'</td>'
         +'<td>'+esc(r.unitid||'')+'</td>'
         +'<td><input data-k="name" value="'+esc(r.name||r.unitname||'')+'" style="min-width:220px"></td>'
         +'<td><input class="num" data-k="enabled" value="'+esc(r.enabled||'')+'"></td>'
-        +'<td><input class="num" data-k="lat" value="'+esc(r.latitude||r.lat||'')+'"></td>'
-        +'<td><input class="num" data-k="lon" value="'+esc(r.longitude||r.lon||'')+'"></td>'
+        +'<td><input class="num" data-k="lat" value="'+lat0+'"></td>'
+        +'<td><input class="num" data-k="lon" value="'+lon0+'"></td>'
         +'<td><input class="num" data-k="elevation" value="'+esc(r.elevation||'')+'"></td>'
         +'<td><input class="num" data-k="icon" value="'+esc(r.icon||'')+'"></td>'
         +'<td><input class="num" data-k="style" value="'+esc(r.style||'')+'"></td>'
         +'<td><input class="num" data-k="locked" value="'+esc(r.locked||'')+'"></td>'
+        +'<td>'+(lat0&&lon0?('<a href="'+gdir+'" target="_blank" rel="noopener" style="color:#7fc8ff">Go</a>'):'-')+'</td>'
         +'<td><button class="save">Save</button></td>';
       tr.querySelector('.save').addEventListener('click', function(){
         savePatch({
@@ -1196,8 +1199,12 @@ __NAV__
       rowsEl.appendChild(tr);
 
       var card=document.createElement('div'); card.className='st-card';
+      var cLat=esc(r.latitude||r.lat||''), cLon=esc(r.longitude||r.lon||'');
+      var cDir=(cLat&&cLon)?('https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(cLat+','+cLon)+'&travelmode=driving'):'#';
       card.innerHTML=''
-        +'<div><strong>#'+r.index+' '+esc(r.name||r.unitname||'')+'</strong> <span class="muted">ID '+esc(r.unitid||'-')+'</span></div>'
+        +'<div><strong>#'+r.index+' '+esc(r.name||r.unitname||'')+'</strong> <span class="muted">ID '+esc(r.unitid||'-')+'</span>'
+        +((cLat&&cLon)?(' · <a href="'+cDir+'" target="_blank" rel="noopener" style="color:#7fc8ff">Directions</a>'):'')
+        +'</div>'
         +'<div class="grid">'
         +'<div><label>Name</label><input data-k="name" value="'+esc(r.name||r.unitname||'')+'"></div>'
         +'<div><label>Enabled</label><input data-k="enabled" value="'+esc(r.enabled||'')+'"></div>'
@@ -1274,10 +1281,12 @@ __NAV__
   map.addLayer(clustered);
   function match(r,q){ if(!q) return true; q=q.toLowerCase(); return [r.name,r.unitname,r.unitid].some(function(v){return String(v||'').toLowerCase().indexOf(q)>=0;}); }
   function markerHtml(r, lat, lon){
+    var dir='https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(String(lat)+','+String(lon))+'&travelmode=driving';
     return '<b>'+String(r.name||r.unitname||'')+'</b>'
       +'<br>ID: '+String(r.unitid||'-')
       +'<br>Lat/Lon: '+lat+', '+lon
-      +(r.elevation?('<br>Elevation: '+r.elevation):'');
+      +(r.elevation?('<br>Elevation: '+r.elevation):'')
+      +'<br><a href="'+dir+'" target="_blank" rel="noopener" style="color:#7fc8ff">Get directions</a>';
   }
   function render(){
     var q=(document.getElementById('q').value||'').trim();
