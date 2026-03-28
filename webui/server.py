@@ -1123,16 +1123,18 @@ __NAV__
 </script></div></body></html>"""
 
 STATIONS_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Stations</title>
-<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem}.muted{color:#9fb0c3}.row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}.mini{font-size:.9em}.num{width:8.5rem}.table-wrap{overflow:auto}.st-table{width:100%;min-width:980px;border-collapse:collapse}.st-table th,.st-table td{padding:.35rem;border-bottom:1px solid #243243;text-align:left}.cards{display:none}.st-card{border:1px solid #2a3948;border-radius:8px;padding:.6rem;margin:.5rem 0;background:#111a22}.st-card .grid{display:grid;grid-template-columns:1fr 1fr;gap:.4rem}.st-card input{width:100%;box-sizing:border-box}@media(max-width:900px){.table-wrap{display:none}.cards{display:block}input,button{min-height:40px;font-size:16px}}</style></head><body><div class='page'>
+<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem;max-width:100%;box-sizing:border-box}.muted{color:#9fb0c3}.row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}.mini{font-size:.9em}.num{width:8.5rem}.table-wrap{overflow:auto}.st-table{width:100%;min-width:980px;border-collapse:collapse}.st-table th,.st-table td{padding:.35rem;border-bottom:1px solid #243243;text-align:left}.cards{display:none}.st-card{border:1px solid #2a3948;border-radius:8px;padding:.6rem;margin:.5rem 0;background:#111a22}.st-card .grid{display:grid;grid-template-columns:1fr 1fr;gap:.4rem}.st-card input{width:100%;box-sizing:border-box}.stack{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}.stack .grow{flex:1 1 260px}@media(max-width:900px){.table-wrap{display:none}.cards{display:block}.row,.stack{flex-direction:column;align-items:stretch}input,button{width:100%;min-height:40px;font-size:16px}.page{padding:.7rem}}</style></head><body><div class='page'>
 <h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v18'/><path d='M5 8h14'/><path d='M5 16h14'/><circle cx='12' cy='3' r='1.2'/></svg></span><span>Stations</span></h2>
 __NAV__
-<div class='card row'>
+<div class='card stack'>
   <input id='csvFile' type='file' accept='.csv,text/csv'>
   <button id='upload'>Upload CSV</button>
-  <input id='q' placeholder='Type to filter stations...' style='min-width:280px'>
   <button id='reload'>Reload</button>
-  <a href='/stations-map' style='margin-left:auto;color:#7fc8ff'>Open map view →</a>
+  <a href='/stations-map' style='color:#7fc8ff'>Open map view →</a>
   <span id='msg' class='muted'></span>
+</div>
+<div class='card stack'>
+  <input id='q' class='grow' placeholder='Type to filter stations...'>
 </div>
 <div class='card mini'>Stations loaded: <span id='count'>0</span> · Showing: <span id='shown'>0</span></div>
 <div class='card table-wrap'><table class='st-table'><thead><tr><th>#</th><th>Unit ID</th><th>Name</th><th>Enabled</th><th>Lat</th><th>Lon</th><th>Elevation</th><th>Icon</th><th>Style</th><th>Locked</th><th>Directions</th><th></th></tr></thead><tbody id='rows'></tbody></table></div>
