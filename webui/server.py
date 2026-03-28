@@ -95,6 +95,7 @@ h2{{font-weight:650;letter-spacing:.2px;}}
       <a href='/path'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 20V9'/><path d='M4 9c2.5-1.5 5.5-1.5 8 0s5.5 1.5 8 0v11c-2.5 1.5-5.5 1.5-8 0s-5.5-1.5-8 0'/><circle cx='4' cy='9' r='1.2'/><circle cx='20' cy='9' r='1.2'/></svg></span><span class='fw-label'>Path</span></a>
       <a href='/stations'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v18'/><path d='M5 8h14'/><path d='M5 16h14'/><circle cx='12' cy='3' r='1.2'/></svg></span><span class='fw-label'>Stations</span></a>
       <a href='/stations-map'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z'/><path d='M9 4v14'/><path d='M15 6v14'/></svg></span><span class='fw-label'>Stations Map</span></a>
+      <a href='/trip'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 7h13'/><path d='M3 12h9'/><path d='M3 17h11'/><path d='M17 7l4 4-4 4'/></svg></span><span class='fw-label'>Trip</span></a>
       <a href='/admin'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='3'/><path d='M19.4 15a1 1 0 0 0 .2 1.1l.1.1a2 2 0 0 1-2.8 2.8l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V20a2 2 0 0 1-4 0v-.2a1 1 0 0 0-.6-.9 1 1 0 0 0-1.1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H4a2 2 0 0 1 0-4h.2a1 1 0 0 0 .9-.6 1 1 0 0 0-.2-1.1l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1 1 0 0 0 1.1.2h0a1 1 0 0 0 .6-.9V4a2 2 0 0 1 4 0v.2a1 1 0 0 0 .6.9h0a1 1 0 0 0 1.1-.2l.1-.1a2 2 0 0 1 2.8 2.8l-.1.1a1 1 0 0 0-.2 1.1v0a1 1 0 0 0 .9.6H20a2 2 0 0 1 0 4h-.2a1 1 0 0 0-.9.6z'/></svg></span><span class='fw-label'>Admin</span></a>
       <a href='/forensics'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='6.5'/><path d='M20 20l-4.2-4.2'/><path d='M11 8.5v5M8.5 11h5'/></svg></span><span class='fw-label'>Forensics</span></a>
       <a href='/about'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M12 11v5'/><circle cx='12' cy='8' r='1'/></svg></span><span class='fw-label'>About</span></a>
@@ -1326,6 +1327,96 @@ __NAV__
     else { if(map.hasLayer(clustered)) map.removeLayer(clustered); if(!map.hasLayer(plain)) map.addLayer(plain); }
     render();
   });
+})();
+</script>
+</div></body></html>"""
+
+TRIP_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Trip Planning</title>
+<link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'/>
+<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem;box-sizing:border-box;max-width:100%}.row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}.grow{flex:1 1 280px}.muted{color:#9fb0c3}#map{height:52vh;border:1px solid #2a3948;border-radius:8px}.wp{padding:.45rem;border:1px solid #2a3948;border-radius:8px;margin:.4rem 0;background:#111a22}.wp b{display:block;margin-bottom:.2rem}@media(max-width:900px){input,button{width:100%;min-height:40px;font-size:16px}.row{flex-direction:column;align-items:stretch}.page{padding:.7rem}}</style>
+<script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script></head><body><div class='page'>
+<h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 7h13'/><path d='M3 12h9'/><path d='M3 17h11'/><path d='M17 7l4 4-4 4'/></svg></span><span>Trip Planning</span></h2>
+__NAV__
+<div class='card row'>
+  <input id='stationPick' list='stationsList' class='grow' placeholder='Add station waypoint (type to filter)'>
+  <button id='addStation'>Add station</button>
+  <datalist id='stationsList'></datalist>
+</div>
+<div class='card row'>
+  <input id='addr' class='grow' placeholder='Add waypoint by address'>
+  <button id='addAddr'>Geocode & add</button>
+</div>
+<div class='card row'>
+  <input id='lat' placeholder='Lat'>
+  <input id='lon' placeholder='Lon'>
+  <input id='wpName' class='grow' placeholder='Name (optional)'>
+  <button id='addLatLon'>Add lat/lon</button>
+</div>
+<div class='card'><div class='muted'>Tap map to add waypoint</div><div id='map'></div></div>
+<div class='card'>
+  <div class='row'><strong>Waypoints</strong><span class='muted'>(<span id='count'>0</span>)</span><button id='clear' style='margin-left:auto'>Clear</button></div>
+  <div id='wps'></div>
+</div>
+<script>
+(function(){
+  var map=L.map('map',{tapTolerance:25});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+  map.setView([-27.47,153.03],8);
+  var waypoints=[]; var markers=L.layerGroup().addTo(map); var stationsByName={};
+
+  function esc(s){ return String(s||'').replace(/[&<>\"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  function render(){
+    markers.clearLayers();
+    var el=document.getElementById('wps'); el.innerHTML='';
+    document.getElementById('count').textContent=waypoints.length;
+    var pts=[];
+    waypoints.forEach(function(w,i){
+      pts.push([w.lat,w.lon]);
+      var m=L.marker([w.lat,w.lon]).addTo(markers).bindPopup('<b>'+esc(w.name||('Waypoint '+(i+1)))+'</b><br>'+w.lat+', '+w.lon+'<br><a href="https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(w.lat+','+w.lon)+'&travelmode=driving" target="_blank" rel="noopener">Directions</a>');
+      var d=document.createElement('div'); d.className='wp';
+      d.innerHTML='<b>'+(i+1)+'. '+esc(w.name||('Waypoint '+(i+1)))+'</b><div class="muted">'+w.lat+', '+w.lon+' · '+esc(w.source||'manual')+'</div><div style="margin-top:.35rem"><button data-i="'+i+'">Remove</button> <a href="https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(w.lat+','+w.lon)+'&travelmode=driving" target="_blank" rel="noopener" style="color:#7fc8ff">Directions</a></div>';
+      d.querySelector('button').addEventListener('click', function(){ waypoints.splice(i,1); render(); });
+      el.appendChild(d);
+    });
+    if(pts.length){ map.fitBounds(L.latLngBounds(pts).pad(0.18)); }
+  }
+
+  function addWp(name, lat, lon, source){
+    lat=Number(lat); lon=Number(lon);
+    if(!isFinite(lat)||!isFinite(lon)) return;
+    waypoints.push({name:name||'', lat:lat, lon:lon, source:source||'manual'});
+    render();
+  }
+
+  function loadStations(){
+    fetch('/api/stations/catalog?limit=50000').then(function(r){ return r.json(); }).then(function(d){
+      var list=document.getElementById('stationsList'); list.innerHTML='';
+      (d.stations||[]).forEach(function(s){
+        if(!s||!s.name) return;
+        stationsByName[s.name]=s;
+        var o=document.createElement('option'); o.value=s.name; o.label=s.name+' ('+s.lat+', '+s.lon+')'; list.appendChild(o);
+      });
+    });
+  }
+
+  document.getElementById('addStation').addEventListener('click', function(){
+    var n=(document.getElementById('stationPick').value||'').trim();
+    var s=stationsByName[n]; if(!s) return;
+    addWp(n, s.lat, s.lon, 'station');
+  });
+  document.getElementById('addLatLon').addEventListener('click', function(){
+    addWp((document.getElementById('wpName').value||'').trim(), document.getElementById('lat').value, document.getElementById('lon').value, 'latlon');
+  });
+  document.getElementById('addAddr').addEventListener('click', function(){
+    var q=(document.getElementById('addr').value||'').trim(); if(!q) return;
+    fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q='+encodeURIComponent(q),{headers:{'Accept':'application/json'}})
+      .then(function(r){return r.json();})
+      .then(function(a){ if(!a||!a.length) return; addWp(q, a[0].lat, a[0].lon, 'address'); });
+  });
+  map.on('click', function(ev){ addWp('Map point', ev.latlng.lat, ev.latlng.lng, 'map'); });
+  document.getElementById('clear').addEventListener('click', function(){ waypoints=[]; render(); });
+
+  loadStations(); render();
 })();
 </script>
 </div></body></html>"""
@@ -3000,6 +3091,15 @@ class Handler(BaseHTTPRequestHandler):
 
         if parsed.path == '/stations-map':
             payload = STATIONS_MAP_HTML.replace('__NAV__', NAV_HTML).encode('utf-8')
+            self.send_response(HTTPStatus.OK)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Content-Length', str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
+
+        if parsed.path == '/trip':
+            payload = TRIP_HTML.replace('__NAV__', NAV_HTML).encode('utf-8')
             self.send_response(HTTPStatus.OK)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
             self.send_header('Content-Length', str(len(payload)))

@@ -43,7 +43,8 @@ Current goals:
 - `/radio` Live RF health, waveform/waterfall, and browser audio monitor
 - `/data` Data explorer (hot+cold query modes; `/trends` alias retained)
 - `/path` Path analysis MVP (single-link budget + profile)
-- `/stations` Station registry upload + pair prefilter (<=100 km)
+- `/stations` Station registry upload/editing
+- `/trip` Trip planning with station/address/latlon/map waypoints
 - `/admin` Runtime policy/control
 - `/forensics` Deep diagnostics page (flowgraph inventory/connectivity + decode review checklist)
 
