@@ -1227,7 +1227,7 @@ __NAV__
       card.innerHTML=''
         +'<summary><strong>'+esc(r.name||r.unitname||('Station #'+r.index))+'</strong> <span class="muted">#'+r.index+' · ID '+esc(r.unitid||'-')+'</span></summary>'
         +'<div class="st-body">'
-        +((cLat&&cLon)?('<div style="margin-bottom:.45rem"><a href="'+cDir+'" target="_blank" rel="noopener" style="color:#7fc8ff">Directions</a> · <a href="'+streetPanoUrl(cLat,cLon)+'" target="_blank" rel="noopener" style="color:#7fc8ff">Open Street</a> · <button class="street-inline" type="button">Preview</button></div><img class="street-inline-img" style="display:none;width:100%;max-height:180px;object-fit:cover;border:1px solid #2a3948;border-radius:6px">'):'')
+        +((cLat&&cLon)?('<div style="margin-bottom:.45rem"><a href="'+cDir+'" target="_blank" rel="noopener" style="color:#7fc8ff">Directions</a> · <a href="'+streetPanoUrl(cLat,cLon)+'" target="_blank" rel="noopener" style="color:#7fc8ff">Open Street</a> · <button class="street-inline" type="button">Preview</button></div><img class="street-inline-img" style="display:none;width:100%;max-height:180px;object-fit:cover;border:1px solid #2a3948;border-radius:6px"><div class="street-inline-note muted" style="display:none;margin-top:.25rem"></div>'):'')
         +'<div class="grid">'
         +'<div><label>Name</label><input data-k="name" value="'+esc(r.name||r.unitname||'')+'"></div>'
         +'<div><label>Enabled</label><input data-k="enabled" value="'+esc(r.enabled||'')+'"></div>'
@@ -1242,12 +1242,16 @@ __NAV__
       var sbtn=card.querySelector('.street-inline');
       if(sbtn){ sbtn.addEventListener('click', function(){
         var im=card.querySelector('.street-inline-img');
+        var note=card.querySelector('.street-inline-note');
         if(!im) return;
-        var pano=streetPanoUrl(cLat,cLon);
+        if(note) note.style.display='none';
         im.style.display='block';
         im.onerror=function(){
           im.style.display='none';
-          window.open(pano, '_blank');
+          if(note){
+            note.style.display='block';
+            note.innerHTML='Inline Street preview unavailable on this device/browser. Use <a href="'+streetPanoUrl(cLat,cLon)+'" target="_blank" rel="noopener" style="color:#7fc8ff">Open Street</a>.';
+          }
         };
         im.src=streetUrl(cLat,cLon,640,280);
       }); }
