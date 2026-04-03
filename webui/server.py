@@ -3197,6 +3197,26 @@ class Handler(BaseHTTPRequestHandler):
 
         self.send_error(HTTPStatus.NOT_FOUND)
 
+    def do_HEAD(self):
+        parsed = urlparse(self.path)
+        html_paths = {
+            '/', '/events', '/trends', '/data', '/path', '/stations', '/stations-map', '/map',
+            '/trip', '/radio', '/forensics', '/about', '/admin'
+        }
+        if parsed.path in html_paths:
+            self.send_response(HTTPStatus.OK)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Content-Length', '0')
+            self.end_headers()
+            return
+        if parsed.path.startswith('/api/'):
+            self.send_response(HTTPStatus.OK)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Content-Length', '0')
+            self.end_headers()
+            return
+        self.send_error(HTTPStatus.NOT_FOUND)
+
     def do_GET(self):
         parsed = urlparse(self.path)
         if parsed.path in ['/', '/events']:
