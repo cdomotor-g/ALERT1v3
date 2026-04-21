@@ -2238,6 +2238,80 @@ def _pair_pattern_stats(store: 'EventStore', limit: int = 2000):
     }
 
 
+def _anomaly_stats(store: 'EventStore', limit: int = 4000):
+    limit = max(100, min(int(limit), 50000))
+    try:
+        store.poll_new()
+        evs = list(store.events)[-limit:]
+    except Exception:
+        evs = []
+
+    total = 0
+    zero_sid = 0
+    zero_val = 0
+    sid_8191 = 0
+    val_2047 = 0
+    tuple_8191_2047 = 0
+
+    for ev in evs:
+        de = (ev or {}).get('decode') or {}
+        if 'sensor_id' not in de and 'data_val' not in de:
+            continue
+        total += 1
+        sid = de.get('sensor_id')
+        val = de.get('data_val')
+        try:
+            sid_i = int(sid)
+        except Exception:
+            sid_i = None
+        try:
+            val_i = int(val)
+        except Exception:
+            val_i = None
+
+        if sid_i == 0:
+            zero_sid += 1
+        if val_i == 0:
+            zero_val += 1
+        if sid_i == 8191:
+            sid_8191 += 1
+        if val_i == 2047:
+            val_2047 += 1
+        if sid_i == 8191 and val_i == 2047:
+            tuple_8191_2047 += 1
+
+    def pct(x):
+        return round((100.0 * x / total), 3) if total > 0 else 0.0
+
+    return {
+        'schema': 'fwlab.anomaly_stats.v1',
+        'ts': datetime.utcnow().isoformat() + 'Z',
+        'sample_limit': limit,
+        'decoded_frames': total,
+        'counts': {
+            'sensor_id_0': zero_sid,
+            'data_val_0': zero_val,
+            'sensor_id_8191': sid_8191,
+            'data_val_2047': val_2047,
+            'tuple_8191_2047': tuple_8191_2047,
+        },
+        'pct': {
+            'sensor_id_0': pct(zero_sid),
+            'data_val_0': pct(zero_val),
+            'sensor_id_8191': pct(sid_8191),
+            'data_val_2047': pct(val_2047),
+            'tuple_8191_2047': pct(tuple_8191_2047),
+        },
+        'acceptance_targets': {
+            'reduce_sensor_id_0': True,
+            'reduce_data_val_0': True,
+            'reduce_sensor_id_8191': True,
+            'reduce_data_val_2047': True,
+            'reduce_tuple_8191_2047': True,
+        }
+    }
+
+
 def _forensics_bundle(store: 'EventStore', limit: int = 300):
     limit = max(10, min(int(limit), 2000))
     events = []
@@ -3406,6 +3480,11 @@ class Handler(BaseHTTPRequestHandler):
             q = parse_qs(parsed.query)
             limit = int(q.get('limit', ['2000'])[0])
             return self._json(_pair_pattern_stats(self.store, limit=limit))
+
+        if parsed.path == '/api/anomaly_stats':
+            q = parse_qs(parsed.query)
+            limit = int(q.get('limit', ['4000'])[0])
+            return self._json(_anomaly_stats(self.store, limit=limit))
 
         if parsed.path == '/api/rx_agg':
             if RX_AGG_JSON_PATH.exists():

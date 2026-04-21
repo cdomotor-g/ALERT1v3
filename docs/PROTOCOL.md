@@ -117,6 +117,16 @@ Decoder framing model (current):
 
 ### Acceptance criteria for AFSK parity trial
 
+Live monitoring endpoint:
+- `GET /api/anomaly_stats?limit=4000`
+- Tracks counts and percentages for:
+  - `sensor_id=0`
+  - `data_val=0`
+  - `sensor_id=8191`
+  - `data_val=2047` (`002047` display form)
+  - tuple `8191/2047`
+
+
 - Maintain existing decode stability in `legacy_fsk` mode (no regression in frame rate/errors).
 - In A/B trials against OEM-style captures, reduce incidence of known anomalous tuples:
   - `sensor_id=8191`
