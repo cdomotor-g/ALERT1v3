@@ -33,6 +33,8 @@ def _build_stamp():
 BUILD_STAMP = _build_stamp()
 RX_AGG_JSON_PATH = Path('rf_log/rx_agg.json')
 STATIONS_CSV_PATH = Path('config/stations.csv')
+SENSOR_MAP_CSV_PATH = Path('config/sensor_map.csv')
+FILE_DROP_DIR = Path('uploads/file_drop')
 PATH_DEFAULTS_PATH = Path('config/path_defaults.json')
 NAV_HTML = f"""
 <style>
@@ -89,13 +91,14 @@ h2{{font-weight:650;letter-spacing:.2px;}}
     <div class='fw-build' style='padding:0 .45rem .4rem'>build {BUILD_STAMP}</div>
     <nav class='fw-nav'>
       <a href='/'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 10.5 12 3l9 7.5'/><path d='M5 9.5V21h14V9.5'/></svg></span><span class='fw-label'>Dashboard</span></a>
-      <a href='/events'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='4' width='16' height='16' rx='2'/><path d='M8 9h8M8 13h8M8 17h5'/></svg></span><span class='fw-label'>Events</span></a>
+      <a href='/packets'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='4' width='16' height='16' rx='2'/><path d='M8 9h8M8 13h8M8 17h5'/></svg></span><span class='fw-label'>Packets</span></a>
       <a href='/radio'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 12h3m12 0h3'/><circle cx='12' cy='12' r='2.5'/><path d='M6.5 8.5a8 8 0 0 1 0 7M17.5 8.5a8 8 0 0 1 0 7'/></svg></span><span class='fw-label'>Radio</span></a>
       <a href='/data'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 19h16'/><path d='m6 15 4-4 3 2 5-6'/><path d='m18 7 0 3h-3'/></svg></span><span class='fw-label'>Data</span></a>
       <a href='/path'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 20V9'/><path d='M4 9c2.5-1.5 5.5-1.5 8 0s5.5 1.5 8 0v11c-2.5 1.5-5.5 1.5-8 0s-5.5-1.5-8 0'/><circle cx='4' cy='9' r='1.2'/><circle cx='20' cy='9' r='1.2'/></svg></span><span class='fw-label'>Path</span></a>
       <a href='/stations'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v18'/><path d='M5 8h14'/><path d='M5 16h14'/><circle cx='12' cy='3' r='1.2'/></svg></span><span class='fw-label'>Stations</span></a>
       <a href='/stations-map'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z'/><path d='M9 4v14'/><path d='M15 6v14'/></svg></span><span class='fw-label'>Stations Map</span></a>
       <a href='/trip'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 7h13'/><path d='M3 12h9'/><path d='M3 17h11'/><path d='M17 7l4 4-4 4'/></svg></span><span class='fw-label'>Trip</span></a>
+      <a href='/file_drop'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v12'/><path d='m8 11 4 4 4-4'/><path d='M4 20h16'/></svg></span><span class='fw-label'>File Drop</span></a>
       <a href='/admin'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='3'/><path d='M19.4 15a1 1 0 0 0 .2 1.1l.1.1a2 2 0 0 1-2.8 2.8l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V20a2 2 0 0 1-4 0v-.2a1 1 0 0 0-.6-.9 1 1 0 0 0-1.1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H4a2 2 0 0 1 0-4h.2a1 1 0 0 0 .9-.6 1 1 0 0 0-.2-1.1l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1 1 0 0 0 1.1.2h0a1 1 0 0 0 .6-.9V4a2 2 0 0 1 4 0v.2a1 1 0 0 0 .6.9h0a1 1 0 0 0 1.1-.2l.1-.1a2 2 0 0 1 2.8 2.8l-.1.1a1 1 0 0 0-.2 1.1v0a1 1 0 0 0 .9.6H20a2 2 0 0 1 0 4h-.2a1 1 0 0 0-.9.6z'/></svg></span><span class='fw-label'>Admin</span></a>
       <a href='/forensics'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='6.5'/><path d='M20 20l-4.2-4.2'/><path d='M11 8.5v5M8.5 11h5'/></svg></span><span class='fw-label'>Forensics</span></a>
       <a href='/about'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M12 11v5'/><circle cx='12' cy='8' r='1'/></svg></span><span class='fw-label'>About</span></a>
@@ -188,7 +191,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     </div>
 
     <div class='card'>
-      Host metrics: <span id='hm-status' class='muted'>n/a</span> · CPU <span id='hm-cpu'>-</span>% · RAM <span id='hm-mem'>-</span>% · Disk <span id='hm-disk'>-</span>% · Temp <span id='hm-temp'>-</span>°C · Load/core <span id='hm-load'>-</span> · Breaches <span id='hm-breach'>0</span>
+      Host metrics: <span id='hm-status' class='muted'>n/a</span> · Clock <span id='hm-clock'>-</span> · CPU <span id='hm-cpu'>-</span>% · RAM <span id='hm-mem'>-</span>% · Disk <span id='hm-disk'>-</span>% · Temp <span id='hm-temp'>-</span>°C · Load/core <span id='hm-load'>-</span> · Breaches <span id='hm-breach'>0</span>
     </div>
 
 
@@ -243,7 +246,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   var tableControlsCard=document.getElementById('table-controls-card');
   var rxSection=document.getElementById('rx-section');
   var rfControlsSection=document.getElementById('rf-controls-section');
-  var isEventsPage = (window.location.pathname === '/events');
+  var isEventsPage = (window.location.pathname === '/events' || window.location.pathname === '/packets');
   if(dataSection && !isEventsPage){ dataSection.style.display='none'; }
   if(tableControlsCard && !isEventsPage){ tableControlsCard.style.display='none'; }
   if(rxSection && isEventsPage){ rxSection.style.display='none'; }
@@ -329,7 +332,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   if(isEventsPage){
     var t=document.getElementById('pageTitle');
     if(t){
-      t.innerHTML = "<span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='4' width='16' height='16' rx='2'/><path d='M8 9h8M8 13h8M8 17h5'/></svg></span><span>Events</span>";
+      t.innerHTML = "<span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='4' width='16' height='16' rx='2'/><path d='M8 9h8M8 13h8M8 17h5'/></svg></span><span>Packets</span>";
     }
   }
   if(filtersToggle){ filtersToggle.addEventListener('click', function(){
@@ -586,7 +589,9 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
       function hasErr(prefix){ for(var ei=0;ei<errCodes.length;ei++){ if(String(errCodes[ei]).indexOf(prefix)===0) return true; } return false; }
       var de=g(ev,'decode',{});
       var sid=g(de,'sensor_id','');
-      var sidLink = (sid!=='' && sid!==null && sid!==undefined) ? ('<a style="color:#7fc8ff" href="/data?sensor_id='+encodeURIComponent(String(sid))+'&window=24h">'+sid+'</a>') : '';
+      var sm=g(ev,'sensor_map',null);
+      var sensorLabel = sm ? (g(sm,'sensor','') || g(sm,'site','') || sid) : sid;
+      var sidLink = (sid!=='' && sid!==null && sid!==undefined) ? ('<a style="color:#7fc8ff" href="/data?sensor_id='+encodeURIComponent(String(sid))+'&window=24h">'+sensorLabel+'</a>') : '';
 
       var orHtml = hasErr('signal.bit_balance_extreme') ? ('<span class="bad">'+or+'</span>') : or;
       var snrHtml = hasErr('signal.low_snr_proxy') ? ('<span class="bad">'+snr+'</span>') : snr;
@@ -660,6 +665,8 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   function renderHost(m){
     document.getElementById('hm-status').textContent = g(m,'status','n/a');
     var mm=g(m,'metrics',{});
+    var t=g(m,'ts','');
+    document.getElementById('hm-clock').textContent = t ? fmtTs(t) : '-';
     document.getElementById('hm-cpu').textContent = g(mm,'cpu_percent','-');
     document.getElementById('hm-mem').textContent = g(mm,'mem_percent','-');
     document.getElementById('hm-disk').textContent = g(mm,'disk_percent','-');
@@ -828,6 +835,41 @@ def _save_path_defaults(d):
         raise ValueError('defaults must be object')
     PATH_DEFAULTS_PATH.parent.mkdir(parents=True, exist_ok=True)
     PATH_DEFAULTS_PATH.write_text(json.dumps(d, indent=2), encoding='utf-8')
+
+
+def _load_sensor_map(limit=50000):
+    out = {}
+    if not SENSOR_MAP_CSV_PATH.exists():
+        return out
+    try:
+        with SENSOR_MAP_CSV_PATH.open('r', encoding='utf-8', errors='replace', newline='') as fh:
+            rdr = csv.DictReader(fh)
+            for i, r in enumerate(rdr):
+                if i >= limit:
+                    break
+                site = (r.get('Site') or r.get('site') or '').strip()
+                sensor = (r.get('Sensor') or r.get('sensor') or '').strip()
+                sid = (r.get('Sensor ID') or r.get('sensor_id') or '').strip()
+                bom = (r.get('Site ID') or r.get('site_id') or '').strip()
+                arro_site = (r.get('site_id') or '').strip()
+                device_id = (r.get('device_id') or '').strip()
+                alert1_id = ''
+                if sid:
+                    parts = sid.split('.')
+                    alert1_id = (parts[-1] if parts else sid).strip()
+                if alert1_id:
+                    out[str(alert1_id)] = {
+                        'site': site,
+                        'site_id_bom': bom,
+                        'sensor': sensor,
+                        'sensor_id': sid,
+                        'alert1_id': alert1_id,
+                        'arro_site_id': arro_site,
+                        'arro_device_id': device_id,
+                    }
+    except Exception:
+        return {}
+    return out
 
 
 def _save_stations_rows(rows):
@@ -1139,7 +1181,7 @@ __NAV__
 </div>
 <div class='card mini'>Stations loaded: <span id='count'>0</span> · Showing: <span id='shown'>0</span></div>
 <div class='card' id='streetCard' style='display:none'><div id='streetTitle' style='margin-bottom:.35rem'></div><img id='streetImg' alt='Street View' style='width:100%;max-height:260px;object-fit:cover;border:1px solid #2a3948;border-radius:6px'><div id='streetNote' class='muted' style='margin-top:.25rem'></div></div>
-<div class='card table-wrap'><table class='st-table'><thead><tr><th>#</th><th>Unit ID</th><th>Name</th><th>Enabled</th><th>Lat</th><th>Lon</th><th>Elevation</th><th>Icon</th><th>Style</th><th>Locked</th><th>Directions</th><th>Street</th><th></th></tr></thead><tbody id='rows'></tbody></table></div>
+<div class='card table-wrap'><table class='st-table'><thead><tr><th>#</th><th>BoM_Stn#</th><th>Name</th><th>Enabled</th><th>Lat</th><th>Lon</th><th>Elevation</th><th>Icon</th><th>Style</th><th>Locked</th><th>Directions</th><th>Street</th><th></th></tr></thead><tbody id='rows'></tbody></table></div>
 <div class='card cards' id='cards'></div>
 <script>
 (function(){
@@ -1302,12 +1344,15 @@ __NAV__
   <input id='q' placeholder='Type to filter markers by name/id...' style='min-width:280px'>
   <label class='muted' style='margin-left:.6rem'><input id='clustersOn' type='checkbox' checked> clusters</label>
   <span class='muted'>Total: <span id='total'>0</span> · Visible: <span id='vis'>0</span></span>
+  <div id='pktFlash' class='touch-note'>Waiting for packets...</div>
   <div class='touch-note'>Tap a cluster to zoom. Marker touch targets enlarged for mobile.</div>
 </div>
 <div class='card'><div id='map'></div></div>
 <script>
 (function(){
   var all=[], map=L.map('map',{tapTolerance:25});
+  var pointMarkersByName={};
+  function norm(s){ return String(s||'').trim().toLowerCase().replace(/\s+/g,' '); }
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
   var clustered=(L.markerClusterGroup ? L.markerClusterGroup({
     chunkedLoading:true,
@@ -1335,6 +1380,7 @@ __NAV__
     var q=(document.getElementById('q').value||'').trim();
     clustered.clearLayers();
     plain.clearLayers();
+    pointMarkersByName={};
     var pts=[];
     all.forEach(function(r){
       if(!match(r,q)) return;
@@ -1351,6 +1397,7 @@ __NAV__
       });
       m.bindPopup(markerHtml(r,lat,lon));
       m.on('click', function(){ m.openPopup(); });
+      pointMarkersByName[norm(r.name||r.unitname||'')] = m;
       if(useClusters) clustered.addLayer(m); else plain.addLayer(m);
     });
     document.getElementById('vis').textContent=pts.length;
@@ -1360,6 +1407,29 @@ __NAV__
     all=d.rows||[]; document.getElementById('total').textContent=all.length; render();
     setTimeout(function(){ map.invalidateSize(); }, 120);
   }).catch(function(){ setTimeout(function(){ map.invalidateSize(); }, 120); });
+  function flashForPacket(ev){
+    var sm=(ev&&ev.sensor_map)||null;
+    var pf=document.getElementById('pktFlash');
+    if(!pf) return;
+    if(sm && sm.site){
+      var key=norm(sm.site), m=pointMarkersByName[key];
+      if(m){
+        var ll=m.getLatLng();
+        var pulse=L.circleMarker(ll,{radius:14,color:'#ff2d55',weight:3,fillOpacity:0}).addTo(map).bringToFront();
+        setTimeout(function(){ try{ map.removeLayer(pulse); }catch(e){} }, 900);
+        pf.textContent='Packet mapped: '+sm.site+' ('+(sm.sensor||'')+')';
+        pf.style.color='#ff9f1c';
+        setTimeout(function(){ pf.style.color=''; }, 900);
+      } else {
+        pf.textContent='Packet unmatched station on map: '+sm.site;
+        pf.style.color='#f36f6f';
+      }
+    } else {
+      pf.textContent='Packet received with no station mapping';
+      pf.style.color='#f36f6f';
+    }
+  }
+
   document.getElementById('q').addEventListener('input', render);
   document.getElementById('clustersOn').addEventListener('change', function(){
     useClusters=!!this.checked;
@@ -1367,6 +1437,11 @@ __NAV__
     else { if(map.hasLayer(clustered)) map.removeLayer(clustered); if(!map.hasLayer(plain)) map.addLayer(plain); }
     render();
   });
+
+  var es=new EventSource('/api/live');
+  es.onmessage=function(m){
+    try{ var ev=JSON.parse(m.data); flashForPacket(ev); }catch(e){}
+  };
 })();
 </script>
 </div></body></html>"""
@@ -1563,6 +1638,30 @@ __NAV__
   document.getElementById('clear').addEventListener('click', function(){ waypoints=[]; routeLayer.clearLayers(); document.getElementById('routeInfo').textContent=''; render(); });
 
   loadStations(); render();
+})();
+</script>
+</div></body></html>"""
+
+FILE_DROP_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB File Drop</title>
+<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem}.muted{color:#9fb0c3}</style></head><body><div class='page'>
+<h2 style='margin-top:0'>File Drop</h2>
+__NAV__
+<div class='card'>
+  <input id='f' type='file'> <button id='u'>Upload</button>
+  <div id='m' class='muted' style='margin-top:.4rem'></div>
+</div>
+<script>
+(function(){
+  document.getElementById('u').addEventListener('click', function(){
+    var f=document.getElementById('f').files[0]; if(!f){ document.getElementById('m').textContent='choose file first'; return; }
+    var fr=new FileReader();
+    fr.onload=function(){
+      fetch('/api/file_drop/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:f.name, content:String(fr.result||'')})})
+      .then(function(r){return r.json();}).then(function(d){ document.getElementById('m').textContent = d.ok ? ('uploaded: '+(d.path||'')) : ('upload failed: '+(d.error||'unknown')); })
+      .catch(function(){ document.getElementById('m').textContent='upload failed'; });
+    };
+    fr.readAsText(f);
+  });
 })();
 </script>
 </div></body></html>"""
@@ -2253,6 +2352,25 @@ def _pair_pattern_stats(store: 'EventStore', limit: int = 2000):
         'goodish_top': top_rows(goodish, 12),
         'strict_top': top_rows(strict, 12),
     }
+
+
+def _with_sensor_mapping(events):
+    sm = _load_sensor_map()
+    if not sm:
+        return events
+    out = []
+    for ev in (events or []):
+        try:
+            e = dict(ev)
+            de = dict((e.get('decode') or {}))
+            sid = str(de.get('sensor_id', '')).strip()
+            if sid and sid in sm:
+                e['sensor_map'] = sm[sid]
+            e['decode'] = de
+            out.append(e)
+        except Exception:
+            out.append(ev)
+    return out
 
 
 def _anomaly_stats(store: 'EventStore', limit: int = 4000):
@@ -3209,6 +3327,25 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 return self._json({'ok': False, 'error': str(e)}, code=400)
 
+        if parsed.path == '/api/file_drop/upload':
+            try:
+                length = int(self.headers.get('Content-Length', '0'))
+                raw = self.rfile.read(length) if length > 0 else b'{}'
+                body = json.loads(raw.decode('utf-8', errors='replace'))
+                fn = os.path.basename(str(body.get('filename', 'upload.txt')).strip() or 'upload.txt')
+                content = str(body.get('content', ''))
+                FILE_DROP_DIR.mkdir(parents=True, exist_ok=True)
+                outp = FILE_DROP_DIR / fn
+                outp.write_text(content, encoding='utf-8', errors='replace')
+                # auto-capture station/sensor mapping file shape
+                low = fn.lower()
+                if low.endswith('.csv') and ('sensor id' in content.lower() and 'site id' in content.lower() and 'device_id' in content.lower()):
+                    SENSOR_MAP_CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
+                    SENSOR_MAP_CSV_PATH.write_text(content, encoding='utf-8', errors='replace')
+                return self._json({'ok': True, 'path': str(outp)})
+            except Exception as e:
+                return self._json({'ok': False, 'error': str(e)}, code=400)
+
         if parsed.path == '/api/views':
             try:
                 length = int(self.headers.get('Content-Length', '0'))
@@ -3291,7 +3428,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_HEAD(self):
         parsed = urlparse(self.path)
         html_paths = {
-            '/', '/events', '/trends', '/data', '/path', '/stations', '/stations-map', '/map',
+            '/', '/events', '/packets', '/trends', '/data', '/path', '/stations', '/stations-map', '/map',
             '/trip', '/radio', '/forensics', '/about', '/admin'
         }
         if parsed.path in html_paths:
@@ -3310,7 +3447,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
-        if parsed.path in ['/', '/events']:
+        if parsed.path in ['/', '/events', '/packets']:
             payload = HTML.replace('__NAV__', NAV_HTML).encode('utf-8')
             self.send_response(HTTPStatus.OK)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
@@ -3357,6 +3494,15 @@ class Handler(BaseHTTPRequestHandler):
 
         if parsed.path == '/trip':
             payload = TRIP_HTML.replace('__NAV__', NAV_HTML).encode('utf-8')
+            self.send_response(HTTPStatus.OK)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Content-Length', str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
+
+        if parsed.path == '/file_drop':
+            payload = FILE_DROP_HTML.replace('__NAV__', NAV_HTML).encode('utf-8')
             self.send_response(HTTPStatus.OK)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
             self.send_header('Content-Length', str(len(payload)))
@@ -3561,6 +3707,7 @@ class Handler(BaseHTTPRequestHandler):
             limit = max(1, min(limit, 4000))
             self.store.poll_new()
             events = list(self.store.events)[-limit:]
+            events = _with_sensor_mapping(events)
             return self._json({'events': events, 'count': len(self.store.events), 'source': str(self.store.path)})
 
         if parsed.path == '/api/sensors':
@@ -3686,7 +3833,7 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 while True:
                     new_events = self.store.poll_new()
-                    for ev in new_events:
+                    for ev in _with_sensor_mapping(new_events):
                         self.wfile.write(f"data: {json.dumps(ev, default=str)}\n\n".encode('utf-8'))
                     self.wfile.flush()
                     time.sleep(1.0)
