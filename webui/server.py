@@ -2130,12 +2130,14 @@ __NAV__
 4) Compare pre/post filter and demod taps for bias (e.g. all-ones drift).
 5) Quantify quality metrics (ones_ratio, snr proxy, eye opening) over soak windows.</pre></div>
 <div class='card'><strong>Fixed-pair pattern stats (recent sample)</strong><pre id='pairStats'>loading...</pre></div>
+<div class='card'><strong>AFSK parity acceptance tracker (anomaly stats)</strong><pre id='anomStats'>loading...</pre></div>
 <div class='card'><button id='exportBundle'>Export SME bundle (.json)</button> <span id='exportMsg' class='muted'></span></div>
 <script>
 (function(){
   function g(o,k,d){ return (o&&o[k]!==undefined&&o[k]!==null)?o[k]:d; }
   var exportBtn=document.getElementById('exportBundle'), exportMsg=document.getElementById('exportMsg');
   var pairStats=document.getElementById('pairStats');
+  var anomStats=document.getElementById('anomStats');
 
   fetch('/api/pair_pattern_stats?limit=4000').then(function(r){return r.json();}).then(function(d){
     function fmtRow(r){ return JSON.stringify(r.pattern)+'  -> '+r.count; }
@@ -2150,6 +2152,21 @@ __NAV__
     (d.overall_top||[]).slice(0,6).forEach(function(r){ lines.push('  '+fmtRow(r)); });
     if(pairStats) pairStats.textContent = lines.join('\n');
   }).catch(function(){ if(pairStats) pairStats.textContent='failed to load pattern stats'; });
+
+  fetch('/api/anomaly_stats?limit=4000').then(function(r){return r.json();}).then(function(d){
+    var c=d.counts||{}, p=d.pct||{};
+    var out=[];
+    out.push('decoded frames: '+(d.decoded_frames||0));
+    out.push('');
+    out.push('sensor_id=0      : '+(c.sensor_id_0||0)+' ('+(p.sensor_id_0||0)+'%)');
+    out.push('data_val=0       : '+(c.data_val_0||0)+' ('+(p.data_val_0||0)+'%)');
+    out.push('sensor_id=8191   : '+(c.sensor_id_8191||0)+' ('+(p.sensor_id_8191||0)+'%)');
+    out.push('data_val=2047    : '+(c.data_val_2047||0)+' ('+(p.data_val_2047||0)+'%)  [display 002047]');
+    out.push('tuple 8191/2047  : '+(c.tuple_8191_2047||0)+' ('+(p.tuple_8191_2047||0)+'%)');
+    out.push('');
+    out.push('acceptance target: all above percentages should trend down in A/B trials');
+    if(anomStats) anomStats.textContent = out.join('\n');
+  }).catch(function(){ if(anomStats) anomStats.textContent='failed to load anomaly stats'; });
 
   if(exportBtn){
     exportBtn.addEventListener('click', function(){
