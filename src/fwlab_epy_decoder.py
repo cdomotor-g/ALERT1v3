@@ -43,6 +43,9 @@ class alert_protocol_decoder(gr.basic_block):
         enforce_fixed_pairs=True,
         fixed_pair_hard_reject=False,
         fixed_pair_patterns_json='[[[1,0],[1,0],[1,1],[1,1]]]',
+        demod_mode='legacy_fsk',
+        afsk_mark_hz=2100.0,
+        afsk_space_hz=1300.0,
     ):
         gr.basic_block.__init__(
             self,
@@ -62,6 +65,9 @@ class alert_protocol_decoder(gr.basic_block):
         self.strict_mode = bool(strict_mode)
         self.enforce_fixed_pairs = bool(enforce_fixed_pairs)
         self.fixed_pair_hard_reject = bool(fixed_pair_hard_reject)
+        self.demod_mode = str(demod_mode or 'legacy_fsk')
+        self.afsk_mark_hz = float(afsk_mark_hz)
+        self.afsk_space_hz = float(afsk_space_hz)
 
         self.fixed_pair_patterns = [
             [[1, 0], [1, 0], [1, 1], [1, 1]],
@@ -132,6 +138,9 @@ class alert_protocol_decoder(gr.basic_block):
                 "center_freq_hz": self.center_freq_hz,
                 "rf_gain_db": self.rf_gain_db,
                 "rf_squelch_db": self.rf_squelch_db,
+                "demod_mode": self.demod_mode,
+                "afsk_mark_hz": self.afsk_mark_hz,
+                "afsk_space_hz": self.afsk_space_hz,
             },
             "display": f"ERROR: {error_code}",
             "schema": "alert.decode.v1",
@@ -245,6 +254,9 @@ class alert_protocol_decoder(gr.basic_block):
                     "center_freq_hz": self.center_freq_hz,
                     "rf_gain_db": self.rf_gain_db,
                     "rf_squelch_db": self.rf_squelch_db,
+                    "demod_mode": self.demod_mode,
+                    "afsk_mark_hz": self.afsk_mark_hz,
+                    "afsk_space_hz": self.afsk_space_hz,
                 },
                 "frame": {"payload_bits": ''.join(str(int(b)) for b in bits), "payload_hex": ""},
                 "decode": {},
@@ -349,6 +361,9 @@ class alert_protocol_decoder(gr.basic_block):
                 "center_freq_hz": self.center_freq_hz,
                 "rf_gain_db": self.rf_gain_db,
                 "rf_squelch_db": self.rf_squelch_db,
+                "demod_mode": self.demod_mode,
+                "afsk_mark_hz": self.afsk_mark_hz,
+                "afsk_space_hz": self.afsk_space_hz,
             },
             "display": summary,
             "schema": "alert.decode.v1",

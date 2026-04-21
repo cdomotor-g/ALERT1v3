@@ -105,6 +105,9 @@ class ALERT1v3(gr.top_block, Qt.QWidget):
         self.log_base_path = log_base_path = '/home/cdomotor/rf_log'
         self.demod_rate = demod_rate = samp_rate/decimation
         self.center_freq = center_freq = 173.9e6
+        self.demod_mode = demod_mode = 'legacy_fsk'
+        self.afsk_mark_hz = afsk_mark_hz = 2100.0
+        self.afsk_space_hz = afsk_space_hz = 1300.0
 
         # Optional runtime RF control override (saved by web admin)
         try:
@@ -118,6 +121,21 @@ class ALERT1v3(gr.top_block, Qt.QWidget):
                 self.center_freq = center_freq
                 self.rfGain = rfGain
                 self.rf_squelch = rf_squelch
+        except Exception:
+            pass
+
+        # Optional runtime demod profile override (AFSK scaffolding)
+        try:
+            demod_cfg_path = '/home/cdomotor/.openclaw/workspace/projects/ALERT1v3/config/demod_control.json'
+            if os.path.exists(demod_cfg_path):
+                with open(demod_cfg_path, 'r', encoding='utf-8') as f:
+                    _dm = json.load(f)
+                demod_mode = str(_dm.get('demod_mode', demod_mode))
+                afsk_mark_hz = float(_dm.get('afsk_mark_hz', afsk_mark_hz))
+                afsk_space_hz = float(_dm.get('afsk_space_hz', afsk_space_hz))
+                self.demod_mode = demod_mode
+                self.afsk_mark_hz = afsk_mark_hz
+                self.afsk_space_hz = afsk_space_hz
         except Exception:
             pass
 
@@ -506,7 +524,14 @@ class ALERT1v3(gr.top_block, Qt.QWidget):
                 window.WIN_HAMMING,
                 6.76))
         self.epy_block_2 = epy_block_2.mqtt_event_publisher(broker_host=mqtt_broker_host, broker_port=mqtt_broker_port, username=mqtt_username, password=mqtt_password, topic_prefix=mqtt_topic_prefix)
-        self.epy_block_1 = epy_block_1.alert_protocol_decoder()
+        self.epy_block_1 = epy_block_1.alert_protocol_decoder(
+            center_freq_hz=center_freq,
+            rf_gain_db=rfGain,
+            rf_squelch_db=rf_squelch,
+            demod_mode=demod_mode,
+            afsk_mark_hz=afsk_mark_hz,
+            afsk_space_hz=afsk_space_hz,
+        )
         self.epy_block_0 = epy_block_0.blk(base_path=log_base_path)
         self.digital_symbol_sync_xx_0 = digital.symbol_sync_ff(
             digital.TED_EARLY_LATE,

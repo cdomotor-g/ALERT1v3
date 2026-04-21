@@ -110,3 +110,17 @@ Decoder framing model (current):
 1. Tune quality heuristics against known-good and known-bad captures
 2. Add optional checksum/parity verification when protocol evidence is available
 3. Extend replay assertions with negative/noisy fixture cases
+4. Add optional AFSK profile controls (mark/space tone settings) for OEM parity experiments:
+   - `afsk_mark_hz` default `2100.0`
+   - `afsk_space_hz` default `1300.0`
+   - `demod_mode` default `legacy_fsk` (no behavior change yet; telemetry scaffold only)
+
+### Acceptance criteria for AFSK parity trial
+
+- Maintain existing decode stability in `legacy_fsk` mode (no regression in frame rate/errors).
+- In A/B trials against OEM-style captures, reduce incidence of known anomalous tuples:
+  - `sensor_id=8191`
+  - `data_val=002047`
+- Continue reducing historic anomaly buckets during remediation:
+  - `sensor_id=0`
+  - `data_val=0`
