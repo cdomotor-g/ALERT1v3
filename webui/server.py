@@ -2150,7 +2150,7 @@ __NAV__
     lines.push('');
     lines.push('overall top:');
     (d.overall_top||[]).slice(0,6).forEach(function(r){ lines.push('  '+fmtRow(r)); });
-    if(pairStats) pairStats.textContent = lines.join('\n');
+    if(pairStats) pairStats.textContent = lines.join('\\n');
   }).catch(function(){ if(pairStats) pairStats.textContent='failed to load pattern stats'; });
 
   fetch('/api/anomaly_stats?limit=4000').then(function(r){return r.json();}).then(function(d){
@@ -2165,7 +2165,7 @@ __NAV__
     out.push('tuple 8191/2047  : '+(c.tuple_8191_2047||0)+' ('+(p.tuple_8191_2047||0)+'%)');
     out.push('');
     out.push('acceptance target: all above percentages should trend down in A/B trials');
-    if(anomStats) anomStats.textContent = out.join('\n');
+    if(anomStats) anomStats.textContent = out.join('\\n');
   }).catch(function(){ if(anomStats) anomStats.textContent='failed to load anomaly stats'; });
 
   if(exportBtn){
