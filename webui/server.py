@@ -1687,7 +1687,7 @@ __NAV__
       else {
         var lines=[];
         a.forEach(function(x){ lines.push((x.mtime||'')+'  '+(x.type||'generic')+'  '+(x.name||'')+'  ('+(x.size||0)+' bytes)'); });
-        document.getElementById('lst').textContent=lines.join('\n');
+        document.getElementById('lst').textContent=lines.join('\\n');
       }
     }).catch(function(){ document.getElementById('lst').textContent='failed to load uploads'; });
 
