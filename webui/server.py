@@ -2536,7 +2536,7 @@ __NAV__
 5) Quantify quality metrics (ones_ratio, snr proxy, eye opening) over soak windows.</pre></div>
 <div class='card'><strong>Fixed-pair pattern stats (recent sample)</strong><pre id='pairStats'>loading...</pre></div>
 <div class='card'><strong>AFSK parity acceptance tracker (anomaly stats)</strong><pre id='anomStats'>loading...</pre></div>
-<div class='card'><strong>Demod/Decode error statistics</strong><div id='errStats'>loading...</div><pre id='errDesc' style='white-space:pre-wrap'>loading...</pre></div>
+<div class='card'><strong>Demod/Decode error statistics</strong><div id='errStats'>loading...</div><div id='errDesc' class='muted' style='margin-top:.6rem'>loading...</div></div>
 <div class='card'><button id='exportBundle'>Export SME bundle (.json)</button> <span id='exportMsg' class='muted'></span></div>
 <script>
 (function(){
@@ -2590,9 +2590,18 @@ __NAV__
       }
     }
     if(errDesc){
-      var lines=[];
-      rows.forEach(function(rw){ lines.push(rw.code+': '+(rw.description||'')); });
-      errDesc.textContent = lines.length ? lines.join('\\n') : 'no error descriptions to show';
+      if(!rows.length){
+        errDesc.textContent='no error descriptions to show';
+      } else {
+        var html='<div style="font-weight:600;margin-bottom:.35rem">Error descriptions</div>';
+        html+='<div style="display:grid;grid-template-columns:minmax(220px,320px) 1fr;gap:.35rem .8rem">';
+        rows.forEach(function(rw){
+          html+='<div style="font-family:monospace;color:#c6d4e3;background:#111925;border:1px solid #26384d;padding:.28rem .4rem;border-radius:4px">'+rw.code+'</div>';
+          html+='<div style="color:#d7e0ea;line-height:1.35">'+(rw.description||'')+'</div>';
+        });
+        html+='</div>';
+        errDesc.innerHTML=html;
+      }
     }
   }).catch(function(){ if(errStats) errStats.textContent='failed to load error stats'; if(errDesc) errDesc.textContent='failed to load descriptions'; });
 
