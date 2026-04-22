@@ -2578,12 +2578,28 @@ __NAV__
 
   fetch('/api/error_stats?limit=60000').then(function(r){return r.json();}).then(function(d){
     var rows=d.rows||[];
+    var totals=d.totals||{};
+    function fmtPct(v){ return (Number(v||0).toFixed(2))+'%'; }
     if(errStats){
       if(!rows.length){ errStats.textContent='no errors in sampled window'; }
       else {
-        var html='<table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left;border-bottom:1px solid #2a3948;padding:.25rem">Error type</th><th style="text-align:right;border-bottom:1px solid #2a3948;padding:.25rem">30m</th><th style="text-align:right;border-bottom:1px solid #2a3948;padding:.25rem">3h</th><th style="text-align:right;border-bottom:1px solid #2a3948;padding:.25rem">24h</th></tr></thead><tbody>';
+        var html='<table style="width:100%;border-collapse:collapse"><thead><tr>'
+          +'<th style="text-align:left;border-bottom:1px solid #2a3948;padding:.35rem">Error type</th>'
+          +'<th style="text-align:right;border-bottom:1px solid #2a3948;padding:.35rem">30m %</th>'
+          +'<th style="text-align:right;border-bottom:1px solid #2a3948;padding:.35rem">3h %</th>'
+          +'<th style="text-align:right;border-bottom:1px solid #2a3948;padding:.35rem">24h %</th>'
+          +'</tr></thead><tbody>';
+        html+='<tr style="background:#111925">'
+          +'<td style="padding:.35rem;border-bottom:1px solid #243243;font-weight:600">Total errors (100%)</td>'
+          +'<td style="padding:.35rem;text-align:right;border-bottom:1px solid #243243">'+(totals.count_30m||0)+'</td>'
+          +'<td style="padding:.35rem;text-align:right;border-bottom:1px solid #243243">'+(totals.count_3h||0)+'</td>'
+          +'<td style="padding:.35rem;text-align:right;border-bottom:1px solid #243243">'+(totals.count_24h||0)+'</td>'
+          +'</tr>';
         rows.forEach(function(rw){
-          html+='<tr><td style="padding:.25rem;border-bottom:1px solid #243243">'+rw.code+'</td><td style="padding:.25rem;text-align:right;border-bottom:1px solid #243243">'+rw.count_30m+'</td><td style="padding:.25rem;text-align:right;border-bottom:1px solid #243243">'+rw.count_3h+'</td><td style="padding:.25rem;text-align:right;border-bottom:1px solid #243243">'+rw.count_24h+'</td></tr>';
+          html+='<tr><td style="padding:.3rem;border-bottom:1px solid #243243">'+rw.code+'</td>'
+              +'<td style="padding:.3rem;text-align:right;border-bottom:1px solid #243243">'+fmtPct(rw.pct_30m)+'</td>'
+              +'<td style="padding:.3rem;text-align:right;border-bottom:1px solid #243243">'+fmtPct(rw.pct_3h)+'</td>'
+              +'<td style="padding:.3rem;text-align:right;border-bottom:1px solid #243243">'+fmtPct(rw.pct_24h)+'</td></tr>';
         });
         html+='</tbody></table>';
         errStats.innerHTML=html;
@@ -2772,12 +2788,22 @@ def _error_stats(store: 'EventStore', limit: int = 50000):
         return 'No description yet. Add protocol-specific note as decoder rules evolve.'
 
     rows = []
+    total_30m = sum(v['30m'] for v in counts.values())
+    total_3h = sum(v['3h'] for v in counts.values())
+    total_24h = sum(v['24h'] for v in counts.values())
+
+    def pct(v, t):
+        return round((100.0 * v / t), 3) if t > 0 else 0.0
+
     for code, c in sorted(counts.items(), key=lambda kv: (-kv[1]['24h'], kv[0])):
         rows.append({
             'code': code,
             'count_30m': c['30m'],
             'count_3h': c['3h'],
             'count_24h': c['24h'],
+            'pct_30m': pct(c['30m'], total_30m),
+            'pct_3h': pct(c['3h'], total_3h),
+            'pct_24h': pct(c['24h'], total_24h),
             'description': describe(code),
         })
 
@@ -2786,6 +2812,11 @@ def _error_stats(store: 'EventStore', limit: int = 50000):
         'ts': now.isoformat() + 'Z',
         'sample_limit': limit,
         'error_types': len(rows),
+        'totals': {
+            'count_30m': total_30m,
+            'count_3h': total_3h,
+            'count_24h': total_24h,
+        },
         'rows': rows,
     }
 
