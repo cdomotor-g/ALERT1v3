@@ -2536,7 +2536,17 @@ __NAV__
 5) Quantify quality metrics (ones_ratio, snr proxy, eye opening) over soak windows.</pre></div>
 <div class='card'><strong>Fixed-pair pattern stats (recent sample)</strong><pre id='pairStats'>loading...</pre></div>
 <div class='card'><strong>AFSK parity acceptance tracker (anomaly stats)</strong><pre id='anomStats'>loading...</pre></div>
-<div class='card'><strong>Demod/Decode error statistics</strong><div id='errStats'>loading...</div><div id='errDesc' class='muted' style='margin-top:.6rem'>loading...</div></div>
+<div class='card'><strong>Demod/Decode error statistics</strong>
+  <div style='margin:.4rem 0'>
+    <label class='muted'>Counting mode
+      <select id='errMode' style='margin-left:.35rem'>
+        <option value='occurrence'>Error occurrences</option>
+        <option value='primary_packet'>Primary error per packet</option>
+      </select>
+    </label>
+    <span id='errModeNote' class='muted' style='margin-left:.6rem'></span>
+  </div>
+  <div id='errStats'>loading...</div><div id='errDesc' class='muted' style='margin-top:.6rem'>loading...</div></div>
 <div class='card'><button id='exportBundle'>Export SME bundle (.json)</button> <span id='exportMsg' class='muted'></span></div>
 <script>
 (function(){
@@ -2576,51 +2586,73 @@ __NAV__
     if(anomStats) anomStats.textContent = out.join('\\n');
   }).catch(function(){ if(anomStats) anomStats.textContent='failed to load anomaly stats'; });
 
-  fetch('/api/error_stats?limit=60000').then(function(r){return r.json();}).then(function(d){
-    var rows=d.rows||[];
-    var totals=d.totals||{};
-    function fmtPct(v){ return (Number(v||0).toFixed(2))+'%'; }
-    if(errStats){
-      if(!rows.length){ errStats.textContent='no errors in sampled window'; }
-      else {
-        var html='<table style="width:100%;border-collapse:collapse"><thead><tr>'
-          +'<th style="text-align:left;border-bottom:1px solid #2a3948;padding:.35rem">Error type</th>'
-          +'<th style="text-align:right;border-bottom:1px solid #2a3948;padding:.35rem">30m %</th>'
-          +'<th style="text-align:right;border-bottom:1px solid #2a3948;padding:.35rem">3h %</th>'
-          +'<th style="text-align:right;border-bottom:1px solid #2a3948;padding:.35rem">24h %</th>'
-          +'</tr></thead><tbody>';
-        html+='<tr style="background:#111925">'
-          +'<td style="padding:.35rem;border-bottom:1px solid #243243;font-weight:600">Total errors (100%)</td>'
-          +'<td style="padding:.35rem;text-align:right;border-bottom:1px solid #243243">'+(totals.count_30m||0)+'</td>'
-          +'<td style="padding:.35rem;text-align:right;border-bottom:1px solid #243243">'+(totals.count_3h||0)+'</td>'
-          +'<td style="padding:.35rem;text-align:right;border-bottom:1px solid #243243">'+(totals.count_24h||0)+'</td>'
-          +'</tr>';
-        rows.forEach(function(rw){
-          html+='<tr><td style="padding:.3rem;border-bottom:1px solid #243243">'+rw.code+'</td>'
-              +'<td style="padding:.3rem;text-align:right;border-bottom:1px solid #243243">'+fmtPct(rw.pct_30m)+'</td>'
-              +'<td style="padding:.3rem;text-align:right;border-bottom:1px solid #243243">'+fmtPct(rw.pct_3h)+'</td>'
-              +'<td style="padding:.3rem;text-align:right;border-bottom:1px solid #243243">'+fmtPct(rw.pct_24h)+'</td></tr>';
-        });
-        html+='</tbody></table>';
-        errStats.innerHTML=html;
+  function loadErrorStats(){
+    var mode=(document.getElementById('errMode')||{}).value||'occurrence';
+    fetch('/api/error_stats?limit=60000&mode='+encodeURIComponent(mode)).then(function(r){return r.json();}).then(function(d){
+      var rows=d.rows||[];
+      var totals=d.totals||{};
+      var pktTotals=d.packet_totals||{};
+      var pktErr=d.packet_with_errors||{};
+      var modeNote=document.getElementById('errModeNote');
+      if(modeNote) modeNote.textContent=d.counting_note||'';
+      function fmtPct(v){ return (Number(v||0).toFixed(2))+'%'; }
+      if(errStats){
+        if(!rows.length){ errStats.textContent='no errors in sampled window'; }
+        else {
+          var html='<table style="width:100%;border-collapse:collapse"><thead><tr>'
+            +'<th style="text-align:left;border-bottom:1px solid #2a3948;padding:.35rem">Error type</th>'
+            +'<th style="text-align:right;border-bottom:1px solid #2a3948;padding:.35rem">30m %</th>'
+            +'<th style="text-align:right;border-bottom:1px solid #2a3948;padding:.35rem">3h %</th>'
+            +'<th style="text-align:right;border-bottom:1px solid #2a3948;padding:.35rem">24h %</th>'
+            +'</tr></thead><tbody>';
+          html+='<tr style="background:#111925">'
+            +'<td style="padding:.35rem;border-bottom:1px solid #243243;font-weight:600">Total errors (100%)</td>'
+            +'<td style="padding:.35rem;text-align:right;border-bottom:1px solid #243243">'+(totals.count_30m||0)+'</td>'
+            +'<td style="padding:.35rem;text-align:right;border-bottom:1px solid #243243">'+(totals.count_3h||0)+'</td>'
+            +'<td style="padding:.35rem;text-align:right;border-bottom:1px solid #243243">'+(totals.count_24h||0)+'</td>'
+            +'</tr>';
+          html+='<tr style="background:#0f1722">'
+            +'<td style="padding:.35rem;border-bottom:1px solid #243243;font-weight:600">Packets in window</td>'
+            +'<td style="padding:.35rem;text-align:right;border-bottom:1px solid #243243">'+(pktTotals['30m']||0)+'</td>'
+            +'<td style="padding:.35rem;text-align:right;border-bottom:1px solid #243243">'+(pktTotals['3h']||0)+'</td>'
+            +'<td style="padding:.35rem;text-align:right;border-bottom:1px solid #243243">'+(pktTotals['24h']||0)+'</td>'
+            +'</tr>';
+          html+='<tr style="background:#0f1722">'
+            +'<td style="padding:.35rem;border-bottom:1px solid #243243;font-weight:600">Packets with any error</td>'
+            +'<td style="padding:.35rem;text-align:right;border-bottom:1px solid #243243">'+(pktErr['30m']||0)+'</td>'
+            +'<td style="padding:.35rem;text-align:right;border-bottom:1px solid #243243">'+(pktErr['3h']||0)+'</td>'
+            +'<td style="padding:.35rem;text-align:right;border-bottom:1px solid #243243">'+(pktErr['24h']||0)+'</td>'
+            +'</tr>';
+          rows.forEach(function(rw){
+            html+='<tr><td style="padding:.3rem;border-bottom:1px solid #243243">'+rw.code+'</td>'
+                +'<td style="padding:.3rem;text-align:right;border-bottom:1px solid #243243">'+fmtPct(rw.pct_30m)+'</td>'
+                +'<td style="padding:.3rem;text-align:right;border-bottom:1px solid #243243">'+fmtPct(rw.pct_3h)+'</td>'
+                +'<td style="padding:.3rem;text-align:right;border-bottom:1px solid #243243">'+fmtPct(rw.pct_24h)+'</td></tr>';
+          });
+          html+='</tbody></table>';
+          errStats.innerHTML=html;
+        }
       }
-    }
-    if(errDesc){
-      if(!rows.length){
-        errDesc.textContent='no error descriptions to show';
-      } else {
-        var html='<div style="font-weight:600;margin-bottom:.35rem">Error descriptions</div>';
-        rows.forEach(function(rw, idx){
-          html+='<div style="border:1px solid #2b3c50;background:#111925;border-radius:6px;padding:.55rem .6rem">';
-          html+='<div style="font-family:monospace;color:#c6d4e3;background:#0d1622;border:1px solid #2a3a4e;padding:.32rem .45rem;border-radius:4px;display:inline-block">'+rw.code+'</div>';
-          html+='<div style="color:#d7e0ea;line-height:1.42;margin-top:.42rem">'+(rw.description||'')+'</div>';
-          html+='</div>';
-          if(idx < rows.length-1) html+='<div style="height:.85rem"></div>';
-        });
-        errDesc.innerHTML=html;
+      if(errDesc){
+        if(!rows.length){
+          errDesc.textContent='no error descriptions to show';
+        } else {
+          var html='<div style="font-weight:600;margin-bottom:.35rem">Error descriptions</div>';
+          rows.forEach(function(rw, idx){
+            html+='<div style="border:1px solid #2b3c50;background:#111925;border-radius:6px;padding:.55rem .6rem">';
+            html+='<div style="font-family:monospace;color:#c6d4e3;background:#0d1622;border:1px solid #2a3a4e;padding:.32rem .45rem;border-radius:4px;display:inline-block">'+rw.code+'</div>';
+            html+='<div style="color:#d7e0ea;line-height:1.42;margin-top:.42rem">'+(rw.description||'')+'</div>';
+            html+='</div>';
+            if(idx < rows.length-1) html+='<div style="height:.85rem"></div>';
+          });
+          errDesc.innerHTML=html;
+        }
       }
-    }
-  }).catch(function(){ if(errStats) errStats.textContent='failed to load error stats'; if(errDesc) errDesc.textContent='failed to load descriptions'; });
+    }).catch(function(){ if(errStats) errStats.textContent='failed to load error stats'; if(errDesc) errDesc.textContent='failed to load descriptions'; });
+  }
+  var em=document.getElementById('errMode');
+  if(em) em.addEventListener('change', loadErrorStats);
+  loadErrorStats();
 
   if(exportBtn){
     exportBtn.addEventListener('click', function(){
@@ -2728,7 +2760,7 @@ def _with_sensor_mapping(events):
     return out
 
 
-def _error_stats(store: 'EventStore', limit: int = 50000):
+def _error_stats(store: 'EventStore', limit: int = 50000, mode: str = 'occurrence'):
     limit = max(500, min(int(limit), 200000))
     try:
         store.poll_new()
@@ -2761,6 +2793,13 @@ def _error_stats(store: 'EventStore', limit: int = 50000):
     }
 
     counts = {}
+    packet_totals = {'30m': 0, '3h': 0, '24h': 0}
+    packet_with_err = {'30m': 0, '3h': 0, '24h': 0}
+
+    mode = (mode or 'occurrence').strip().lower()
+    if mode not in ('occurrence', 'primary_packet'):
+        mode = 'occurrence'
+
     for ev in evs:
         ts = ev.get('ts')
         if not ts:
@@ -2771,12 +2810,26 @@ def _error_stats(store: 'EventStore', limit: int = 50000):
             continue
         age = (now - t).total_seconds()
         errs = ev.get('errors') or []
+
+        active_windows = [wk for wk, sec in windows.items() if age <= sec]
+        if not active_windows:
+            continue
+        for wk in active_windows:
+            packet_totals[wk] += 1
+            if errs:
+                packet_with_err[wk] += 1
+
+        if not errs:
+            continue
+
+        if mode == 'primary_packet':
+            errs = [errs[0]]
+
         for er in errs:
             code = str((er or {}).get('code', '')).strip() or 'unknown'
             c = counts.setdefault(code, {'30m': 0, '3h': 0, '24h': 0})
-            for wk, sec in windows.items():
-                if age <= sec:
-                    c[wk] += 1
+            for wk in active_windows:
+                c[wk] += 1
 
     def describe(code: str):
         if code in desc:
@@ -2811,12 +2864,16 @@ def _error_stats(store: 'EventStore', limit: int = 50000):
         'schema': 'fwlab.error_stats.v1',
         'ts': now.isoformat() + 'Z',
         'sample_limit': limit,
+        'mode': mode,
+        'counting_note': ('Error-occurrence based (packet may contribute multiple errors)' if mode == 'occurrence' else 'Primary-error-per-packet (max one counted error per packet)'),
         'error_types': len(rows),
         'totals': {
             'count_30m': total_30m,
             'count_3h': total_3h,
             'count_24h': total_24h,
         },
+        'packet_totals': packet_totals,
+        'packet_with_errors': packet_with_err,
         'rows': rows,
     }
 
@@ -4102,7 +4159,8 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == '/api/error_stats':
             q = parse_qs(parsed.query)
             limit = int(q.get('limit', ['50000'])[0])
-            return self._json(_error_stats(self.store, limit=limit))
+            mode = str(q.get('mode', ['occurrence'])[0])
+            return self._json(_error_stats(self.store, limit=limit, mode=mode))
 
         if parsed.path == '/api/anomaly_stats':
             q = parse_qs(parsed.query)
