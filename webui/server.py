@@ -1429,6 +1429,7 @@ __NAV__
 (function(){
   var all=[], map=L.map('map',{tapTolerance:25});
   var pointMarkersByName={};
+  var initialFitDone=false;
   var pointMarkersByBom={};
   var lastSeenByName={};
   var lastSeenByBom={};
@@ -1498,6 +1499,18 @@ __NAV__
   var useClusters=!!L.markerClusterGroup;
   map.addLayer(clustered);
   function match(r,q){ if(!q) return true; q=q.toLowerCase(); return [r.name,r.unitname,r.unitid].some(function(v){return String(v||'').toLowerCase().indexOf(q)>=0;}); }
+  function ageText(ts){
+    var t=Date.parse(ts||'');
+    if(!isFinite(t)) return '';
+    var sec=Math.max(0, Math.floor((Date.now()-t)/1000));
+    if(sec<60) return sec+'s ago';
+    var min=Math.floor(sec/60);
+    if(min<60) return min+'m ago';
+    var hr=Math.floor(min/60);
+    if(hr<48) return hr+'h ago';
+    var d=Math.floor(hr/24);
+    return d+'d ago';
+  }
   function markerHtml(r, lat, lon){
     var dir='https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(String(lat)+','+String(lon))+'&travelmode=driving';
     var sv='https://maps.googleapis.com/maps/api/streetview?size=360x180&location='+encodeURIComponent(String(lat)+','+String(lon))+'&fov=90&pitch=0&source=outdoor';
@@ -1509,7 +1522,8 @@ __NAV__
     if(lp){
       var t=lp.ts?new Date(lp.ts):null;
       var ttxt=(t && !isNaN(t.getTime())) ? t.toLocaleString() : String(lp.ts||'');
-      lpText='Last packet: '+(lp.sensor||'sensor')+' = '+(lp.data_val==null?'-':lp.data_val)+' @ '+ttxt;
+      var rel=ageText(lp.ts);
+      lpText='Last packet: '+(lp.sensor||'sensor')+' = '+(lp.data_val==null?'-':lp.data_val)+' @ '+ttxt+(rel?(' ('+rel+')'):'');
     }
     return '<b>'+String(r.name||r.unitname||'')+'</b>'
       +'<br>ID: '+String(r.unitid||'-')
@@ -1550,7 +1564,7 @@ __NAV__
       if(useClusters) clustered.addLayer(m); else plain.addLayer(m);
     });
     document.getElementById('vis').textContent=pts.length;
-    if(pts.length){ map.fitBounds(L.latLngBounds(pts).pad(0.12)); }
+    if(pts.length && !initialFitDone){ map.fitBounds(L.latLngBounds(pts).pad(0.12)); initialFitDone=true; }
   }
   function seedRecentFromHistory(){
     fetch('/api/events?limit=1200').then(function(r){return r.json();}).then(function(d){
