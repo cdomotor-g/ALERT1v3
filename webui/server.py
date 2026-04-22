@@ -2594,12 +2594,11 @@ __NAV__
         errDesc.textContent='no error descriptions to show';
       } else {
         var html='<div style="font-weight:600;margin-bottom:.35rem">Error descriptions</div>';
-        html+='<div style="display:grid;grid-template-columns:minmax(220px,320px) 1fr;gap:.35rem .8rem">';
-        rows.forEach(function(rw){
-          html+='<div style="font-family:monospace;color:#c6d4e3;background:#111925;border:1px solid #26384d;padding:.28rem .4rem;border-radius:4px">'+rw.code+'</div>';
-          html+='<div style="color:#d7e0ea;line-height:1.35">'+(rw.description||'')+'</div>';
+        rows.forEach(function(rw, idx){
+          html+='<div style="font-family:monospace;color:#c6d4e3;background:#111925;border:1px solid #26384d;padding:.32rem .45rem;border-radius:4px;display:inline-block">'+rw.code+'</div>';
+          html+='<div style="color:#d7e0ea;line-height:1.42;margin-top:.32rem">'+(rw.description||'')+'</div>';
+          if(idx < rows.length-1) html+='<div style="height:.75rem"></div>';
         });
-        html+='</div>';
         errDesc.innerHTML=html;
       }
     }
