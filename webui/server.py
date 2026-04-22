@@ -2718,13 +2718,20 @@ def _error_stats(store: 'EventStore', limit: int = 50000):
     }
 
     desc = {
-        'sync_not_found': 'No valid frame sync pattern found in candidate bitstream.',
-        'payload_len_short': 'Decoded payload length is shorter than expected.',
-        'decode.exception': 'Unhandled decode exception while parsing frame payload.',
-        'decode.zero_sensor_id': 'Decoded sensor_id resolved to 0 (likely bad symbol/bit alignment).',
-        'fixed_pair_mismatch': 'Fixed pair bit pattern check failed for one or more expected positions.',
-        'decode.value_out_of_range': 'Decoded value outside expected protocol range.',
-        'decode.quality_low': 'Quality/confidence below current threshold or heuristic target.',
+        # Decoder-layer errors
+        'framing.length_mismatch': 'Frame payload bit-length did not match expected protocol length for the current decoder profile.',
+        'decode.invalid_format_id': 'format_id field did not map to a known/valid format definition.',
+        'signal.bit_balance_extreme': 'Bitstream ones/zeros ratio was highly imbalanced, indicating likely demod distortion or false frame lock.',
+        'signal.low_snr_proxy': 'SNR proxy heuristic reported low quality for this frame candidate.',
+        'decode.zero_payload': 'Decoded payload bits were all zeros; usually indicates bad lock or corrupted symbol decisions.',
+        'decode.zero_sensor_id': 'Decoded sensor_id resolved to 0 (commonly symbol timing/bit alignment error).',
+
+        # Framing/timing-layer errors (emitted by upstream framing stage)
+        'framing.word_start_stop_mismatch': 'Word-level framing check failed: start/stop bit pattern mismatch in one or more words.',
+        'timing.hunt_timeout': 'Timing recovery did not lock within hunt window; frame candidate timed out before stable symbol alignment.',
+
+        # Dynamic fixed-pair mismatch variants (decode.fixed_pair_mismatch_wN)
+        'decode.fixed_pair_mismatch': 'Fixed-pair protocol check failed at one or more configured word positions.',
     }
 
     counts = {}
@@ -2745,6 +2752,15 @@ def _error_stats(store: 'EventStore', limit: int = 50000):
                 if age <= sec:
                     c[wk] += 1
 
+    def describe(code: str):
+        if code in desc:
+            return desc[code]
+        if code.startswith('decode.fixed_pair_mismatch_w'):
+            return 'Fixed-pair protocol check failed for this specific word index; compare against configured fixed-pair pattern variant.'
+        if code.startswith('decode.fixed_pair_mismatch'):
+            return desc['decode.fixed_pair_mismatch']
+        return 'No description yet. Add protocol-specific note as decoder rules evolve.'
+
     rows = []
     for code, c in sorted(counts.items(), key=lambda kv: (-kv[1]['24h'], kv[0])):
         rows.append({
@@ -2752,7 +2768,7 @@ def _error_stats(store: 'EventStore', limit: int = 50000):
             'count_30m': c['30m'],
             'count_3h': c['3h'],
             'count_24h': c['24h'],
-            'description': desc.get(code, 'No description yet. Add protocol-specific note as decoder rules evolve.'),
+            'description': describe(code),
         })
 
     return {
