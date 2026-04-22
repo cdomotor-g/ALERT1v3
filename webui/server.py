@@ -1415,6 +1415,7 @@ __NAV__
   <input id='q' placeholder='Type to filter markers by name/id...' style='min-width:280px'>
   <label class='muted' style='margin-left:.6rem'><input id='clustersOn' type='checkbox' checked> clusters</label>
   <span class='muted'>Total: <span id='total'>0</span> · Visible: <span id='vis'>0</span></span>
+  <label class='muted' style='margin-left:.6rem'>Fade hours <input id='fadeHours' type='number' min='0.25' step='0.25' value='3' style='width:70px'></label>
   <div id='pktFlash' class='touch-note'>Waiting for packets...</div>
   <div class='touch-note'>Tap a cluster to zoom. Marker touch targets enlarged for mobile.</div>
 </div>
@@ -1424,7 +1425,30 @@ __NAV__
   var all=[], map=L.map('map',{tapTolerance:25});
   var pointMarkersByName={};
   var pointMarkersByBom={};
+  var lastSeenByName={};
+  var lastSeenByBom={};
   function norm(s){ return String(s||'').trim().toLowerCase().replace(/\s+/g,' '); }
+  function fadeWindowMs(){
+    var h=Number((document.getElementById('fadeHours')||{}).value||3);
+    if(!isFinite(h)||h<=0) h=3;
+    return h*3600*1000;
+  }
+  function mix(a,b,t){ return Math.round(a + (b-a)*Math.max(0,Math.min(1,t))); }
+  function colorForAge(ageMs){
+    var W=fadeWindowMs();
+    var t=Math.max(0,Math.min(1, ageMs/W));
+    // fresh=green, stale=red
+    var r=mix(46, 233, t), g=mix(204, 76, t), bl=mix(113, 60, t);
+    return 'rgb('+r+','+g+','+bl+')';
+  }
+  function applyMarkerColorForStation(r,m){
+    var now=Date.now();
+    var bom=(r&&r.unitid!=null)?String(r.unitid).trim():'';
+    var nm=norm(r.name||r.unitname||'');
+    var ts=(bom && lastSeenByBom[bom]) ? lastSeenByBom[bom] : (lastSeenByName[nm]||null);
+    var col = ts ? colorForAge(now-ts) : '#e94c3c';
+    m.setStyle({color:col, fillColor:col, fillOpacity:0.9, weight:2});
+  }
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
   var clustered=(L.markerClusterGroup ? L.markerClusterGroup({
     chunkedLoading:true,
@@ -1464,14 +1488,15 @@ __NAV__
       var m=L.circleMarker([lat,lon],{
         radius:8,
         weight:2,
-        color:'#7fc8ff',
-        fillColor:'#2f8fd9',
+        color:'#e94c3c',
+        fillColor:'#e94c3c',
         fillOpacity:0.9
       });
       m.bindPopup(markerHtml(r,lat,lon));
       m.on('click', function(){ m.openPopup(); });
       pointMarkersByName[norm(r.name||r.unitname||'')] = m;
       if(r.unitid!==undefined && r.unitid!==null && String(r.unitid).trim()!=='') pointMarkersByBom[String(r.unitid).trim()] = m;
+      applyMarkerColorForStation(r,m);
       if(useClusters) clustered.addLayer(m); else plain.addLayer(m);
     });
     document.getElementById('vis').textContent=pts.length;
@@ -1481,25 +1506,25 @@ __NAV__
     all=d.rows||[]; document.getElementById('total').textContent=all.length; render();
     setTimeout(function(){ map.invalidateSize(); }, 120);
   }).catch(function(){ setTimeout(function(){ map.invalidateSize(); }, 120); });
-  function flashForPacket(ev){
+  function updateFreshnessFromPacket(ev){
     var sm=(ev&&ev.sensor_map)||null;
     var pf=document.getElementById('pktFlash');
     if(!pf) return;
     if(sm){
-      var m=null;
+      var now=Date.now();
       var bom=String(sm.site_id_bom||'').trim();
+      var key=norm(sm.site||'');
+      if(bom) lastSeenByBom[bom]=now;
+      if(key) lastSeenByName[key]=now;
+
+      var m=null;
       if(bom && pointMarkersByBom[bom]) m=pointMarkersByBom[bom];
-      if(!m && sm.site){
-        var key=norm(sm.site);
-        m=pointMarkersByName[key] || null;
-      }
+      if(!m && key) m=pointMarkersByName[key] || null;
       if(m){
-        var ll=m.getLatLng();
-        var pulse=L.circleMarker(ll,{radius:14,color:'#ff2d55',weight:3,fillOpacity:0}).addTo(map).bringToFront();
-        setTimeout(function(){ try{ map.removeLayer(pulse); }catch(e){} }, 900);
-        pf.textContent='Packet mapped: '+sm.site+' ('+(sm.sensor||'')+')';
-        pf.style.color='#ff9f1c';
-        setTimeout(function(){ pf.style.color=''; }, 900);
+        var col=colorForAge(0);
+        m.setStyle({color:col, fillColor:col, fillOpacity:0.95, weight:2.5});
+        pf.textContent='Packet mapped: '+(sm.site||('BoM# '+(sm.site_id_bom||'?')))+' ('+(sm.sensor||'')+')';
+        pf.style.color='#5cd66f';
       } else {
         pf.textContent='Packet unmatched station on map: '+(sm.site||('BoM# '+(sm.site_id_bom||'?')));
         pf.style.color='#f36f6f';
@@ -1510,7 +1535,22 @@ __NAV__
     }
   }
 
+  function refreshAllMarkerColors(){
+    all.forEach(function(r){
+      var m=null;
+      var bom=(r&&r.unitid!=null)?String(r.unitid).trim():'';
+      if(bom && pointMarkersByBom[bom]) m=pointMarkersByBom[bom];
+      if(!m){
+        var key=norm(r.name||r.unitname||'');
+        m=pointMarkersByName[key]||null;
+      }
+      if(m) applyMarkerColorForStation(r,m);
+    });
+  }
+
   document.getElementById('q').addEventListener('input', render);
+  var fh=document.getElementById('fadeHours');
+  if(fh) fh.addEventListener('input', function(){ refreshAllMarkerColors(); });
   document.getElementById('clustersOn').addEventListener('change', function(){
     useClusters=!!this.checked;
     if(useClusters){ if(map.hasLayer(plain)) map.removeLayer(plain); if(!map.hasLayer(clustered)) map.addLayer(clustered); }
@@ -1520,8 +1560,9 @@ __NAV__
 
   var es=new EventSource('/api/live');
   es.onmessage=function(m){
-    try{ var ev=JSON.parse(m.data); flashForPacket(ev); }catch(e){}
+    try{ var ev=JSON.parse(m.data); updateFreshnessFromPacket(ev); }catch(e){}
   };
+  setInterval(refreshAllMarkerColors, 30000);
 })();
 </script>
 </div></body></html>"""
