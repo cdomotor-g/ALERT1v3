@@ -1559,23 +1559,28 @@ __NAV__
       var t=lp.ts?new Date(lp.ts):null;
       var ttxt=(t && !isNaN(t.getTime())) ? t.toLocaleString() : String(lp.ts||'');
       var rel=ageText(lp.ts);
-      lpText='Last packet: '+(lp.sensor||'sensor')+' = '+(lp.data_val==null?'-':lp.data_val)+' @ '+ttxt+(rel?(' ('+rel+')'):'');
+      lpText=(lp.sensor||'sensor')+' = '+(lp.data_val==null?'-':lp.data_val)+' · '+ttxt+(rel?(' ('+rel+')'):'');
     }
     var st=(r.unitid||r.name||r.unitname||'');
     var stLink='/stations?q='+encodeURIComponent(String(st));
     var arro=arroUrl(r);
-    return '<b>'+String(r.name||r.unitname||'')+'</b>'
-      +'<br>BoM_Stn#: '+String(r.unitid||'-')
-      +'<br>Lat/Lon: '+lat+', '+lon
-      +(r.elevation?('<br>Elevation: '+r.elevation):'')
-      +(r.sensor_types?('<br>Sensor types: '+String(r.sensor_types)):'')
-      +(r.sensor_ids?('<br>Sensor IDs: '+String(r.sensor_ids)):'')
-      +((r.arro_site_id||r.device_ids)?('<br>ARRO site_id: '+String(r.arro_site_id||'-')+' · device_ids: '+String(r.device_ids||'-')):'')
-      +((r.kml_name||r.source)?('<br>KML Name: '+String(r.kml_name||'-')+' · Source: '+String(r.source||'-')):'')
-      +'<br><span style="color:#9fd0ff">'+lpText+'</span>'
-      +'<br><a href="'+stLink+'" style="color:#7fc8ff">Open in Stations</a>'+(arro?(' · <a href="'+arro+'" target="_blank" rel="noopener" style="color:#7fc8ff">ARRO</a>'):'')
-      +'<br><a href="'+dir+'" target="_blank" rel="noopener" style="color:#7fc8ff">Get directions</a> · <a href="'+pano+'" target="_blank" rel="noopener" style="color:#7fc8ff">Open Street</a>'
-      +'<br><img src="'+sv+'" style="margin-top:.3rem;width:100%;max-width:320px;border:1px solid #2a3948;border-radius:6px" onerror="this.style.display=&quot;none&quot;">';
+    var name=String(r.name||r.unitname||'Station');
+    var meta='';
+    meta += '<div><b>BoM_Stn#:</b> '+String(r.unitid||'-')+'</div>';
+    meta += '<div><b>Location:</b> '+lat+', '+lon+(r.elevation?(' · elev '+r.elevation+' m'):'')+'</div>';
+    if(r.sensor_types) meta += '<div><b>Sensor types:</b> '+String(r.sensor_types)+'</div>';
+    if(r.sensor_ids) meta += '<div><b>Sensor IDs:</b> '+String(r.sensor_ids)+'</div>';
+    if(r.arro_site_id||r.device_ids) meta += '<div><b>ARRO:</b> site_id '+String(r.arro_site_id||'-')+' · device_ids '+String(r.device_ids||'-')+'</div>';
+    if(r.kml_name||r.source) meta += '<div><b>Catalog:</b> '+String(r.kml_name||'-')+' · '+String(r.source||'-')+'</div>';
+
+    return ''
+      +'<div style="min-width:260px;max-width:360px;line-height:1.35">'
+      +'<div style="font-weight:700;font-size:1.02em;margin-bottom:.35rem">'+name+'</div>'
+      +'<div style="margin:.25rem 0 .45rem 0">'+meta+'</div>'
+      +'<div style="margin:.35rem 0;padding:.35rem .45rem;background:#102033;border:1px solid #23405f;border-radius:6px"><b>Last packet:</b> '+lpText+'</div>'
+      +'<div style="margin:.45rem 0"><a href="'+stLink+'" style="color:#7fc8ff">Open in Stations</a>'+(arro?(' · <a href="'+arro+'" target="_blank" rel="noopener" style="color:#7fc8ff">ARRO</a>'):'')+' · <a href="'+dir+'" target="_blank" rel="noopener" style="color:#7fc8ff">Directions</a> · <a href="'+pano+'" target="_blank" rel="noopener" style="color:#7fc8ff">Street</a></div>'
+      +'<img src="'+sv+'" style="margin-top:.15rem;width:100%;max-width:340px;border:1px solid #2a3948;border-radius:6px" onerror="this.style.display=&quot;none&quot;">'
+      +'</div>';
   }
   function render(){
     var q=(document.getElementById('q').value||'').trim();
