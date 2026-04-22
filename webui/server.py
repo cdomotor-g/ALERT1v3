@@ -1529,8 +1529,26 @@ __NAV__
     document.getElementById('vis').textContent=pts.length;
     if(pts.length){ map.fitBounds(L.latLngBounds(pts).pad(0.12)); }
   }
+  function seedRecentFromHistory(){
+    fetch('/api/events?limit=1200').then(function(r){return r.json();}).then(function(d){
+      var evs=d.events||[];
+      for(var i=0;i<evs.length;i++){
+        var ev=evs[i]||{};
+        var sm=ev.sensor_map||null;
+        var ts=Date.parse(ev.ts||'');
+        if(!sm || !isFinite(ts)) continue;
+        var bom=String(sm.site_id_bom||'').trim();
+        var key=norm(sm.site||'');
+        if(bom) lastSeenByBom[bom]=Math.max(lastSeenByBom[bom]||0, ts);
+        if(key) lastSeenByName[key]=Math.max(lastSeenByName[key]||0, ts);
+      }
+      refreshAllMarkerColors();
+    }).catch(function(){});
+  }
+
   fetch('/api/stations/rows?limit=50000').then(function(r){return r.json();}).then(function(d){
     all=d.rows||[]; document.getElementById('total').textContent=all.length; render();
+    seedRecentFromHistory();
     setTimeout(function(){ map.invalidateSize(); }, 120);
   }).catch(function(){ setTimeout(function(){ map.invalidateSize(); }, 120); });
   function updateFreshnessFromPacket(ev){
