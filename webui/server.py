@@ -1417,6 +1417,7 @@ __NAV__
 <div class='card'>
   <input id='q' placeholder='Type to filter markers by name/id...' style='min-width:280px'>
   <label class='muted' style='margin-left:.6rem'><input id='clustersOn' type='checkbox' checked> clusters</label>
+  <label class='muted' style='margin-left:.6rem'><input id='hideStale' type='checkbox'> hide stale (red)</label>
   <span class='muted'>Total: <span id='total'>0</span> · Visible: <span id='vis'>0</span></span>
   <label class='muted' style='margin-left:.6rem'>Fade hours <input id='fadeHours' type='number' min='0.25' step='0.25' value='3' style='width:70px'></label>
   <div id='pktFlash' class='touch-note'>Waiting for packets...</div>
@@ -1452,6 +1453,14 @@ __NAV__
     if(bom && lastSeenByBom[bom]) return lastSeenByBom[bom];
     if(nm && lastSeenByName[nm]) return lastSeenByName[nm];
     return null;
+  }
+  function stationIsStale(r){
+    var now=Date.now();
+    var bom=(r&&r.unitid!=null)?String(r.unitid).trim():'';
+    var nm=norm(r.name||r.unitname||'');
+    var ts=recentTsForStationRef({bom:bom,name:nm});
+    if(!ts) return true;
+    return (now-ts) >= fadeWindowMs();
   }
   function applyMarkerColorForStation(r,m){
     var now=Date.now();
@@ -1500,6 +1509,7 @@ __NAV__
   }
   function render(){
     var q=(document.getElementById('q').value||'').trim();
+    var hideStale=!!(document.getElementById('hideStale')&&document.getElementById('hideStale').checked);
     clustered.clearLayers();
     plain.clearLayers();
     pointMarkersByName={};
@@ -1507,6 +1517,7 @@ __NAV__
     var pts=[];
     all.forEach(function(r){
       if(!match(r,q)) return;
+      if(hideStale && stationIsStale(r)) return;
       if(r.latitude===''||r.longitude==='') return;
       var lat=Number(r.latitude), lon=Number(r.longitude);
       if(!isFinite(lat)||!isFinite(lon)) return;
@@ -1597,7 +1608,9 @@ __NAV__
 
   document.getElementById('q').addEventListener('input', render);
   var fh=document.getElementById('fadeHours');
-  if(fh) fh.addEventListener('input', function(){ refreshAllMarkerColors(); });
+  if(fh) fh.addEventListener('input', function(){ render(); });
+  var hs=document.getElementById('hideStale');
+  if(hs) hs.addEventListener('change', render);
   document.getElementById('clustersOn').addEventListener('change', function(){
     useClusters=!!this.checked;
     if(useClusters){ if(map.hasLayer(plain)) map.removeLayer(plain); if(!map.hasLayer(clustered)) map.addLayer(clustered); }
@@ -1609,7 +1622,10 @@ __NAV__
   es.onmessage=function(m){
     try{ var ev=JSON.parse(m.data); updateFreshnessFromPacket(ev); }catch(e){}
   };
-  setInterval(refreshAllMarkerColors, 30000);
+  setInterval(function(){
+    var hs=document.getElementById('hideStale');
+    if(hs && hs.checked) render(); else refreshAllMarkerColors();
+  }, 30000);
 })();
 </script>
 </div></body></html>"""
