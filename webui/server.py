@@ -1261,6 +1261,15 @@ __NAV__
 (function(){
   var all=[];
   function esc(s){ return String(s||'').replace(/[&<>\"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  function firstCsv(v){ return String(v||'').split(',').map(function(x){return x.trim();}).filter(Boolean)[0]||''; }
+  function arroUrl(r){
+    var siteId=String(r.arro_site_id||'').trim();
+    var devId=firstCsv(r.device_ids||'');
+    if(!siteId) return '';
+    var u='https://contrail-bom.onerain.au/administration/sensor/details/?site_id='+encodeURIComponent(siteId);
+    if(devId) u += '&device_id='+encodeURIComponent(devId);
+    return u;
+  }
   function load(){
     fetch('/api/stations/rows?limit=50000').then(r=>r.json()).then(d=>{
       all=d.rows||[];
@@ -1308,7 +1317,7 @@ __NAV__
       var gdir=(lat0 && lon0) ? ('https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(lat0+','+lon0)+'&travelmode=driving') : '#';
       var stn=(r.unitid||r.name||r.unitname||'');
       var mapLink='/stations-map?station='+encodeURIComponent(String(stn));
-      var arroLink='https://arro.example/station/'+encodeURIComponent(String(r.arro_site_id||r.unitid||stn));
+      var arroLink=arroUrl(r);
       tr.innerHTML=''
         +'<td>'+r.index+'</td>'
         +'<td>'+esc(r.unitid||'')+'</td>'
@@ -1324,7 +1333,7 @@ __NAV__
         +'<td>'+esc(r.kml_name||'')+'</td>'
         +'<td>'+esc(r.source||'')+'</td>'
         +'<td><a href="'+mapLink+'" style="color:#7fc8ff">Map</a></td>'
-        +'<td><a href="'+arroLink+'" target="_blank" rel="noopener" style="color:#7fc8ff">ARRO</a></td>'
+        +'<td>'+(arroLink?('<a href="'+arroLink+'" target="_blank" rel="noopener" style="color:#7fc8ff">ARRO</a>'):'-')+'</td>'
         +'<td><input class="num" data-k="icon" value="'+esc(r.icon||'')+'"></td>'
         +'<td><input class="num" data-k="style" value="'+esc(r.style||'')+'"></td>'
         +'<td><input class="num" data-k="locked" value="'+esc(r.locked||'')+'"></td>'
@@ -1353,11 +1362,11 @@ __NAV__
       var cDir=(cLat&&cLon)?('https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(cLat+','+cLon)+'&travelmode=driving'):'#';
       var cStn=(r.unitid||r.name||r.unitname||'');
       var cMap='/stations-map?station='+encodeURIComponent(String(cStn));
-      var cArro='https://arro.example/station/'+encodeURIComponent(String(r.arro_site_id||r.unitid||cStn));
+      var cArro=arroUrl(r);
       card.innerHTML=''
         +'<summary><strong>'+esc(r.name||r.unitname||('Station #'+r.index))+'</strong> <span class="muted">#'+r.index+' · ID '+esc(r.unitid||'-')+'</span></summary>'
         +'<div class="st-body">'
-        +'<div style="margin-bottom:.45rem"><a href="'+cMap+'" style="color:#7fc8ff">Open on Map</a> · <a href="'+cArro+'" target="_blank" rel="noopener" style="color:#7fc8ff">ARRO</a></div>'
+        +'<div style="margin-bottom:.45rem"><a href="'+cMap+'" style="color:#7fc8ff">Open on Map</a>'+(cArro?(' · <a href="'+cArro+'" target="_blank" rel="noopener" style="color:#7fc8ff">ARRO</a>'):'')+'</div>'
         +((cLat&&cLon)?('<div style="margin-bottom:.45rem"><a href="'+cDir+'" target="_blank" rel="noopener" style="color:#7fc8ff">Directions</a> · <a href="'+streetPanoUrl(cLat,cLon)+'" target="_blank" rel="noopener" style="color:#7fc8ff">Open Street</a> · <button class="street-inline" type="button">Preview</button></div><img class="street-inline-img" style="display:none;width:100%;max-height:180px;object-fit:cover;border:1px solid #2a3948;border-radius:6px"><div class="street-inline-note muted" style="display:none;margin-top:.25rem"></div>'):'')
         +'<div class="muted" style="margin-bottom:.4rem">Sensor types: '+esc(r.sensor_types||'')+'<br>Sensor IDs: '+esc(r.sensor_ids||'')+'<br>ARRO site_id: '+esc(r.arro_site_id||'')+' · device_ids: '+esc(r.device_ids||'')+'<br>KML Name: '+esc(r.kml_name||'')+' · Source: '+esc(r.source||'')+'</div>'
         +'<div class="grid">'
@@ -1454,6 +1463,15 @@ __NAV__
   var stationParam=(new URLSearchParams(window.location.search).get('station')||'').trim();
   var focusDone=false;
   function norm(s){ return String(s||'').trim().toLowerCase().replace(/\s+/g,' '); }
+  function firstCsv(v){ return String(v||'').split(',').map(function(x){return x.trim();}).filter(Boolean)[0]||''; }
+  function arroUrl(r){
+    var siteId=String(r.arro_site_id||'').trim();
+    var devId=firstCsv(r.device_ids||'');
+    if(!siteId) return '';
+    var u='https://contrail-bom.onerain.au/administration/sensor/details/?site_id='+encodeURIComponent(siteId);
+    if(devId) u += '&device_id='+encodeURIComponent(devId);
+    return u;
+  }
   function fadeWindowMs(){
     var h=Number((document.getElementById('fadeHours')||{}).value||3);
     if(!isFinite(h)||h<=0) h=3;
@@ -1545,7 +1563,7 @@ __NAV__
     }
     var st=(r.unitid||r.name||r.unitname||'');
     var stLink='/stations?q='+encodeURIComponent(String(st));
-    var arro='https://arro.example/station/'+encodeURIComponent(String(r.arro_site_id||r.unitid||st));
+    var arro=arroUrl(r);
     return '<b>'+String(r.name||r.unitname||'')+'</b>'
       +'<br>BoM_Stn#: '+String(r.unitid||'-')
       +'<br>Lat/Lon: '+lat+', '+lon
@@ -1555,7 +1573,7 @@ __NAV__
       +((r.arro_site_id||r.device_ids)?('<br>ARRO site_id: '+String(r.arro_site_id||'-')+' · device_ids: '+String(r.device_ids||'-')):'')
       +((r.kml_name||r.source)?('<br>KML Name: '+String(r.kml_name||'-')+' · Source: '+String(r.source||'-')):'')
       +'<br><span style="color:#9fd0ff">'+lpText+'</span>'
-      +'<br><a href="'+stLink+'" style="color:#7fc8ff">Open in Stations</a> · <a href="'+arro+'" target="_blank" rel="noopener" style="color:#7fc8ff">ARRO</a>'
+      +'<br><a href="'+stLink+'" style="color:#7fc8ff">Open in Stations</a>'+(arro?(' · <a href="'+arro+'" target="_blank" rel="noopener" style="color:#7fc8ff">ARRO</a>'):'')
       +'<br><a href="'+dir+'" target="_blank" rel="noopener" style="color:#7fc8ff">Get directions</a> · <a href="'+pano+'" target="_blank" rel="noopener" style="color:#7fc8ff">Open Street</a>'
       +'<br><img src="'+sv+'" style="margin-top:.3rem;width:100%;max-width:320px;border:1px solid #2a3948;border-radius:6px" onerror="this.style.display=&quot;none&quot;">';
   }
