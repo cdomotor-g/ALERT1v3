@@ -77,6 +77,103 @@ def load_kml():
     return by_name
 
 
+def _join_unique_csv(*vals):
+    s = set()
+    for v in vals:
+        for p in str(v or '').split(','):
+            p = p.strip()
+            if p:
+                s.add(p)
+    return ', '.join(sorted(s))
+
+
+def _uid_score(uid: str) -> int:
+    u = str(uid or '').strip()
+    if not u:
+        return 0
+    if u.isdigit() and len(u) >= 6:
+        return 3
+    if u.isdigit() and len(u) >= 4:
+        return 2
+    return 1
+
+
+def _to_f(v):
+    try:
+        return float(v)
+    except Exception:
+        return None
+
+
+def _merge_two(a, b):
+    m = dict(a)
+    # Prefer better uid/site_id_bom
+    if _uid_score(b.get('unitid', '')) > _uid_score(m.get('unitid', '')):
+        m['unitid'] = b.get('unitid', '')
+        m['site_id_bom'] = b.get('site_id_bom', b.get('unitid', ''))
+    # Prefer richer/longer name
+    if len(str(b.get('unitname', '') or '')) > len(str(m.get('unitname', '') or '')):
+        m['unitname'] = b.get('unitname', '')
+    # Fill missing core fields
+    for fld in ['latitude', 'longitude', 'elevation', 'site_id_bom', 'arro_site_id', 'kml_name', 'enabled']:
+        if not str(m.get(fld, '') or '').strip() and str(b.get(fld, '') or '').strip():
+            m[fld] = b.get(fld, '')
+    # Merge metadata sets
+    m['sensor_types'] = _join_unique_csv(m.get('sensor_types', ''), b.get('sensor_types', ''))
+    m['sensor_ids'] = _join_unique_csv(m.get('sensor_ids', ''), b.get('sensor_ids', ''))
+    m['device_ids'] = _join_unique_csv(m.get('device_ids', ''), b.get('device_ids', ''))
+    m['source'] = _join_unique_csv(m.get('source', ''), b.get('source', ''))
+    return m
+
+
+def _dedupe_rows(rows):
+    # pass 1: exact key merge
+    merged = {}
+    for r in rows:
+        uid = str(r.get('unitid', '') or '').strip()
+        nm = norm(r.get('unitname', ''))
+        lat = str(r.get('latitude', '') or '').strip()
+        lon = str(r.get('longitude', '') or '').strip()
+        key = ('bom', uid) if uid else ('geo_name', nm, lat[:7], lon[:7])
+        if key not in merged:
+            merged[key] = dict(r)
+        else:
+            merged[key] = _merge_two(merged[key], r)
+
+    out = list(merged.values())
+
+    # pass 2: same normalized name + near coordinates (collapse legacy vs BoM duplicates)
+    by_name = {}
+    final = []
+    for r in out:
+        nm = norm(r.get('unitname', ''))
+        lat = _to_f(r.get('latitude', ''))
+        lon = _to_f(r.get('longitude', ''))
+        if not nm:
+            final.append(r)
+            continue
+
+        candidates = by_name.setdefault(nm, [])
+        hit_idx = None
+        for i, c in enumerate(candidates):
+            clat = _to_f(c.get('latitude', ''))
+            clon = _to_f(c.get('longitude', ''))
+            if lat is not None and lon is not None and clat is not None and clon is not None:
+                if abs(lat - clat) <= 0.05 and abs(lon - clon) <= 0.05:
+                    hit_idx = i
+                    break
+        if hit_idx is None:
+            candidates.append(dict(r))
+        else:
+            candidates[hit_idx] = _merge_two(candidates[hit_idx], r)
+
+    for arr in by_name.values():
+        final.extend(arr)
+
+    final.sort(key=lambda x: (str(x.get('unitid', '') or ''), str(x.get('unitname', '') or '')))
+    return final
+
+
 def main():
     base = load_base()
     sb = load_sensor_map()
@@ -156,19 +253,23 @@ def main():
             'source': 'kml',
         })
 
+    out_dedup = _dedupe_rows(out)
+
     OUT_CSV.parent.mkdir(parents=True, exist_ok=True)
     fields = ['unitid', 'unitname', 'enabled', 'latitude', 'longitude', 'elevation', 'site_id_bom', 'arro_site_id', 'sensor_types', 'sensor_ids', 'device_ids', 'kml_name', 'source']
     with OUT_CSV.open('w', encoding='utf-8', newline='') as fh:
         w = csv.DictWriter(fh, fieldnames=fields)
         w.writeheader()
-        for r in out:
+        for r in out_dedup:
             w.writerow({k: r.get(k, '') for k in fields})
 
     meta = {
         'base_rows': len(base),
         'sensor_map_sites': len(sb),
         'kml_points': len(kml),
-        'catalog_rows': len(out),
+        'catalog_rows_pre_dedup': len(out),
+        'catalog_rows': len(out_dedup),
+        'dedup_removed': max(0, len(out)-len(out_dedup)),
         'outputs': {'csv': str(OUT_CSV), 'meta': str(OUT_META)}
     }
     OUT_META.write_text(json.dumps(meta, indent=2), encoding='utf-8')
