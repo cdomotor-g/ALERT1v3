@@ -2595,9 +2595,11 @@ __NAV__
       } else {
         var html='<div style="font-weight:600;margin-bottom:.35rem">Error descriptions</div>';
         rows.forEach(function(rw, idx){
-          html+='<div style="font-family:monospace;color:#c6d4e3;background:#111925;border:1px solid #26384d;padding:.32rem .45rem;border-radius:4px;display:inline-block">'+rw.code+'</div>';
-          html+='<div style="color:#d7e0ea;line-height:1.42;margin-top:.32rem">'+(rw.description||'')+'</div>';
-          if(idx < rows.length-1) html+='<div style="height:.75rem"></div>';
+          html+='<div style="border:1px solid #2b3c50;background:#111925;border-radius:6px;padding:.55rem .6rem">';
+          html+='<div style="font-family:monospace;color:#c6d4e3;background:#0d1622;border:1px solid #2a3a4e;padding:.32rem .45rem;border-radius:4px;display:inline-block">'+rw.code+'</div>';
+          html+='<div style="color:#d7e0ea;line-height:1.42;margin-top:.42rem">'+(rw.description||'')+'</div>';
+          html+='</div>';
+          if(idx < rows.length-1) html+='<div style="height:.85rem"></div>';
         });
         errDesc.innerHTML=html;
       }
