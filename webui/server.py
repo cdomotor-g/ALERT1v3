@@ -1650,18 +1650,32 @@ __NAV__
   <input id='f' type='file'> <button id='u'>Upload</button>
   <div id='m' class='muted' style='margin-top:.4rem'></div>
 </div>
+<div class='card'>
+  <strong>Recent uploads</strong>
+  <div id='lst' class='muted' style='margin-top:.4rem'>loading...</div>
+</div>
 <script>
 (function(){
+  function loadList(){
+    fetch('/api/file_drop/list?limit=20').then(function(r){return r.json();}).then(function(d){
+      var a=d.files||[];
+      if(!a.length){ document.getElementById('lst').textContent='no uploads yet'; return; }
+      var lines=[];
+      a.forEach(function(x){ lines.push((x.mtime||'')+'  '+(x.type||'generic')+'  '+(x.name||'')+'  ('+(x.size||0)+' bytes)'); });
+      document.getElementById('lst').textContent=lines.join('\n');
+    }).catch(function(){ document.getElementById('lst').textContent='failed to load uploads'; });
+  }
   document.getElementById('u').addEventListener('click', function(){
     var f=document.getElementById('f').files[0]; if(!f){ document.getElementById('m').textContent='choose file first'; return; }
     var fr=new FileReader();
     fr.onload=function(){
       fetch('/api/file_drop/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:f.name, content:String(fr.result||'')})})
-      .then(function(r){return r.json();}).then(function(d){ document.getElementById('m').textContent = d.ok ? ('uploaded: '+(d.path||'')) : ('upload failed: '+(d.error||'unknown')); })
+      .then(function(r){return r.json();}).then(function(d){ document.getElementById('m').textContent = d.ok ? ('uploaded: '+(d.path||'')+' ['+(d.type||'generic')+']') : ('upload failed: '+(d.error||'unknown')); loadList(); })
       .catch(function(){ document.getElementById('m').textContent='upload failed'; });
     };
     fr.readAsText(f);
   });
+  loadList();
 })();
 </script>
 </div></body></html>"""
@@ -3337,12 +3351,14 @@ class Handler(BaseHTTPRequestHandler):
                 FILE_DROP_DIR.mkdir(parents=True, exist_ok=True)
                 outp = FILE_DROP_DIR / fn
                 outp.write_text(content, encoding='utf-8', errors='replace')
+                ftype = 'generic'
                 # auto-capture station/sensor mapping file shape
                 low = fn.lower()
                 if low.endswith('.csv') and ('sensor id' in content.lower() and 'site id' in content.lower() and 'device_id' in content.lower()):
                     SENSOR_MAP_CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
                     SENSOR_MAP_CSV_PATH.write_text(content, encoding='utf-8', errors='replace')
-                return self._json({'ok': True, 'path': str(outp)})
+                    ftype = 'sensor_map'
+                return self._json({'ok': True, 'path': str(outp), 'type': ftype})
             except Exception as e:
                 return self._json({'ok': False, 'error': str(e)}, code=400)
 
@@ -3700,6 +3716,24 @@ class Handler(BaseHTTPRequestHandler):
                 rec['longitude'] = '' if lon is None else lon
                 out.append(rec)
             return self._json({'count': len(out), 'rows': out, 'source': str(STATIONS_CSV_PATH)})
+
+        if parsed.path == '/api/file_drop/list':
+            q = urllib.parse.parse_qs(parsed.query)
+            try:
+                limit = int((q.get('limit', ['20'])[0] or '20'))
+            except Exception:
+                limit = 20
+            limit = max(1, min(limit, 200))
+            FILE_DROP_DIR.mkdir(parents=True, exist_ok=True)
+            files = []
+            for p in sorted(FILE_DROP_DIR.glob('*'), key=lambda x: x.stat().st_mtime, reverse=True)[:limit]:
+                try:
+                    st = p.stat()
+                    ftype = 'sensor_map' if (SENSOR_MAP_CSV_PATH.exists() and p.name == SENSOR_MAP_CSV_PATH.name and p.resolve() == SENSOR_MAP_CSV_PATH.resolve()) else 'generic'
+                    files.append({'name': p.name, 'size': st.st_size, 'mtime': datetime.utcfromtimestamp(st.st_mtime).isoformat()+'Z', 'type': ftype})
+                except Exception:
+                    continue
+            return self._json({'count': len(files), 'files': files, 'dir': str(FILE_DROP_DIR)})
 
         if parsed.path == '/api/events':
             q = parse_qs(parsed.query)
