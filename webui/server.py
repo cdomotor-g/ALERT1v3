@@ -2536,6 +2536,7 @@ __NAV__
 5) Quantify quality metrics (ones_ratio, snr proxy, eye opening) over soak windows.</pre></div>
 <div class='card'><strong>Fixed-pair pattern stats (recent sample)</strong><pre id='pairStats'>loading...</pre></div>
 <div class='card'><strong>AFSK parity acceptance tracker (anomaly stats)</strong><pre id='anomStats'>loading...</pre></div>
+<div class='card'><strong>Demod/Decode error statistics</strong><div id='errStats'>loading...</div><pre id='errDesc' style='white-space:pre-wrap'>loading...</pre></div>
 <div class='card'><button id='exportBundle'>Export SME bundle (.json)</button> <span id='exportMsg' class='muted'></span></div>
 <script>
 (function(){
@@ -2543,6 +2544,8 @@ __NAV__
   var exportBtn=document.getElementById('exportBundle'), exportMsg=document.getElementById('exportMsg');
   var pairStats=document.getElementById('pairStats');
   var anomStats=document.getElementById('anomStats');
+  var errStats=document.getElementById('errStats');
+  var errDesc=document.getElementById('errDesc');
 
   fetch('/api/pair_pattern_stats?limit=4000').then(function(r){return r.json();}).then(function(d){
     function fmtRow(r){ return JSON.stringify(r.pattern)+'  -> '+r.count; }
@@ -2572,6 +2575,26 @@ __NAV__
     out.push('acceptance target: all above percentages should trend down in A/B trials');
     if(anomStats) anomStats.textContent = out.join('\\n');
   }).catch(function(){ if(anomStats) anomStats.textContent='failed to load anomaly stats'; });
+
+  fetch('/api/error_stats?limit=60000').then(function(r){return r.json();}).then(function(d){
+    var rows=d.rows||[];
+    if(errStats){
+      if(!rows.length){ errStats.textContent='no errors in sampled window'; }
+      else {
+        var html='<table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left;border-bottom:1px solid #2a3948;padding:.25rem">Error type</th><th style="text-align:right;border-bottom:1px solid #2a3948;padding:.25rem">30m</th><th style="text-align:right;border-bottom:1px solid #2a3948;padding:.25rem">3h</th><th style="text-align:right;border-bottom:1px solid #2a3948;padding:.25rem">24h</th></tr></thead><tbody>';
+        rows.forEach(function(rw){
+          html+='<tr><td style="padding:.25rem;border-bottom:1px solid #243243">'+rw.code+'</td><td style="padding:.25rem;text-align:right;border-bottom:1px solid #243243">'+rw.count_30m+'</td><td style="padding:.25rem;text-align:right;border-bottom:1px solid #243243">'+rw.count_3h+'</td><td style="padding:.25rem;text-align:right;border-bottom:1px solid #243243">'+rw.count_24h+'</td></tr>';
+        });
+        html+='</tbody></table>';
+        errStats.innerHTML=html;
+      }
+    }
+    if(errDesc){
+      var lines=[];
+      rows.forEach(function(rw){ lines.push(rw.code+': '+(rw.description||'')); });
+      errDesc.textContent = lines.length ? lines.join('\\n') : 'no error descriptions to show';
+    }
+  }).catch(function(){ if(errStats) errStats.textContent='failed to load error stats'; if(errDesc) errDesc.textContent='failed to load descriptions'; });
 
   if(exportBtn){
     exportBtn.addEventListener('click', function(){
@@ -2677,6 +2700,68 @@ def _with_sensor_mapping(events):
         except Exception:
             out.append(ev)
     return out
+
+
+def _error_stats(store: 'EventStore', limit: int = 50000):
+    limit = max(500, min(int(limit), 200000))
+    try:
+        store.poll_new()
+        evs = list(store.events)[-limit:]
+    except Exception:
+        evs = []
+
+    now = datetime.utcnow()
+    windows = {
+        '30m': 30 * 60,
+        '3h': 3 * 3600,
+        '24h': 24 * 3600,
+    }
+
+    desc = {
+        'sync_not_found': 'No valid frame sync pattern found in candidate bitstream.',
+        'payload_len_short': 'Decoded payload length is shorter than expected.',
+        'decode.exception': 'Unhandled decode exception while parsing frame payload.',
+        'decode.zero_sensor_id': 'Decoded sensor_id resolved to 0 (likely bad symbol/bit alignment).',
+        'fixed_pair_mismatch': 'Fixed pair bit pattern check failed for one or more expected positions.',
+        'decode.value_out_of_range': 'Decoded value outside expected protocol range.',
+        'decode.quality_low': 'Quality/confidence below current threshold or heuristic target.',
+    }
+
+    counts = {}
+    for ev in evs:
+        ts = ev.get('ts')
+        if not ts:
+            continue
+        try:
+            t = datetime.fromisoformat(str(ts).replace('Z', '+00:00')).replace(tzinfo=None)
+        except Exception:
+            continue
+        age = (now - t).total_seconds()
+        errs = ev.get('errors') or []
+        for er in errs:
+            code = str((er or {}).get('code', '')).strip() or 'unknown'
+            c = counts.setdefault(code, {'30m': 0, '3h': 0, '24h': 0})
+            for wk, sec in windows.items():
+                if age <= sec:
+                    c[wk] += 1
+
+    rows = []
+    for code, c in sorted(counts.items(), key=lambda kv: (-kv[1]['24h'], kv[0])):
+        rows.append({
+            'code': code,
+            'count_30m': c['30m'],
+            'count_3h': c['3h'],
+            'count_24h': c['24h'],
+            'description': desc.get(code, 'No description yet. Add protocol-specific note as decoder rules evolve.'),
+        })
+
+    return {
+        'schema': 'fwlab.error_stats.v1',
+        'ts': now.isoformat() + 'Z',
+        'sample_limit': limit,
+        'error_types': len(rows),
+        'rows': rows,
+    }
 
 
 def _anomaly_stats(store: 'EventStore', limit: int = 4000):
@@ -3956,6 +4041,11 @@ class Handler(BaseHTTPRequestHandler):
             q = parse_qs(parsed.query)
             limit = int(q.get('limit', ['2000'])[0])
             return self._json(_pair_pattern_stats(self.store, limit=limit))
+
+        if parsed.path == '/api/error_stats':
+            q = parse_qs(parsed.query)
+            limit = int(q.get('limit', ['50000'])[0])
+            return self._json(_error_stats(self.store, limit=limit))
 
         if parsed.path == '/api/anomaly_stats':
             q = parse_qs(parsed.query)
