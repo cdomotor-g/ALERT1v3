@@ -765,11 +765,14 @@ def _parse_stations_csv_text(text, limit=5000):
 
 
 def _load_stations(limit=5000):
-    if not STATIONS_CSV_PATH.exists():
+    src = Path('config/stations_catalog.csv') if Path('config/stations_catalog.csv').exists() else STATIONS_CSV_PATH
+    if not src.exists():
         return []
     try:
-        txt = STATIONS_CSV_PATH.read_text(encoding='utf-8', errors='replace')
+        txt = src.read_text(encoding='utf-8', errors='replace')
         rows = _parse_stations_csv_text(txt, limit=limit)
+        if src.name == 'stations_catalog.csv':
+            return rows
         return _merge_stations_with_sensor_map(rows)
     except Exception:
         return []
@@ -1417,6 +1420,7 @@ __NAV__
   <span class='muted'>Total: <span id='total'>0</span> · Visible: <span id='vis'>0</span></span>
   <label class='muted' style='margin-left:.6rem'>Fade hours <input id='fadeHours' type='number' min='0.25' step='0.25' value='3' style='width:70px'></label>
   <div id='pktFlash' class='touch-note'>Waiting for packets...</div>
+  <div class='touch-note'>Legend: <span style='display:inline-block;width:10px;height:10px;border-radius:50%;background:#2ecc71;vertical-align:middle'></span> Fresh  →  <span style='display:inline-block;width:10px;height:10px;border-radius:50%;background:#e94c3c;vertical-align:middle'></span> Stale (fade window applies)</div>
   <div class='touch-note'>Tap a cluster to zoom. Marker touch targets enlarged for mobile.</div>
 </div>
 <div class='card'><div id='map'></div></div>
