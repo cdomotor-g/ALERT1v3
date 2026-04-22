@@ -590,7 +590,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
       var de=g(ev,'decode',{});
       var sid=g(de,'sensor_id','');
       var sm=g(ev,'sensor_map',null);
-      var sensorLabel = sm ? (g(sm,'sensor','') || g(sm,'site','') || sid) : sid;
+      var sensorLabel = sm ? ((g(sm,'site','') && g(sm,'sensor','')) ? (g(sm,'site','')+' - '+g(sm,'sensor','')) : (g(sm,'sensor','') || g(sm,'site','') || sid)) : sid;
       var sidLink = (sid!=='' && sid!==null && sid!==undefined) ? ('<a style="color:#7fc8ff" href="/data?sensor_id='+encodeURIComponent(String(sid))+'&window=24h">'+sensorLabel+'</a>') : '';
 
       var orHtml = hasErr('signal.bit_balance_extreme') ? ('<span class="bad">'+or+'</span>') : or;
@@ -769,7 +769,8 @@ def _load_stations(limit=5000):
         return []
     try:
         txt = STATIONS_CSV_PATH.read_text(encoding='utf-8', errors='replace')
-        return _parse_stations_csv_text(txt, limit=limit)
+        rows = _parse_stations_csv_text(txt, limit=limit)
+        return _merge_stations_with_sensor_map(rows)
     except Exception:
         return []
 
@@ -893,6 +894,53 @@ def _load_sensor_map(limit=50000):
     except Exception:
         return {}
     return out
+
+
+def _merge_stations_with_sensor_map(rows):
+    sm = _load_sensor_map(limit=200000)
+    if not sm:
+        return rows
+
+    by_bom = {}
+    sensors_by_bom = {}
+    for m in sm.values():
+        bom = str(m.get('site_id_bom', '') or '').strip()
+        if not bom:
+            continue
+        by_bom.setdefault(bom, m)
+        sensors_by_bom.setdefault(bom, set()).add(str(m.get('sensor', '') or '').strip())
+
+    out = []
+    for r in (rows or []):
+        rec = dict(r)
+        uid = str(rec.get('unitid', '') or rec.get('id', '') or '').strip()
+        m = by_bom.get(uid)
+        if m:
+            site = str(m.get('site', '') or '').strip()
+            if site:
+                rec['unitname'] = site  # fix truncation/incomplete names from legacy CSV exports
+                rec['name'] = site
+            rec['site_id_bom'] = uid
+            rec['arro_site_id'] = str(m.get('arro_site_id', '') or '').strip()
+            ss = sorted(s for s in sensors_by_bom.get(uid, set()) if s)
+            if ss:
+                rec['sensor_types'] = ', '.join(ss)
+        out.append(rec)
+    return out
+
+
+def _write_stations_master(rows):
+    try:
+        p = Path('config/stations_master.csv')
+        p.parent.mkdir(parents=True, exist_ok=True)
+        keys = ['unitid', 'unitname', 'latitude', 'longitude', 'elevation', 'site_id_bom', 'arro_site_id', 'sensor_types']
+        with p.open('w', encoding='utf-8', newline='') as fh:
+            w = csv.DictWriter(fh, fieldnames=keys)
+            w.writeheader()
+            for r in rows:
+                w.writerow({k: (r.get(k, '') if isinstance(r, dict) else '') for k in keys})
+    except Exception:
+        pass
 
 
 def _save_stations_rows(rows):
@@ -1375,6 +1423,7 @@ __NAV__
 (function(){
   var all=[], map=L.map('map',{tapTolerance:25});
   var pointMarkersByName={};
+  var pointMarkersByBom={};
   function norm(s){ return String(s||'').trim().toLowerCase().replace(/\s+/g,' '); }
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
   var clustered=(L.markerClusterGroup ? L.markerClusterGroup({
@@ -1404,6 +1453,7 @@ __NAV__
     clustered.clearLayers();
     plain.clearLayers();
     pointMarkersByName={};
+    pointMarkersByBom={};
     var pts=[];
     all.forEach(function(r){
       if(!match(r,q)) return;
@@ -1421,6 +1471,7 @@ __NAV__
       m.bindPopup(markerHtml(r,lat,lon));
       m.on('click', function(){ m.openPopup(); });
       pointMarkersByName[norm(r.name||r.unitname||'')] = m;
+      if(r.unitid!==undefined && r.unitid!==null && String(r.unitid).trim()!=='') pointMarkersByBom[String(r.unitid).trim()] = m;
       if(useClusters) clustered.addLayer(m); else plain.addLayer(m);
     });
     document.getElementById('vis').textContent=pts.length;
@@ -1434,8 +1485,14 @@ __NAV__
     var sm=(ev&&ev.sensor_map)||null;
     var pf=document.getElementById('pktFlash');
     if(!pf) return;
-    if(sm && sm.site){
-      var key=norm(sm.site), m=pointMarkersByName[key];
+    if(sm){
+      var m=null;
+      var bom=String(sm.site_id_bom||'').trim();
+      if(bom && pointMarkersByBom[bom]) m=pointMarkersByBom[bom];
+      if(!m && sm.site){
+        var key=norm(sm.site);
+        m=pointMarkersByName[key] || null;
+      }
       if(m){
         var ll=m.getLatLng();
         var pulse=L.circleMarker(ll,{radius:14,color:'#ff2d55',weight:3,fillOpacity:0}).addTo(map).bringToFront();
@@ -1444,7 +1501,7 @@ __NAV__
         pf.style.color='#ff9f1c';
         setTimeout(function(){ pf.style.color=''; }, 900);
       } else {
-        pf.textContent='Packet unmatched station on map: '+sm.site;
+        pf.textContent='Packet unmatched station on map: '+(sm.site||('BoM# '+(sm.site_id_bom||'?')));
         pf.style.color='#f36f6f';
       }
     } else {
@@ -3354,6 +3411,7 @@ class Handler(BaseHTTPRequestHandler):
                     r['locked'] = locked
                 rows[idx] = r
                 _save_stations_rows(rows)
+                _write_stations_master(_load_stations(limit=100000))
                 return self._json({'ok': True, 'index': idx})
             except Exception as e:
                 return self._json({'ok': False, 'error': str(e)}, code=400)
@@ -3371,6 +3429,7 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json({'ok': False, 'error': 'parse_failed_no_rows', 'hint': 'check delimiter/header includes Latitude/Longitude'}, code=400)
                 STATIONS_CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
                 STATIONS_CSV_PATH.write_text(txt, encoding='utf-8')
+                _write_stations_master(_load_stations(limit=100000))
                 return self._json({'ok': True, 'count': len(parsed_rows), 'source': str(STATIONS_CSV_PATH)})
             except Exception as e:
                 return self._json({'ok': False, 'error': str(e)}, code=400)
@@ -3394,6 +3453,7 @@ class Handler(BaseHTTPRequestHandler):
                     SENSOR_MAP_CSV_PATH.write_text(content, encoding='utf-8', errors='replace')
                     ftype = 'sensor_map'
                     mapped = len(_load_sensor_map())
+                    _write_stations_master(_load_stations(limit=100000))
                 return self._json({'ok': True, 'path': str(outp), 'type': ftype, 'mapped_alert1_ids': mapped})
             except Exception as e:
                 return self._json({'ok': False, 'error': str(e)}, code=400)
