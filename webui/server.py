@@ -837,6 +837,28 @@ def _save_path_defaults(d):
     PATH_DEFAULTS_PATH.write_text(json.dumps(d, indent=2), encoding='utf-8')
 
 
+def _norm_hdr(s):
+    s = (s or '').strip().lower()
+    return ''.join(ch for ch in s if ch.isalnum() or ch == '_')
+
+
+def _looks_like_sensor_map_csv(text: str):
+    try:
+        lines = [ln for ln in (text or '').splitlines() if ln.strip()]
+        if not lines:
+            return False
+        row = next(csv.reader([lines[0]]))
+        hs = {_norm_hdr(h) for h in row}
+        required = {'site', 'siteid', 'sensor', 'sensorid', 'site_id', 'device_id'}
+        # Allow either compact or underscored variants for site/sensor ids.
+        has = set(hs)
+        has_siteid = ('siteid' in has) or ('site_id' in has)
+        has_sensorid = ('sensorid' in has) or ('sensor_id' in has)
+        return ('site' in has) and has_siteid and ('sensor' in has) and has_sensorid and ('device_id' in has)
+    except Exception:
+        return False
+
+
 def _load_sensor_map(limit=50000):
     out = {}
     if not SENSOR_MAP_CSV_PATH.exists():
@@ -847,12 +869,13 @@ def _load_sensor_map(limit=50000):
             for i, r in enumerate(rdr):
                 if i >= limit:
                     break
-                site = (r.get('Site') or r.get('site') or '').strip()
-                sensor = (r.get('Sensor') or r.get('sensor') or '').strip()
-                sid = (r.get('Sensor ID') or r.get('sensor_id') or '').strip()
-                bom = (r.get('Site ID') or r.get('site_id') or '').strip()
-                arro_site = (r.get('site_id') or '').strip()
-                device_id = (r.get('device_id') or '').strip()
+                rn = {_norm_hdr(k): (v or '').strip() for k, v in (r or {}).items()}
+                site = (rn.get('site') or '').strip()
+                sensor = (rn.get('sensor') or '').strip()
+                sid = (rn.get('sensorid') or rn.get('sensor_id') or '').strip()
+                bom = (rn.get('siteid') or rn.get('site_id') or '').strip()
+                arro_site = (rn.get('site_id') or '').strip()
+                device_id = (rn.get('device_id') or '').strip()
                 alert1_id = ''
                 if sid:
                     parts = sid.split('.')
@@ -1677,7 +1700,11 @@ __NAV__
     var fr=new FileReader();
     fr.onload=function(){
       fetch('/api/file_drop/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:f.name, content:String(fr.result||'')})})
-      .then(function(r){return r.json();}).then(function(d){ document.getElementById('m').textContent = d.ok ? ('uploaded: '+(d.path||'')+' ['+(d.type||'generic')+']') : ('upload failed: '+(d.error||'unknown')); loadList(); })
+      .then(function(r){return r.json();}).then(function(d){
+        var extra=(d.type==='sensor_map') ? (' mapped IDs='+String(d.mapped_alert1_ids||0)) : '';
+        document.getElementById('m').textContent = d.ok ? ('uploaded: '+(d.path||'')+' ['+(d.type||'generic')+']'+extra) : ('upload failed: '+(d.error||'unknown'));
+        loadList();
+      })
       .catch(function(){ document.getElementById('m').textContent='upload failed'; });
     };
     fr.readAsText(f);
@@ -3359,13 +3386,15 @@ class Handler(BaseHTTPRequestHandler):
                 outp = FILE_DROP_DIR / fn
                 outp.write_text(content, encoding='utf-8', errors='replace')
                 ftype = 'generic'
+                mapped = 0
                 # auto-capture station/sensor mapping file shape
                 low = fn.lower()
-                if low.endswith('.csv') and ('sensor id' in content.lower() and 'site id' in content.lower() and 'device_id' in content.lower()):
+                if low.endswith('.csv') and _looks_like_sensor_map_csv(content):
                     SENSOR_MAP_CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
                     SENSOR_MAP_CSV_PATH.write_text(content, encoding='utf-8', errors='replace')
                     ftype = 'sensor_map'
-                return self._json({'ok': True, 'path': str(outp), 'type': ftype})
+                    mapped = len(_load_sensor_map())
+                return self._json({'ok': True, 'path': str(outp), 'type': ftype, 'mapped_alert1_ids': mapped})
             except Exception as e:
                 return self._json({'ok': False, 'error': str(e)}, code=400)
 
