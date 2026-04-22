@@ -1652,6 +1652,7 @@ __NAV__
 </div>
 <div class='card'>
   <strong>Recent uploads</strong>
+  <div id='mapStatus' class='muted' style='margin-top:.35rem'></div>
   <div id='lst' class='muted' style='margin-top:.4rem'>loading...</div>
 </div>
 <script>
@@ -1659,11 +1660,17 @@ __NAV__
   function loadList(){
     fetch('/api/file_drop/list?limit=20').then(function(r){return r.json();}).then(function(d){
       var a=d.files||[];
-      if(!a.length){ document.getElementById('lst').textContent='no uploads yet'; return; }
-      var lines=[];
-      a.forEach(function(x){ lines.push((x.mtime||'')+'  '+(x.type||'generic')+'  '+(x.name||'')+'  ('+(x.size||0)+' bytes)'); });
-      document.getElementById('lst').textContent=lines.join('\n');
+      if(!a.length){ document.getElementById('lst').textContent='no uploads yet'; }
+      else {
+        var lines=[];
+        a.forEach(function(x){ lines.push((x.mtime||'')+'  '+(x.type||'generic')+'  '+(x.name||'')+'  ('+(x.size||0)+' bytes)'); });
+        document.getElementById('lst').textContent=lines.join('\n');
+      }
     }).catch(function(){ document.getElementById('lst').textContent='failed to load uploads'; });
+
+    fetch('/api/sensor_map/status').then(function(r){return r.json();}).then(function(s){
+      document.getElementById('mapStatus').textContent = s.exists ? ('Sensor map active: '+s.mapped_alert1_ids+' ALERT1 IDs ('+s.path+')') : 'Sensor map not loaded yet';
+    }).catch(function(){ document.getElementById('mapStatus').textContent='sensor map status unavailable'; });
   }
   document.getElementById('u').addEventListener('click', function(){
     var f=document.getElementById('f').files[0]; if(!f){ document.getElementById('m').textContent='choose file first'; return; }
@@ -3729,11 +3736,21 @@ class Handler(BaseHTTPRequestHandler):
             for p in sorted(FILE_DROP_DIR.glob('*'), key=lambda x: x.stat().st_mtime, reverse=True)[:limit]:
                 try:
                     st = p.stat()
-                    ftype = 'sensor_map' if (SENSOR_MAP_CSV_PATH.exists() and p.name == SENSOR_MAP_CSV_PATH.name and p.resolve() == SENSOR_MAP_CSV_PATH.resolve()) else 'generic'
+                    ftype = 'generic'
+                    try:
+                        txt = p.read_text(encoding='utf-8', errors='replace')[:8000].lower()
+                        if p.suffix.lower() == '.csv' and ('sensor id' in txt and 'site id' in txt and 'device_id' in txt):
+                            ftype = 'sensor_map_candidate'
+                    except Exception:
+                        pass
                     files.append({'name': p.name, 'size': st.st_size, 'mtime': datetime.utcfromtimestamp(st.st_mtime).isoformat()+'Z', 'type': ftype})
                 except Exception:
                     continue
-            return self._json({'count': len(files), 'files': files, 'dir': str(FILE_DROP_DIR)})
+            return self._json({'count': len(files), 'files': files, 'dir': str(FILE_DROP_DIR), 'sensor_map_path': str(SENSOR_MAP_CSV_PATH), 'sensor_map_exists': SENSOR_MAP_CSV_PATH.exists()})
+
+        if parsed.path == '/api/sensor_map/status':
+            sm = _load_sensor_map(limit=100000)
+            return self._json({'ok': True, 'path': str(SENSOR_MAP_CSV_PATH), 'exists': SENSOR_MAP_CSV_PATH.exists(), 'mapped_alert1_ids': len(sm)})
 
         if parsed.path == '/api/events':
             q = parse_qs(parsed.query)
