@@ -1432,6 +1432,8 @@ __NAV__
   var pointMarkersByBom={};
   var lastSeenByName={};
   var lastSeenByBom={};
+  var lastPacketByName={};
+  var lastPacketByBom={};
   function norm(s){ return String(s||'').trim().toLowerCase().replace(/\s+/g,' '); }
   function fadeWindowMs(){
     var h=Number((document.getElementById('fadeHours')||{}).value||3);
@@ -1500,10 +1502,20 @@ __NAV__
     var dir='https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(String(lat)+','+String(lon))+'&travelmode=driving';
     var sv='https://maps.googleapis.com/maps/api/streetview?size=360x180&location='+encodeURIComponent(String(lat)+','+String(lon))+'&fov=90&pitch=0&source=outdoor';
     var pano='https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+encodeURIComponent(String(lat)+','+String(lon));
+    var bom=(r&&r.unitid!=null)?String(r.unitid).trim():'';
+    var nm=norm(r.name||r.unitname||'');
+    var lp=(bom && lastPacketByBom[bom]) ? lastPacketByBom[bom] : (lastPacketByName[nm]||null);
+    var lpText='No packet data yet';
+    if(lp){
+      var t=lp.ts?new Date(lp.ts):null;
+      var ttxt=(t && !isNaN(t.getTime())) ? t.toLocaleString() : String(lp.ts||'');
+      lpText='Last packet: '+(lp.sensor||'sensor')+' = '+(lp.data_val==null?'-':lp.data_val)+' @ '+ttxt;
+    }
     return '<b>'+String(r.name||r.unitname||'')+'</b>'
       +'<br>ID: '+String(r.unitid||'-')
       +'<br>Lat/Lon: '+lat+', '+lon
       +(r.elevation?('<br>Elevation: '+r.elevation):'')
+      +'<br><span style="color:#9fd0ff">'+lpText+'</span>'
       +'<br><a href="'+dir+'" target="_blank" rel="noopener" style="color:#7fc8ff">Get directions</a> · <a href="'+pano+'" target="_blank" rel="noopener" style="color:#7fc8ff">Open Street</a>'
       +'<br><img src="'+sv+'" style="margin-top:.3rem;width:100%;max-width:320px;border:1px solid #2a3948;border-radius:6px" onerror="this.style.display=&quot;none&quot;">';
   }
@@ -1552,8 +1564,18 @@ __NAV__
         var key=norm(sm.site||'');
         if(bom) lastSeenByBom[bom]=Math.max(lastSeenByBom[bom]||0, ts);
         if(key) lastSeenByName[key]=Math.max(lastSeenByName[key]||0, ts);
+
+        var de=ev.decode||{};
+        var pkt={
+          ts: ev.ts||'',
+          sensor: sm.sensor||'',
+          data_val: (de.data_val!==undefined?de.data_val:null)
+        };
+        if(bom) lastPacketByBom[bom]=pkt;
+        if(key) lastPacketByName[key]=pkt;
       }
       refreshAllMarkerColors();
+      render();
     }).catch(function(){});
   }
 
@@ -1572,6 +1594,10 @@ __NAV__
       var key=norm(sm.site||'');
       if(bom) lastSeenByBom[bom]=now;
       if(key) lastSeenByName[key]=now;
+      var de=(ev&&ev.decode)||{};
+      var pkt={ts: ev.ts||new Date(now).toISOString(), sensor: sm.sensor||'', data_val:(de.data_val!==undefined?de.data_val:null)};
+      if(bom) lastPacketByBom[bom]=pkt;
+      if(key) lastPacketByName[key]=pkt;
 
       var m=null;
       if(bom && pointMarkersByBom[bom]) m=pointMarkersByBom[bom];
@@ -1579,6 +1605,10 @@ __NAV__
       if(m){
         var col=colorForAge(0);
         m.setStyle({color:col, fillColor:col, fillOpacity:0.95, weight:2.5});
+        // Refresh popup body to include latest packet values/timestamp.
+        var ref=m._stationRef||{};
+        var rr={name:ref.name||sm.site||'', unitname:ref.name||sm.site||'', unitid:ref.bom||sm.site_id_bom||''};
+        m.setPopupContent(markerHtml(rr, m.getLatLng().lat, m.getLatLng().lng));
         if(clustered && clustered.refreshClusters) try{ clustered.refreshClusters(); }catch(e){}
         pf.textContent='Packet mapped: '+(sm.site||('BoM# '+(sm.site_id_bom||'?')))+' ('+(sm.sensor||'')+')';
         pf.style.color='#5cd66f';
