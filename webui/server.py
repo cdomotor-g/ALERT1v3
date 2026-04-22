@@ -1445,11 +1445,19 @@ __NAV__
     var r=mix(46, 233, t), g=mix(204, 76, t), bl=mix(113, 60, t);
     return 'rgb('+r+','+g+','+bl+')';
   }
+  function recentTsForStationRef(ref){
+    if(!ref) return null;
+    var bom=String(ref.bom||'').trim();
+    var nm=norm(ref.name||'');
+    if(bom && lastSeenByBom[bom]) return lastSeenByBom[bom];
+    if(nm && lastSeenByName[nm]) return lastSeenByName[nm];
+    return null;
+  }
   function applyMarkerColorForStation(r,m){
     var now=Date.now();
     var bom=(r&&r.unitid!=null)?String(r.unitid).trim():'';
     var nm=norm(r.name||r.unitname||'');
-    var ts=(bom && lastSeenByBom[bom]) ? lastSeenByBom[bom] : (lastSeenByName[nm]||null);
+    var ts=recentTsForStationRef({bom:bom,name:nm});
     var col = ts ? colorForAge(now-ts) : '#e94c3c';
     m.setStyle({color:col, fillColor:col, fillOpacity:0.9, weight:2});
   }
@@ -1459,7 +1467,21 @@ __NAV__
     showCoverageOnHover:false,
     spiderfyOnMaxZoom:true,
     disableClusteringAtZoom:13,
-    maxClusterRadius:45
+    maxClusterRadius:45,
+    iconCreateFunction: function(cluster){
+      var kids=cluster.getAllChildMarkers();
+      var now=Date.now();
+      var newestTs=null;
+      for(var i=0;i<kids.length;i++){
+        var ref=kids[i]._stationRef||null;
+        var ts=recentTsForStationRef(ref);
+        if(ts && (!newestTs || ts>newestTs)) newestTs=ts;
+      }
+      var col=newestTs ? colorForAge(now-newestTs) : '#e94c3c';
+      var cnt=cluster.getChildCount();
+      var html='<div style="background:'+col+';width:32px;height:32px;border-radius:16px;border:2px solid rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700">'+cnt+'</div>';
+      return L.divIcon({html:html,className:'fw-cluster',iconSize:[32,32]});
+    }
   }) : L.layerGroup());
   var plain=L.layerGroup();
   var useClusters=!!L.markerClusterGroup;
@@ -1498,6 +1520,7 @@ __NAV__
       });
       m.bindPopup(markerHtml(r,lat,lon));
       m.on('click', function(){ m.openPopup(); });
+      m._stationRef={name:(r.name||r.unitname||''), bom:(r.unitid||'')};
       pointMarkersByName[norm(r.name||r.unitname||'')] = m;
       if(r.unitid!==undefined && r.unitid!==null && String(r.unitid).trim()!=='') pointMarkersByBom[String(r.unitid).trim()] = m;
       applyMarkerColorForStation(r,m);
@@ -1527,6 +1550,7 @@ __NAV__
       if(m){
         var col=colorForAge(0);
         m.setStyle({color:col, fillColor:col, fillOpacity:0.95, weight:2.5});
+        if(clustered && clustered.refreshClusters) try{ clustered.refreshClusters(); }catch(e){}
         pf.textContent='Packet mapped: '+(sm.site||('BoM# '+(sm.site_id_bom||'?')))+' ('+(sm.sensor||'')+')';
         pf.style.color='#5cd66f';
       } else {
@@ -1550,6 +1574,7 @@ __NAV__
       }
       if(m) applyMarkerColorForStation(r,m);
     });
+    if(clustered && clustered.refreshClusters) try{ clustered.refreshClusters(); }catch(e){}
   }
 
   document.getElementById('q').addEventListener('input', render);
