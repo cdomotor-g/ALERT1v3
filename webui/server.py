@@ -1573,18 +1573,38 @@ __NAV__
     if(r.arro_site_id||r.device_ids) meta += '<div><b>ARRO:</b> site_id '+String(r.arro_site_id||'-')+' · device_ids '+String(r.device_ids||'-')+'</div>';
     if(r.kml_name||r.source) meta += '<div><b>Catalog:</b> '+String(r.kml_name||'-')+' · '+String(r.source||'-')+'</div>';
 
+    var rowStyle='display:flex;justify-content:space-between;gap:.7rem;padding:.15rem 0;border-bottom:1px dashed rgba(180,210,240,.16)';
+    function kv(k,v){ return '<div style="'+rowStyle+'"><span style="color:#9fc2e6">'+k+'</span><span style="color:#f4f8ff;font-weight:600">'+v+'</span></div>'; }
+    var loc=lat+', '+lon;
+    if(r.elevation) loc += ' · '+r.elevation+' m';
+    var chips=''
+      +'<a href="'+stLink+'" style="text-decoration:none;color:#dff3ff;background:#20486a;border:1px solid #3e6f97;padding:.24rem .52rem;border-radius:999px">Stations</a>'
+      +(arro?(' <a href="'+arro+'" target="_blank" rel="noopener" style="text-decoration:none;color:#dff3ff;background:#20486a;border:1px solid #3e6f97;padding:.24rem .52rem;border-radius:999px">ARRO</a>'):'')
+      +' <a href="'+dir+'" target="_blank" rel="noopener" style="text-decoration:none;color:#dff3ff;background:#20486a;border:1px solid #3e6f97;padding:.24rem .52rem;border-radius:999px">Directions</a>'
+      +' <a href="'+pano+'" target="_blank" rel="noopener" style="text-decoration:none;color:#dff3ff;background:#20486a;border:1px solid #3e6f97;padding:.24rem .52rem;border-radius:999px">Street</a>';
+
     return ''
-      +'<div style="min-width:270px;max-width:380px;line-height:1.5;color:#f4f8ff;font-size:14px;background:#122235;border:1px solid #2c4663;border-radius:8px;padding:.6rem .65rem">'
-      +'<div style="font-weight:700;font-size:1.08em;margin-bottom:.55rem;color:#ffffff">'+name+'</div>'
-      +'<div style="margin:.25rem 0 .6rem 0;color:#f4f8ff">'+meta+'</div>'
+      +'<div style="min-width:270px;max-width:380px;line-height:1.45;color:#f4f8ff;font-size:14px;background:#122235;border:1px solid #2c4663;border-radius:8px;padding:.62rem .68rem">'
+      +'<div style="font-weight:700;font-size:1.08em;margin-bottom:.48rem;color:#ffffff">'+name+'</div>'
+      +kv('BoM_Stn#', String(r.unitid||'-'))
+      +kv('Location', loc)
       +'<div style="margin:.55rem 0;padding:.55rem .6rem;background:#18324f;border:1px solid #2f5b84;border-radius:8px;color:#ffffff">'
       +'<div style="font-weight:700;margin-bottom:.2rem">Last packet</div>'
       +'<div style="color:#ffffff">'+lpText+'</div>'
       +'</div>'
-      +'<div style="margin:.55rem 0 0.5rem 0;display:flex;flex-wrap:wrap;gap:.45rem .7rem">'
-      +'<a href="'+stLink+'" style="color:#8fd1ff">Open in Stations</a>'+(arro?('<a href="'+arro+'" target="_blank" rel="noopener" style="color:#8fd1ff">ARRO</a>'):'')+'<a href="'+dir+'" target="_blank" rel="noopener" style="color:#8fd1ff">Directions</a><a href="'+pano+'" target="_blank" rel="noopener" style="color:#8fd1ff">Street</a>'
-      +'</div>'
-      +'<img src="'+sv+'" style="margin-top:.2rem;width:100%;max-width:340px;border:1px solid #2a3948;border-radius:6px" onerror="this.style.display=&quot;none&quot;">'
+      +'<div style="display:flex;flex-wrap:wrap;gap:.42rem .48rem;margin:.48rem 0 .55rem 0">'+chips+'</div>'
+      +'<details style="margin:.2rem 0 .4rem 0">'
+      +'<summary style="cursor:pointer;color:#9fc2e6">More details</summary>'
+      +'<div style="margin-top:.45rem">'
+      +(r.sensor_types?kv('Sensor types', String(r.sensor_types)):'')
+      +(r.sensor_ids?kv('Sensor IDs', String(r.sensor_ids)):'')
+      +((r.arro_site_id||r.device_ids)?kv('ARRO IDs', 'site '+String(r.arro_site_id||'-')+' · dev '+String(r.device_ids||'-')):'')
+      +((r.kml_name||r.source)?kv('Catalog', String(r.kml_name||'-')+' · '+String(r.source||'-')):'')
+      +'</div></details>'
+      +'<details>'
+      +'<summary style="cursor:pointer;color:#9fc2e6">Show Street View</summary>'
+      +'<img src="'+sv+'" style="margin-top:.35rem;width:100%;max-width:340px;border:1px solid #2a3948;border-radius:6px" onerror="this.style.display=&quot;none&quot;">'
+      +'</details>'
       +'</div>';
   }
   function render(){
