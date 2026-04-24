@@ -1458,8 +1458,8 @@ __NAV__
   var pointMarkersByBom={};
   var lastSeenByName={};
   var lastSeenByBom={};
-  var lastPacketByName={};
-  var lastPacketByBom={};
+  var lastPacketsByName={};
+  var lastPacketsByBom={};
   var stationParam=(new URLSearchParams(window.location.search).get('station')||'').trim();
   var focusDone=false;
   function norm(s){ return String(s||'').trim().toLowerCase().replace(/\s+/g,' '); }
@@ -1493,6 +1493,14 @@ __NAV__
     if(nm && lastSeenByName[nm]) return lastSeenByName[nm];
     return null;
   }
+  function pushRecentPacket(store, k, pkt){
+    if(!k) return;
+    var arr=store[k]||[];
+    arr.unshift(pkt);
+    if(arr.length>4) arr=arr.slice(0,4);
+    store[k]=arr;
+  }
+
   function stationIsStale(r){
     var now=Date.now();
     var bom=(r&&r.unitid!=null)?String(r.unitid).trim():'';
@@ -1553,14 +1561,7 @@ __NAV__
     var pano='https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+encodeURIComponent(String(lat)+','+String(lon));
     var bom=(r&&r.unitid!=null)?String(r.unitid).trim():'';
     var nm=norm(r.name||r.unitname||'');
-    var lp=(bom && lastPacketByBom[bom]) ? lastPacketByBom[bom] : (lastPacketByName[nm]||null);
-    var lpText='No packet data yet';
-    if(lp){
-      var t=lp.ts?new Date(lp.ts):null;
-      var ttxt=(t && !isNaN(t.getTime())) ? t.toLocaleString() : String(lp.ts||'');
-      var rel=ageText(lp.ts);
-      lpText=(lp.sensor||'sensor')+' = '+(lp.data_val==null?'-':lp.data_val)+' · '+ttxt+(rel?(' ('+rel+')'):'');
-    }
+    var lps=(bom && lastPacketsByBom[bom]) ? lastPacketsByBom[bom] : (lastPacketsByName[nm]||[]);
     var st=(r.unitid||r.name||r.unitname||'');
     var stLink='/stations?q='+encodeURIComponent(String(st));
     var arro=arroUrl(r);
@@ -1589,8 +1590,21 @@ __NAV__
       +kv('BoM_Stn#', String(r.unitid||'-'))
       +kv('Location', loc)
       +'<div style="margin:.55rem 0;padding:.55rem .6rem;background:#18324f;border:1px solid #2f5b84;border-radius:8px;color:#ffffff">'
-      +'<div style="font-weight:700;margin-bottom:.2rem">Last packet</div>'
-      +'<div style="color:#ffffff">'+lpText+'</div>'
+      +'<div style="font-weight:700;margin-bottom:.35rem">Recent packets</div>'
+      +(function(){
+          if(!lps || !lps.length) return '<div style="color:#dcecff">No packet data yet</div>';
+          var h='<table style="width:100%;border-collapse:collapse">';
+          h+='<thead><tr><th style="text-align:left;color:#9fc2e6;padding:.2rem 0">Sensor</th><th style="text-align:right;color:#9fc2e6;padding:.2rem 0">Value</th><th style="text-align:right;color:#9fc2e6;padding:.2rem 0">Age</th></tr></thead><tbody>';
+          lps.slice(0,4).forEach(function(lp){
+            h+='<tr>'
+              +'<td style="padding:.18rem 0;color:#ffffff">'+String(lp.sensor||'-')+'</td>'
+              +'<td style="padding:.18rem 0;text-align:right;color:#ffffff">'+String(lp.data_val==null?'-':lp.data_val)+'</td>'
+              +'<td style="padding:.18rem 0;text-align:right;color:#dcecff">'+String(ageText(lp.ts)||'-')+'</td>'
+              +'</tr>';
+          });
+          h+='</tbody></table>';
+          return h;
+        })()
       +'</div>'
       +'<div style="display:flex;flex-wrap:wrap;gap:.42rem .48rem;margin:.48rem 0 .55rem 0">'+chips+'</div>'
       +'<details style="margin:.2rem 0 .4rem 0">'
@@ -1668,8 +1682,8 @@ __NAV__
           sensor: sm.sensor||'',
           data_val: (de.data_val!==undefined?de.data_val:null)
         };
-        if(bom) lastPacketByBom[bom]=pkt;
-        if(key) lastPacketByName[key]=pkt;
+        if(bom) pushRecentPacket(lastPacketsByBom, bom, pkt);
+        if(key) pushRecentPacket(lastPacketsByName, key, pkt);
       }
       refreshAllMarkerColors();
       render();
@@ -1693,8 +1707,8 @@ __NAV__
       if(key) lastSeenByName[key]=now;
       var de=(ev&&ev.decode)||{};
       var pkt={ts: ev.ts||new Date(now).toISOString(), sensor: sm.sensor||'', data_val:(de.data_val!==undefined?de.data_val:null)};
-      if(bom) lastPacketByBom[bom]=pkt;
-      if(key) lastPacketByName[key]=pkt;
+      if(bom) pushRecentPacket(lastPacketsByBom, bom, pkt);
+      if(key) pushRecentPacket(lastPacketsByName, key, pkt);
 
       var m=null;
       if(bom && pointMarkersByBom[bom]) m=pointMarkersByBom[bom];
