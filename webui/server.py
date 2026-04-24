@@ -1574,9 +1574,9 @@ __NAV__
     if(r.kml_name||r.source) meta += '<div><b>Catalog:</b> '+String(r.kml_name||'-')+' · '+String(r.source||'-')+'</div>';
 
     return ''
-      +'<div style="min-width:270px;max-width:380px;line-height:1.5;color:#e7eef7;font-size:14px">'
+      +'<div style="min-width:270px;max-width:380px;line-height:1.5;color:#f4f8ff;font-size:14px;background:#122235;border:1px solid #2c4663;border-radius:8px;padding:.6rem .65rem">'
       +'<div style="font-weight:700;font-size:1.08em;margin-bottom:.55rem;color:#ffffff">'+name+'</div>'
-      +'<div style="margin:.25rem 0 .6rem 0">'+meta+'</div>'
+      +'<div style="margin:.25rem 0 .6rem 0;color:#f4f8ff">'+meta+'</div>'
       +'<div style="margin:.55rem 0;padding:.55rem .6rem;background:#18324f;border:1px solid #2f5b84;border-radius:8px;color:#ffffff">'
       +'<div style="font-weight:700;margin-bottom:.2rem">Last packet</div>'
       +'<div style="color:#ffffff">'+lpText+'</div>'
