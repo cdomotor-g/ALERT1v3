@@ -1616,18 +1616,17 @@ __NAV__
             }
             return 'n/a';
           }
-          var h='<table style="width:100%;border-collapse:collapse">';
-          h+='<thead><tr><th style="text-align:left;color:#9fc2e6;padding:.2rem 0">Sensor</th><th style="text-align:right;color:#9fc2e6;padding:.2rem 0">Value</th><th style="text-align:right;color:#9fc2e6;padding:.2rem 0">'+(mode==='exact'?'Time':'Age')+'</th></tr></thead><tbody>';
-          lps.slice(0,4).forEach(function(lp,idx){
-            var rid='pkt_'+idx+'_'+Math.random().toString(36).slice(2,7);
-            h+='<tr style="cursor:pointer" onclick="var e=document.getElementById(\''+rid+'\'); if(e){e.style.display=(e.style.display===\'none\'?\'table-row\':\'none\');}">'
-              +'<td style="padding:.18rem 0;color:#ffffff">'+String(lp.sensor||'-')+'</td>'
-              +'<td style="padding:.18rem 0;text-align:right;color:#ffffff">'+String(lp.data_val==null?'-':lp.data_val)+'</td>'
-              +'<td style="padding:.18rem 0;text-align:right;color:#dcecff">'+ttxt(lp)+'</td>'
-              +'</tr>';
-            h+='<tr id="'+rid+'" style="display:none"><td colspan="3" style="padding:.18rem .1rem .35rem .1rem;color:#dcecff;font-family:monospace">binary: '+btxt(lp)+'</td></tr>';
+          var h='';
+          lps.slice(0,4).forEach(function(lp){
+            h+='<details style="border:1px solid rgba(190,220,255,.2);border-radius:6px;padding:.22rem .38rem;margin:.28rem 0;background:rgba(8,20,34,.35)">';
+            h+='<summary style="cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:.6rem">'
+              +'<span style="color:#ffffff">'+String(lp.sensor||'-')+'</span>'
+              +'<span style="color:#ffffff">'+String(lp.data_val==null?'-':lp.data_val)+'</span>'
+              +'<span style="color:#dcecff">'+ttxt(lp)+'</span>'
+              +'</summary>';
+            h+='<div style="padding:.26rem .1rem .18rem .1rem;color:#dcecff;font-family:monospace">binary: '+btxt(lp)+'</div>';
+            h+='</details>';
           });
-          h+='</tbody></table>';
           return h;
         })()
       +'</div>'
