@@ -1630,7 +1630,7 @@ __NAV__
               +'<span style="color:#ffffff">'+String(lp.data_val==null?'-':lp.data_val)+'</span>'
               +'<span style="color:#dcecff">'+ttxt(lp)+'</span>'
               +'</summary>';
-            h+='<div style="padding:.26rem .1rem .18rem .1rem;color:#dcecff;font-family:monospace;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere">binary:\n'+btxt(lp)+'</div>';
+            h+='<div style="padding:.26rem .1rem .18rem .1rem;color:#dcecff;font-family:monospace;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere">binary:\\n'+btxt(lp)+'</div>';
             h+='</details>';
           });
           return h;
