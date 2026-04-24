@@ -1574,12 +1574,17 @@ __NAV__
     if(r.kml_name||r.source) meta += '<div><b>Catalog:</b> '+String(r.kml_name||'-')+' · '+String(r.source||'-')+'</div>';
 
     return ''
-      +'<div style="min-width:260px;max-width:360px;line-height:1.35">'
-      +'<div style="font-weight:700;font-size:1.02em;margin-bottom:.35rem">'+name+'</div>'
-      +'<div style="margin:.25rem 0 .45rem 0">'+meta+'</div>'
-      +'<div style="margin:.35rem 0;padding:.35rem .45rem;background:#102033;border:1px solid #23405f;border-radius:6px"><b>Last packet:</b> '+lpText+'</div>'
-      +'<div style="margin:.45rem 0"><a href="'+stLink+'" style="color:#7fc8ff">Open in Stations</a>'+(arro?(' · <a href="'+arro+'" target="_blank" rel="noopener" style="color:#7fc8ff">ARRO</a>'):'')+' · <a href="'+dir+'" target="_blank" rel="noopener" style="color:#7fc8ff">Directions</a> · <a href="'+pano+'" target="_blank" rel="noopener" style="color:#7fc8ff">Street</a></div>'
-      +'<img src="'+sv+'" style="margin-top:.15rem;width:100%;max-width:340px;border:1px solid #2a3948;border-radius:6px" onerror="this.style.display=&quot;none&quot;">'
+      +'<div style="min-width:270px;max-width:380px;line-height:1.5;color:#e7eef7;font-size:14px">'
+      +'<div style="font-weight:700;font-size:1.08em;margin-bottom:.55rem;color:#ffffff">'+name+'</div>'
+      +'<div style="margin:.25rem 0 .6rem 0">'+meta+'</div>'
+      +'<div style="margin:.55rem 0;padding:.55rem .6rem;background:#18324f;border:1px solid #2f5b84;border-radius:8px;color:#ffffff">'
+      +'<div style="font-weight:700;margin-bottom:.2rem">Last packet</div>'
+      +'<div style="color:#ffffff">'+lpText+'</div>'
+      +'</div>'
+      +'<div style="margin:.55rem 0 0.5rem 0;display:flex;flex-wrap:wrap;gap:.45rem .7rem">'
+      +'<a href="'+stLink+'" style="color:#8fd1ff">Open in Stations</a>'+(arro?('<a href="'+arro+'" target="_blank" rel="noopener" style="color:#8fd1ff">ARRO</a>'):'')+'<a href="'+dir+'" target="_blank" rel="noopener" style="color:#8fd1ff">Directions</a><a href="'+pano+'" target="_blank" rel="noopener" style="color:#8fd1ff">Street</a>'
+      +'</div>'
+      +'<img src="'+sv+'" style="margin-top:.2rem;width:100%;max-width:340px;border:1px solid #2a3948;border-radius:6px" onerror="this.style.display=&quot;none&quot;">'
       +'</div>';
   }
   function render(){
