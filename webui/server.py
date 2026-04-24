@@ -1608,13 +1608,19 @@ __NAV__
             return String(ageText(lp.ts)||'-');
           }
           function btxt(lp){
-            if(lp.binary) return String(lp.binary);
-            var v=Number(lp.data_val);
-            if(isFinite(v)){
-              var b=(Math.trunc(v)>>>0).toString(2);
-              return b.padStart(Math.max(8,b.length),'0');
+            var raw='';
+            if(lp.binary) raw=String(lp.binary).replace(/[^01]/g,'');
+            if(!raw){
+              var v=Number(lp.data_val);
+              if(isFinite(v)){
+                raw=(Math.trunc(v)>>>0).toString(2);
+                raw=raw.padStart(Math.max(8,raw.length),'0');
+              }
             }
-            return 'n/a';
+            if(!raw) return 'n/a';
+            var groups=[];
+            for(var i=0;i<raw.length;i+=8) groups.push(raw.slice(i,i+8));
+            return groups.join(' ');
           }
           var h='';
           lps.slice(0,4).forEach(function(lp){
@@ -1624,7 +1630,7 @@ __NAV__
               +'<span style="color:#ffffff">'+String(lp.data_val==null?'-':lp.data_val)+'</span>'
               +'<span style="color:#dcecff">'+ttxt(lp)+'</span>'
               +'</summary>';
-            h+='<div style="padding:.26rem .1rem .18rem .1rem;color:#dcecff;font-family:monospace">binary: '+btxt(lp)+'</div>';
+            h+='<div style="padding:.26rem .1rem .18rem .1rem;color:#dcecff;font-family:monospace;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere">binary:\n'+btxt(lp)+'</div>';
             h+='</details>';
           });
           return h;
