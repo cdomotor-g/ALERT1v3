@@ -1445,6 +1445,12 @@ __NAV__
   <label class='muted' style='margin-left:.6rem'><input id='hideStale' type='checkbox'> hide stale (red)</label>
   <span class='muted'>Total: <span id='total'>0</span> · Visible: <span id='vis'>0</span></span>
   <label class='muted' style='margin-left:.6rem'>Fade hours <input id='fadeHours' type='number' min='0.25' step='0.25' value='3' style='width:70px'></label>
+  <label class='muted' style='margin-left:.6rem'>Packet time
+    <select id='pktTimeMode'>
+      <option value='age' selected>Age</option>
+      <option value='exact'>Exact</option>
+    </select>
+  </label>
   <div id='pktFlash' class='touch-note'>Waiting for packets...</div>
   <div class='touch-note'>Legend: <span style='display:inline-block;width:10px;height:10px;border-radius:50%;background:#2ecc71;vertical-align:middle'></span> Fresh  →  <span style='display:inline-block;width:10px;height:10px;border-radius:50%;background:#e94c3c;vertical-align:middle'></span> Stale (fade window applies)</div>
   <div class='touch-note'>Tap a cluster to zoom. Marker touch targets enlarged for mobile.</div>
@@ -1593,14 +1599,33 @@ __NAV__
       +'<div style="font-weight:700;margin-bottom:.35rem">Recent packets</div>'
       +(function(){
           if(!lps || !lps.length) return '<div style="color:#dcecff">No packet data yet</div>';
+          var mode=((document.getElementById('pktTimeMode')||{}).value||'age');
+          function ttxt(lp){
+            if(mode==='exact'){
+              var t=lp.ts?new Date(lp.ts):null;
+              return (t && !isNaN(t.getTime())) ? t.toLocaleTimeString() : String(lp.ts||'-');
+            }
+            return String(ageText(lp.ts)||'-');
+          }
+          function btxt(lp){
+            if(lp.binary) return String(lp.binary);
+            var v=Number(lp.data_val);
+            if(isFinite(v)){
+              var b=(Math.trunc(v)>>>0).toString(2);
+              return b.padStart(Math.max(8,b.length),'0');
+            }
+            return 'n/a';
+          }
           var h='<table style="width:100%;border-collapse:collapse">';
-          h+='<thead><tr><th style="text-align:left;color:#9fc2e6;padding:.2rem 0">Sensor</th><th style="text-align:right;color:#9fc2e6;padding:.2rem 0">Value</th><th style="text-align:right;color:#9fc2e6;padding:.2rem 0">Age</th></tr></thead><tbody>';
-          lps.slice(0,4).forEach(function(lp){
-            h+='<tr>'
+          h+='<thead><tr><th style="text-align:left;color:#9fc2e6;padding:.2rem 0">Sensor</th><th style="text-align:right;color:#9fc2e6;padding:.2rem 0">Value</th><th style="text-align:right;color:#9fc2e6;padding:.2rem 0">'+(mode==='exact'?'Time':'Age')+'</th></tr></thead><tbody>';
+          lps.slice(0,4).forEach(function(lp,idx){
+            var rid='pkt_'+idx+'_'+Math.random().toString(36).slice(2,7);
+            h+='<tr style="cursor:pointer" onclick="var e=document.getElementById(\''+rid+'\'); if(e){e.style.display=(e.style.display===\'none\'?\'table-row\':\'none\');}">'
               +'<td style="padding:.18rem 0;color:#ffffff">'+String(lp.sensor||'-')+'</td>'
               +'<td style="padding:.18rem 0;text-align:right;color:#ffffff">'+String(lp.data_val==null?'-':lp.data_val)+'</td>'
-              +'<td style="padding:.18rem 0;text-align:right;color:#dcecff">'+String(ageText(lp.ts)||'-')+'</td>'
+              +'<td style="padding:.18rem 0;text-align:right;color:#dcecff">'+ttxt(lp)+'</td>'
               +'</tr>';
+            h+='<tr id="'+rid+'" style="display:none"><td colspan="3" style="padding:.18rem .1rem .35rem .1rem;color:#dcecff;font-family:monospace">binary: '+btxt(lp)+'</td></tr>';
           });
           h+='</tbody></table>';
           return h;
@@ -1676,11 +1701,14 @@ __NAV__
         if(bom) lastSeenByBom[bom]=Math.max(lastSeenByBom[bom]||0, ts);
         if(key) lastSeenByName[key]=Math.max(lastSeenByName[key]||0, ts);
 
-        var de=ev.decode||{};
+        var de=ev.decode||{}, fr=ev.frame||{};
+        var pbin=String(fr.payload_bits||de.payload_bits||'').trim();
+        if(pbin.length>96) pbin=pbin.slice(0,96)+'…';
         var pkt={
           ts: ev.ts||'',
           sensor: sm.sensor||'',
-          data_val: (de.data_val!==undefined?de.data_val:null)
+          data_val: (de.data_val!==undefined?de.data_val:null),
+          binary: pbin
         };
         if(bom) pushRecentPacket(lastPacketsByBom, bom, pkt);
         if(key) pushRecentPacket(lastPacketsByName, key, pkt);
@@ -1705,8 +1733,10 @@ __NAV__
       var key=norm(sm.site||'');
       if(bom) lastSeenByBom[bom]=now;
       if(key) lastSeenByName[key]=now;
-      var de=(ev&&ev.decode)||{};
-      var pkt={ts: ev.ts||new Date(now).toISOString(), sensor: sm.sensor||'', data_val:(de.data_val!==undefined?de.data_val:null)};
+      var de=(ev&&ev.decode)||{}, fr=(ev&&ev.frame)||{};
+      var pbin=String(fr.payload_bits||de.payload_bits||'').trim();
+      if(pbin.length>96) pbin=pbin.slice(0,96)+'…';
+      var pkt={ts: ev.ts||new Date(now).toISOString(), sensor: sm.sensor||'', data_val:(de.data_val!==undefined?de.data_val:null), binary:pbin};
       if(bom) pushRecentPacket(lastPacketsByBom, bom, pkt);
       if(key) pushRecentPacket(lastPacketsByName, key, pkt);
 
