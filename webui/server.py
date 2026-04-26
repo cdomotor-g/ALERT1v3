@@ -242,6 +242,21 @@ h2{{font-weight:650;letter-spacing:.2px;}}
   if(mBtn) mBtn.onclick=function(){{ sb.classList.toggle('open'); }};
 
   function bindReceiverSelector(reg, info){{
+    window.fwReceiversRegistry = reg || {{receivers:[]}};
+    window.fwReceiverInfo = info || {{}};
+
+    function findRx(rxsId){{
+      var list=(window.fwReceiversRegistry.receivers||[]);
+      for(var i=0;i<list.length;i++) if(String(list[i].rxs_id||'')===String(rxsId||'')) return list[i];
+      return null;
+    }}
+
+    function applySelected(rxsId){{
+      window.fwSelectedRxsId = String(rxsId||'');
+      window.fwSelectedReceiver = findRx(window.fwSelectedRxsId) || null;
+      try {{ window.dispatchEvent(new CustomEvent('fw:receiver-selected', {{ detail: {{ rxs_id: window.fwSelectedRxsId, receiver: window.fwSelectedReceiver }} }})); }} catch(e) {{}}
+    }}
+
     function fill(sel){{
       if(!sel) return;
       sel.innerHTML='';
@@ -251,15 +266,25 @@ h2{{font-weight:650;letter-spacing:.2px;}}
         o.textContent=r.rxs_id+' · '+(r.name||'Receiver')+' @ '+(r.location||'unknown');
         sel.appendChild(o);
       }});
-      sel.value=(localStorage.getItem('fw_selected_rxs_id')||info.rxs_id||'');
-      if(!sel.value && info.rxs_id) sel.value=info.rxs_id;
+      var desired=(localStorage.getItem('fw_selected_rxs_id')||info.rxs_id||'');
+      if(!findRx(desired) && (reg.receivers||[]).length) desired=(reg.receivers[0].rxs_id||'');
+      sel.value=desired;
       sel.onchange=function(){{
         localStorage.setItem('fw_selected_rxs_id', sel.value||'');
-        // selector scaffold only for now (no routing/fetch switch yet)
+        applySelected(sel.value||'');
       }};
     }}
+
     fill(document.getElementById('fwRxSelect'));
     fill(document.getElementById('fwRxSelectDesk'));
+
+    var a=document.getElementById('fwRxSelect'), b=document.getElementById('fwRxSelectDesk');
+    if(a && b){{
+      a.onchange=function(){{ b.value=a.value; localStorage.setItem('fw_selected_rxs_id', a.value||''); applySelected(a.value||''); }};
+      b.onchange=function(){{ a.value=b.value; localStorage.setItem('fw_selected_rxs_id', b.value||''); applySelected(b.value||''); }};
+    }}
+
+    applySelected((a&&a.value) || (b&&b.value) || info.rxs_id || '');
   }}
 
   Promise.all([
@@ -394,6 +419,16 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   var filtersToggle=document.getElementById('filtersToggle');
   var filtersInner=document.getElementById('filtersInner');
   var rxState=document.getElementById('rx-state');
+  function selectedReceiverText(){
+    var r=window.fwSelectedReceiver||null;
+    if(!r) return 'unknown';
+    var t=(r.rxs_id||'')+' · '+(r.name||'Receiver')+' @ '+(r.location||'unknown');
+    if(String(r.base_url||'')!=='local') t += ' (remote scaffold)';
+    return t;
+  }
+  window.addEventListener('fw:receiver-selected', function(){
+    if(rxState) rxState.textContent = selectedReceiverText();
+  });
   var count=document.getElementById('count');
   var source=document.getElementById('source');
   var sensor=document.getElementById('sensor');
@@ -816,8 +851,9 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   function pollHost(){ fetch('/api/host_metrics').then(function(r){return r.json();}).then(function(d){ renderHost(g(d,'event',null)); })['catch'](function(){}); }
   function pollReceiver(){
     fetch('/api/receiver_status').then(function(r){return r.json();}).then(function(d){
-      rxState.textContent = d.state || 'unknown';
-      rxState.className = (d.state==='online') ? 'good' : ((d.state==='stale') ? 'warn' : 'bad');
+      var st=(d.state || 'unknown');
+      rxState.textContent = selectedReceiverText()+' · '+st;
+      rxState.className = (st==='online') ? 'good' : ((st==='stale') ? 'warn' : 'bad');
     })['catch'](function(){});
   }
 
