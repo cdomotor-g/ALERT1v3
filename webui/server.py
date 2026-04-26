@@ -2346,12 +2346,22 @@ __NAV__
   <button id='copyDiag'>Copy diagnostics snapshot</button>
   <pre id='audit'>loading...</pre>
 </div>
+
+<div class='card'>
+  <h3 style='margin:.1rem 0 .6rem'>Metadata history</h3>
+  <div class='row'>
+    <label>Entity <select id='metaEntity'><option value=''>all</option><option value='station'>station</option><option value='sensor'>sensor</option></select></label>
+    <label style='margin-left:.6rem'>Operation <select id='metaOp'><option value=''>all</option><option value='upsert'>upsert</option><option value='delete'>delete</option></select></label>
+    <button id='metaRefresh' style='margin-left:.6rem'>Refresh</button>
+  </div>
+  <pre id='metaHist'>loading...</pre>
+</div>
 <script>
 (function(){
   function g(o,k,d){ return (o && o[k]!==undefined && o[k]!==null) ? o[k] : d; }
   function setv(id,v){ document.getElementById(id).value = (v==null?'':v); }
   function num(id){ var x=parseFloat(document.getElementById(id).value); return isNaN(x)?null:x; }
-  var lastPolicy=null, lastReceiver=null, lastStorage=null, lastAudit=[];
+  var lastPolicy=null, lastReceiver=null, lastStorage=null, lastAudit=[], lastMetaHistory=[];
 
   function load(){
     fetch('/api/admin/storage_policy').then(function(r){return r.json();}).then(function(p){
@@ -2385,6 +2395,22 @@ __NAV__
       }).join('\\n') || 'no audit events yet';
     }).catch(function(){ document.getElementById('audit').textContent='failed to load audit'; });
   }
+  function loadMetaHistory(){
+    fetch('/api/admin/meta/history?limit=100').then(function(r){return r.json();}).then(function(d){
+      var rows=g(d,'events',[])||[];
+      var ent=(document.getElementById('metaEntity').value||'').trim();
+      var op=(document.getElementById('metaOp').value||'').trim();
+      if(ent){ rows = rows.filter(function(e){ return String(g(g(e,'details',{}),'entity',''))===ent; }); }
+      if(op){ rows = rows.filter(function(e){ return String(g(g(e,'details',{}),'op',''))===op || String(g(e,'action',''))===op; }); }
+      lastMetaHistory = rows;
+      document.getElementById('metaHist').textContent = rows.map(function(e){
+        var det=g(e,'details',{});
+        var snap=g(det,'snapshot','');
+        var key=(g(det,'station_key','')||g(det,'sensor_key',''));
+        return (g(e,'ts',''))+'  '+(g(e,'action',''))+'  '+(g(det,'entity',''))+'  '+(g(det,'op',''))+'  '+key+(snap?('  '+snap):'');
+      }).join('\\n') || 'no metadata history yet';
+    }).catch(function(){ document.getElementById('metaHist').textContent='failed to load metadata history'; });
+  }
   function receiverAction(action){
     fetch('/api/admin/receiver_action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:action})})
       .then(function(r){return r.json();})
@@ -2406,13 +2432,18 @@ __NAV__
       .then(function(d){ document.getElementById('msg').textContent = d.ok ? ' saved' : ' failed'; load(); loadAudit(); pollStatus(); });
   });
 
+  document.getElementById('metaRefresh').addEventListener('click', loadMetaHistory);
+  document.getElementById('metaEntity').addEventListener('change', loadMetaHistory);
+  document.getElementById('metaOp').addEventListener('change', loadMetaHistory);
+
   document.getElementById('copyDiag').addEventListener('click', function(){
     var snap = {
       ts: new Date().toISOString(),
       receiver: lastReceiver || {},
       storage: lastStorage || {},
       policy: lastPolicy || {},
-      audit_recent: lastAudit || []
+      audit_recent: lastAudit || [],
+      meta_history_recent: lastMetaHistory || []
     };
     var txt = JSON.stringify(snap, null, 2);
     navigator.clipboard.writeText(txt).then(function(){
@@ -2425,6 +2456,7 @@ __NAV__
   load();
   pollStatus(); setInterval(pollStatus,5000);
   loadAudit(); setInterval(loadAudit,12000);
+  loadMetaHistory(); setInterval(loadMetaHistory,15000);
 })();
 </script></div></body></html>"""
 
