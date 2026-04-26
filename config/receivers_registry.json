@@ -1,0 +1,11 @@
+{
+  "receivers": [
+    {
+      "rxs_id": "0000",
+      "name": "FW-LAB Receiver",
+      "location": "unknown",
+      "base_url": "local",
+      "enabled": true
+    }
+  ]
+}

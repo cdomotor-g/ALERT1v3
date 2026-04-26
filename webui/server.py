@@ -99,6 +99,48 @@ def _load_receiver_identity():
     RECEIVER_IDENTITY_PATH.write_text(json.dumps(default, indent=2), encoding='utf-8')
     return default
 
+
+def _load_receivers_registry():
+    local = _load_receiver_identity()
+    default = {'receivers': [
+        {
+            'rxs_id': local.get('rxs_id', '0000'),
+            'name': local.get('name', 'FW-LAB Receiver'),
+            'location': local.get('location', 'unknown'),
+            'base_url': 'local',
+            'enabled': bool(local.get('enabled', True)),
+        }
+    ]}
+    try:
+        if RECEIVERS_REGISTRY_PATH.exists():
+            d = json.loads(RECEIVERS_REGISTRY_PATH.read_text(encoding='utf-8', errors='replace'))
+            if isinstance(d, list):
+                d = {'receivers': d}
+            if isinstance(d, dict) and isinstance(d.get('receivers'), list):
+                out = {'receivers': []}
+                seen = set()
+                for r in d['receivers']:
+                    if not isinstance(r, dict):
+                        continue
+                    rid = str(r.get('rxs_id', '')).strip().upper()
+                    if not _is_valid_rxs_id(rid) or rid in seen:
+                        continue
+                    seen.add(rid)
+                    out['receivers'].append({
+                        'rxs_id': rid,
+                        'name': str(r.get('name', '') or f'Receiver {rid}'),
+                        'location': str(r.get('location', '') or 'unknown'),
+                        'base_url': str(r.get('base_url', '') or ''),
+                        'enabled': bool(r.get('enabled', True)),
+                    })
+                if out['receivers']:
+                    return out
+    except Exception:
+        pass
+    RECEIVERS_REGISTRY_PATH.parent.mkdir(parents=True, exist_ok=True)
+    RECEIVERS_REGISTRY_PATH.write_text(json.dumps(default, indent=2), encoding='utf-8')
+    return default
+
 RX_AGG_JSON_PATH = Path('rf_log/rx_agg.json')
 STATIONS_CSV_PATH = Path('config/stations.csv')
 SENSOR_MAP_CSV_PATH = Path('config/sensor_map.csv')
@@ -154,11 +196,12 @@ h2{{font-weight:650;letter-spacing:.2px;}}
   pre{{max-height:42vh !important;}}
 }}
 </style>
-<div class='fw-mobilebar'><button class='fw-toggle' id='fwMobileToggle'>☰</button><strong>FW-LAB</strong><span class='fw-build'>build {BUILD_STAMP}</span></div>
+<div class='fw-mobilebar'><button class='fw-toggle' id='fwMobileToggle'>☰</button><strong>FW-LAB</strong><select id='fwRxSelect' style='max-width:170px'></select><span class='fw-build'>build {BUILD_STAMP}</span></div>
 <div class='fw-shell'>
   <aside class='fw-sidebar' id='fwSidebar'>
     <div class='fw-brand'><span>FW-LAB</span><button class='fw-toggle' id='fwCollapseBtn'>≡</button></div>
-    <div class='fw-build' style='padding:0 .45rem .4rem'>build {BUILD_STAMP}</div>
+    <div class='fw-build' style='padding:0 .45rem .2rem'>build {BUILD_STAMP}</div>
+    <div style='padding:0 .45rem .5rem'><select id='fwRxSelectDesk' style='width:100%'></select></div>
     <nav class='fw-nav'>
       <a href='/'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 10.5 12 3l9 7.5'/><path d='M5 9.5V21h14V9.5'/></svg></span><span class='fw-label'>Dashboard</span></a>
       <a href='/packets'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='4' width='16' height='16' rx='2'/><path d='M8 9h8M8 13h8M8 17h5'/></svg></span><span class='fw-label'>Packets</span></a>
@@ -197,6 +240,32 @@ h2{{font-weight:650;letter-spacing:.2px;}}
   applyMain();
   if(collapseBtn) collapseBtn.onclick=function(){{ sb.classList.toggle('collapsed'); localStorage.setItem('fw_sidebar_collapsed', sb.classList.contains('collapsed')?'1':'0'); applyMain(); }};
   if(mBtn) mBtn.onclick=function(){{ sb.classList.toggle('open'); }};
+
+  function bindReceiverSelector(reg, info){{
+    function fill(sel){{
+      if(!sel) return;
+      sel.innerHTML='';
+      (reg.receivers||[]).forEach(function(r){{
+        var o=document.createElement('option');
+        o.value=r.rxs_id;
+        o.textContent=r.rxs_id+' · '+(r.name||'Receiver')+' @ '+(r.location||'unknown');
+        sel.appendChild(o);
+      }});
+      sel.value=(localStorage.getItem('fw_selected_rxs_id')||info.rxs_id||'');
+      if(!sel.value && info.rxs_id) sel.value=info.rxs_id;
+      sel.onchange=function(){{
+        localStorage.setItem('fw_selected_rxs_id', sel.value||'');
+        // selector scaffold only for now (no routing/fetch switch yet)
+      }};
+    }}
+    fill(document.getElementById('fwRxSelect'));
+    fill(document.getElementById('fwRxSelectDesk'));
+  }}
+
+  Promise.all([
+    fetch('/api/receivers_registry').then(function(r){{return r.json();}}).catch(function(){{return {{receivers:[]}};}}),
+    fetch('/api/receiver_info').then(function(r){{return r.json();}}).catch(function(){{return {{rxs_id:''}};}})
+  ]).then(function(v){{ bindReceiverSelector(v[0]||{{receivers:[]}}, v[1]||{{}}); }});
 }})();
 </script>
 """
@@ -4330,6 +4399,11 @@ class Handler(BaseHTTPRequestHandler):
             info = _load_receiver_identity()
             info['source'] = str(RECEIVER_IDENTITY_PATH)
             return self._json(info)
+
+        if parsed.path == '/api/receivers_registry':
+            reg = _load_receivers_registry()
+            reg['source'] = str(RECEIVERS_REGISTRY_PATH)
+            return self._json(reg)
 
         if parsed.path == '/api/stations':
             rows = _load_stations()
