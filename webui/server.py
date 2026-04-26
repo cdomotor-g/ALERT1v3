@@ -832,8 +832,54 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   if(rxStop) rxStop.addEventListener('click', function(){ receiverAction('stop'); });
   if(rxRestart) rxRestart.addEventListener('click', function(){ receiverAction('restart'); });
 
+  function apiBase(){
+    var r=window.fwSelectedReceiver||null;
+    if(!r || !r.base_url || String(r.base_url)==='local') return '';
+    return String(r.base_url).replace(/\/$/, '');
+  }
+  function apiFetchJson(path){
+    var base=apiBase();
+    if(!base) return fetch(path).then(function(r){return r.json();});
+    return fetch(base+path,{mode:'cors'}).then(function(r){return r.json();});
+  }
+
+  function loadEventsSnapshot(){
+    apiFetchJson('/api/events?limit=400').then(function(d){
+      events=d.events||[];
+      source.textContent=g(d,'source','n/a');
+      if(isEventsPage){ refreshTailDetail(); }
+      render();
+      status.textContent='snapshot';
+    })['catch'](function(){ status.textContent='offline'; });
+  }
+
+  var es=null;
+  var remotePollTimer=null;
+  function startEventsTransport(){
+    if(es){ try{ es.close(); }catch(e){} es=null; }
+    if(remotePollTimer){ clearInterval(remotePollTimer); remotePollTimer=null; }
+    var base=apiBase();
+    if(!base){
+      es=new EventSource('/api/live');
+      es.onmessage=function(m){
+        try{
+          events.push(JSON.parse(m.data));
+          if(events.length>4000) events=events.slice(-4000);
+          fetch('/api/events?limit=1').then(function(r){return r.json();}).then(function(d){ source.textContent=g(d,'source','n/a'); })['catch'](function(){});
+          if(isEventsPage){ refreshTailDetail(); }
+          render();
+          status.textContent='live';
+        }catch(e){}
+      };
+      es.onerror=function(){ status.textContent='reconnecting'; };
+    } else {
+      status.textContent='remote-poll';
+      remotePollTimer=setInterval(loadEventsSnapshot, 5000);
+    }
+  }
+
   if(isEventsPage){ setTailMode(true); }
-  fetch('/api/events?limit=400').then(function(r){return r.json();}).then(function(d){events=d.events||[]; source.textContent=g(d,'source','n/a'); if(isEventsPage){ refreshTailDetail(); } render();});
+  loadEventsSnapshot();
   loadRfConfig();
 
   function renderHost(m){
@@ -876,18 +922,13 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   pollStorage(); setInterval(pollStorage,10000);
   pollRxAgg(); setInterval(pollRxAgg,10000);
 
-  var es=new EventSource('/api/live');
-  es.onmessage=function(m){
-    try{
-      events.push(JSON.parse(m.data));
-      if(events.length>4000) events=events.slice(-4000);
-      fetch('/api/events?limit=1').then(function(r){return r.json();}).then(function(d){ source.textContent=g(d,'source','n/a'); })['catch'](function(){});
-      if(isEventsPage){ refreshTailDetail(); }
-      render();
-      status.textContent='live';
-    }catch(e){}
-  };
-  es.onerror=function(){ status.textContent='reconnecting'; };
+  window.addEventListener('fw:receiver-selected', function(){
+    loadEventsSnapshot();
+    startEventsTransport();
+    pollReceiver();
+  });
+  startEventsTransport();
+
   window.addEventListener('resize', function(){ if(rxChart) rxChart.resize(); if(rxChart24) rxChart24.resize(); });
 })();
 </script></body></html>"""
