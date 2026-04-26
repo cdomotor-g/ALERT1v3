@@ -3620,6 +3620,33 @@ def save_meta_catalog(cat: dict, path='config/meta_catalog.json'):
     p.write_text(json.dumps(cat, indent=2) + '\n', encoding='utf-8')
 
 
+def snapshot_meta_catalog(cat: dict, reason: str = 'update'):
+    try:
+        ts = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
+        d = Path('rf_log/audit/meta_catalog')
+        d.mkdir(parents=True, exist_ok=True)
+        out = d / f'{ts}_{reason}.json'
+        out.write_text(json.dumps(cat, indent=2) + '\n', encoding='utf-8')
+        return str(out)
+    except Exception:
+        return ''
+
+
+def meta_history_append(action: str, details: dict | None = None):
+    try:
+        p = Path('rf_log/audit/meta_catalog_history.jsonl')
+        p.parent.mkdir(parents=True, exist_ok=True)
+        rec = {
+            'ts': datetime.now(timezone.utc).isoformat(),
+            'action': action,
+            'details': details or {},
+        }
+        with p.open('a', encoding='utf-8') as fh:
+            fh.write(json.dumps(rec) + '\n')
+    except Exception:
+        pass
+
+
 def storage_status():
     pol = load_storage_policy()
     th = pol.get('thresholds', {})
@@ -4376,9 +4403,11 @@ class Handler(BaseHTTPRequestHandler):
                     if op == 'delete':
                         if idx >= 0:
                             arr.pop(idx)
+                        snap = snapshot_meta_catalog(cat, f'{entity}_delete')
                         save_meta_catalog(cat)
+                        meta_history_append('delete', {'entity': entity, key_field: key, 'snapshot': snap})
                         audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', True, {'entity': entity, 'op': op, key_field: key})
-                        return self._json({'ok': True, 'entity': entity, 'op': op, key_field: key})
+                        return self._json({'ok': True, 'entity': entity, 'op': op, key_field: key, 'snapshot': snap})
                     # upsert
                     if not key:
                         return self._json({'ok': False, 'error': f'missing {key_field}'}, code=400)
@@ -4386,9 +4415,11 @@ class Handler(BaseHTTPRequestHandler):
                         arr[idx].update(item)
                     else:
                         arr.append(item)
+                    snap = snapshot_meta_catalog(cat, f'{entity}_upsert')
                     save_meta_catalog(cat)
+                    meta_history_append('upsert', {'entity': entity, key_field: key, 'snapshot': snap})
                     audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', True, {'entity': entity, 'op': op, key_field: key})
-                    return self._json({'ok': True, 'entity': entity, 'op': op, key_field: key})
+                    return self._json({'ok': True, 'entity': entity, 'op': op, key_field: key, 'snapshot': snap})
 
                 action = str(body.get('action', '')).strip().lower()
                 if action not in ('start', 'stop', 'restart'):
@@ -4541,16 +4572,21 @@ class Handler(BaseHTTPRequestHandler):
 
         if parsed.path == '/api/admin/storage_policy':
             if not admin_authorized(self.headers, self.client_address[0] if self.client_address else ''):
+                audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', False, {'error': 'unauthorized'})
                 return self._json({'ok': False, 'error': 'unauthorized'}, code=403)
+            audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', True, {})
             return self._json(load_storage_policy())
 
         if parsed.path == '/api/admin/rf_control':
             if not admin_authorized(self.headers, self.client_address[0] if self.client_address else ''):
+                audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', False, {'error': 'unauthorized'})
                 return self._json({'ok': False, 'error': 'unauthorized'}, code=403)
+            audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', True, {})
             return self._json(load_rf_control())
 
         if parsed.path == '/api/admin/audit_recent':
             if not admin_authorized(self.headers, self.client_address[0] if self.client_address else ''):
+                audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', False, {'error': 'unauthorized'})
                 return self._json({'ok': False, 'error': 'unauthorized'}, code=403)
             q = parse_qs(parsed.query)
             limit = int(q.get('limit', ['100'])[0])
@@ -4565,6 +4601,27 @@ class Handler(BaseHTTPRequestHandler):
                         rows.append(json.loads(line))
                     except Exception:
                         pass
+            audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', True, {'limit': limit})
+            return self._json({'events': rows, 'count': len(rows)})
+
+        if parsed.path == '/api/admin/meta/history':
+            if not admin_authorized(self.headers, self.client_address[0] if self.client_address else ''):
+                audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', False, {'error': 'unauthorized'})
+                return self._json({'ok': False, 'error': 'unauthorized'}, code=403)
+            q = parse_qs(parsed.query)
+            limit = int(q.get('limit', ['100'])[0])
+            limit = max(1, min(limit, 500))
+            p = Path('rf_log/audit/meta_catalog_history.jsonl')
+            rows = []
+            if p.exists():
+                for line in p.read_text(encoding='utf-8', errors='replace').splitlines()[-limit:]:
+                    if not line.strip():
+                        continue
+                    try:
+                        rows.append(json.loads(line))
+                    except Exception:
+                        pass
+            audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', True, {'limit': limit})
             return self._json({'events': rows, 'count': len(rows)})
 
         if parsed.path in ['/api/audio_opus', '/api/audio_aac']:
