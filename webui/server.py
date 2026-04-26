@@ -31,11 +31,81 @@ def _build_stamp():
     return sha[:12]
 
 BUILD_STAMP = _build_stamp()
+
+
+def _is_valid_rxs_id(v: str) -> bool:
+    return bool(re.fullmatch(r'[0-9A-F]{4}', str(v or '').strip().upper()))
+
+
+def _load_receivers_registry_ids():
+    ids = set()
+    try:
+        if RECEIVERS_REGISTRY_PATH.exists():
+            d = json.loads(RECEIVERS_REGISTRY_PATH.read_text(encoding='utf-8', errors='replace'))
+            items = d if isinstance(d, list) else d.get('receivers', []) if isinstance(d, dict) else []
+            for it in items:
+                if not isinstance(it, dict):
+                    continue
+                rid = str(it.get('rxs_id', '') or '').strip().upper()
+                if _is_valid_rxs_id(rid):
+                    ids.add(rid)
+    except Exception:
+        pass
+    return ids
+
+
+def _next_rxs_id():
+    used = _load_receivers_registry_ids()
+    try:
+        if RECEIVER_IDENTITY_PATH.exists():
+            d = json.loads(RECEIVER_IDENTITY_PATH.read_text(encoding='utf-8', errors='replace'))
+            rid = str((d or {}).get('rxs_id', '')).strip().upper()
+            if _is_valid_rxs_id(rid):
+                used.add(rid)
+    except Exception:
+        pass
+    for n in range(0x0000, 0x10000):
+        rid = f"{n:04X}"
+        if rid not in used:
+            return rid
+    return 'FFFF'
+
+
+def _load_receiver_identity():
+    default = {
+        'rxs_id': _next_rxs_id(),
+        'name': 'FW-LAB Receiver',
+        'location': 'unknown',
+        'enabled': True,
+    }
+    try:
+        if RECEIVER_IDENTITY_PATH.exists():
+            d = json.loads(RECEIVER_IDENTITY_PATH.read_text(encoding='utf-8', errors='replace'))
+            if isinstance(d, dict):
+                out = dict(default)
+                out.update(d)
+                out['rxs_id'] = str(out.get('rxs_id', '')).strip().upper()
+                if not _is_valid_rxs_id(out['rxs_id']):
+                    out['rxs_id'] = _next_rxs_id()
+                out['location'] = str(out.get('location', 'unknown') or 'unknown')
+                out['name'] = str(out.get('name', 'FW-LAB Receiver') or 'FW-LAB Receiver')
+                out['enabled'] = bool(out.get('enabled', True))
+                RECEIVER_IDENTITY_PATH.parent.mkdir(parents=True, exist_ok=True)
+                RECEIVER_IDENTITY_PATH.write_text(json.dumps(out, indent=2), encoding='utf-8')
+                return out
+    except Exception:
+        pass
+    RECEIVER_IDENTITY_PATH.parent.mkdir(parents=True, exist_ok=True)
+    RECEIVER_IDENTITY_PATH.write_text(json.dumps(default, indent=2), encoding='utf-8')
+    return default
+
 RX_AGG_JSON_PATH = Path('rf_log/rx_agg.json')
 STATIONS_CSV_PATH = Path('config/stations.csv')
 SENSOR_MAP_CSV_PATH = Path('config/sensor_map.csv')
 FILE_DROP_DIR = Path('uploads/file_drop')
 PATH_DEFAULTS_PATH = Path('config/path_defaults.json')
+RECEIVER_IDENTITY_PATH = Path('config/receiver_identity.json')
+RECEIVERS_REGISTRY_PATH = Path('config/receivers_registry.json')
 NAV_HTML = f"""
 <style>
 :root{{--sidebar-w:212px;--sidebar-w-c:64px;--content-gap:14px;}}
@@ -4255,6 +4325,11 @@ class Handler(BaseHTTPRequestHandler):
                 except Exception as e:
                     return self._json({'error': f'parse_failed: {e}', 'source': str(RX_AGG_JSON_PATH)}, code=500)
             return self._json({'error': 'not_ready', 'source': str(RX_AGG_JSON_PATH)}, code=404)
+
+        if parsed.path == '/api/receiver_info':
+            info = _load_receiver_identity()
+            info['source'] = str(RECEIVER_IDENTITY_PATH)
+            return self._json(info)
 
         if parsed.path == '/api/stations':
             rows = _load_stations()
