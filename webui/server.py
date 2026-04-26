@@ -981,6 +981,34 @@ def _parse_stations_csv_text(text, limit=5000):
 
 
 def _load_stations(limit=5000):
+    # Prefer centralized metadata catalog when present.
+    try:
+        cat = load_meta_catalog('config/meta_catalog.json')
+        rows = []
+        for s in (cat.get('stations') or []):
+            if not isinstance(s, dict):
+                continue
+            rows.append({
+                'unitid': str(s.get('bom_stn', '') or s.get('station_key', '') or '').strip(),
+                'unitname': str(s.get('name', '') or '').strip(),
+                'name': str(s.get('name', '') or '').strip(),
+                'enabled': '1' if bool(s.get('enabled', True)) else '0',
+                'latitude': str(s.get('lat', '') or '').strip(),
+                'longitude': str(s.get('lon', '') or '').strip(),
+                'elevation': str(s.get('elevation_m', '') or '').strip(),
+                'arro_site_id': str(s.get('arro_site_id', '') or '').strip(),
+                'sensor_types': str(s.get('sensor_types', '') or '').strip(),
+                'sensor_ids': str(s.get('sensor_ids', '') or '').strip(),
+                'device_ids': str(s.get('device_ids', '') or '').strip(),
+                'kml_name': str(s.get('kml_name', '') or '').strip(),
+                'source': 'meta_catalog',
+                'station_key': str(s.get('station_key', '') or '').strip(),
+            })
+        if rows:
+            return rows[:max(1, min(limit, 200000))]
+    except Exception:
+        pass
+
     src = Path('config/stations_catalog.csv') if Path('config/stations_catalog.csv').exists() else STATIONS_CSV_PATH
     if not src.exists():
         return []
@@ -1555,7 +1583,7 @@ __NAV__
         +'<td><input class="num" data-k="locked" value="'+esc(r.locked||'')+'"></td>'
         +'<td>'+(lat0&&lon0?('<a href="'+gdir+'" target="_blank" rel="noopener" style="color:#7fc8ff">Go</a>'):'-')+'</td>'
         +'<td>'+(lat0&&lon0?('<button class="street">View</button>'):'-')+'</td>'
-        +'<td><button class="save">Save</button></td>';
+        +'<td><button class="save">Save</button> <button class="del" style="margin-left:.3rem">Delete</button></td>';
       var streetBtn=tr.querySelector('.street');
       if(streetBtn){ streetBtn.addEventListener('click', function(){ showStreet(r.name||r.unitname||('Station '+r.index), lat0, lon0); }); }
       tr.querySelector('.save').addEventListener('click', function(){
@@ -1571,6 +1599,14 @@ __NAV__
           locked:tr.querySelector('input[data-k="locked"]').value.trim()
         }, r.index);
       });
+      var delBtn=tr.querySelector('.del');
+      if(delBtn){ delBtn.addEventListener('click', function(){
+        if(!confirm('Delete station '+(r.name||r.unitname||r.index)+'?')) return;
+        fetch('/api/stations/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({index:r.index})})
+          .then(function(x){ return x.json(); })
+          .then(function(d){ document.getElementById('msg').textContent = d.ok ? ('deleted station #'+r.index) : ('delete failed: '+(d.error||'unknown')); if(d.ok) load(); })
+          .catch(function(){ document.getElementById('msg').textContent='delete failed'; });
+      }); }
       rowsEl.appendChild(tr);
 
       var card=document.createElement('details'); card.className='st-card';
@@ -1594,7 +1630,7 @@ __NAV__
         +'<div><label>Icon</label><input data-k="icon" value="'+esc(r.icon||'')+'"></div>'
         +'<div><label>Style</label><input data-k="style" value="'+esc(r.style||'')+'"></div>'
         +'<div><label>Locked</label><input data-k="locked" value="'+esc(r.locked||'')+'"></div>'
-        +'</div><div style="margin-top:.5rem"><button class="save">Save</button></div>'
+        +'</div><div style="margin-top:.5rem"><button class="save">Save</button> <button class="del" style="margin-left:.3rem">Delete</button></div>'
         +'</div>';
       var sbtn=card.querySelector('.street-inline');
       if(sbtn){ sbtn.addEventListener('click', function(){
@@ -1625,6 +1661,14 @@ __NAV__
           locked:card.querySelector('input[data-k="locked"]').value.trim()
         }, r.index);
       });
+      var cdel=card.querySelector('.del');
+      if(cdel){ cdel.addEventListener('click', function(){
+        if(!confirm('Delete station '+(r.name||r.unitname||r.index)+'?')) return;
+        fetch('/api/stations/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({index:r.index})})
+          .then(function(x){ return x.json(); })
+          .then(function(d){ document.getElementById('msg').textContent = d.ok ? ('deleted station #'+r.index) : ('delete failed: '+(d.error||'unknown')); if(d.ok) load(); })
+          .catch(function(){ document.getElementById('msg').textContent='delete failed'; });
+      }); }
       cardsEl.appendChild(card);
     });
     document.getElementById('shown').textContent=shown;
@@ -3501,6 +3545,81 @@ def save_storage_policy(policy: dict, path='config/storage_policy.json'):
     p.write_text(json.dumps(policy, indent=2) + '\n', encoding='utf-8')
 
 
+def _bootstrap_meta_catalog():
+    stations = []
+    sensors = []
+    try:
+        src = Path('config/stations_catalog.csv') if Path('config/stations_catalog.csv').exists() else Path('config/stations.csv')
+        if src.exists():
+            with src.open('r', encoding='utf-8', errors='replace', newline='') as fh:
+                rdr = csv.DictReader(fh)
+                for r in rdr:
+                    stations.append({
+                        'station_key': str((r.get('unitid') or r.get('site_id_bom') or r.get('unitname') or '')).strip(),
+                        'rxs_id': None,
+                        'bom_stn': str((r.get('unitid') or r.get('site_id_bom') or '')).strip(),
+                        'name': str((r.get('unitname') or r.get('name') or '')).strip(),
+                        'location': str((r.get('location') or r.get('unitname') or '')).strip(),
+                        'lat': r.get('latitude', ''),
+                        'lon': r.get('longitude', ''),
+                        'elevation_m': r.get('elevation', ''),
+                        'arro_site_id': str(r.get('arro_site_id', '')).strip(),
+                        'enabled': True,
+                        'active': True,
+                        'tags': [],
+                        'notes': '',
+                    })
+    except Exception:
+        pass
+    try:
+        smp = Path('config/sensor_map.csv')
+        if smp.exists():
+            with smp.open('r', encoding='utf-8', errors='replace', newline='') as fh:
+                rdr = csv.DictReader(fh)
+                for r in rdr:
+                    sid = str(r.get('Sensor ID', '')).strip()
+                    alert1 = sid.split('.')[-1] if sid else ''
+                    sensors.append({
+                        'sensor_key': sid or alert1,
+                        'station_bom_stn': str(r.get('Site ID', '')).strip(),
+                        'sensor_type': str(r.get('Sensor', '')).strip(),
+                        'sensor_id': sid,
+                        'alert1_id': alert1,
+                        'device_id': str(r.get('device_id', '')).strip(),
+                        'arro_site_id': str(r.get('site_id', '')).strip(),
+                        'active': True,
+                        'notes': '',
+                    })
+    except Exception:
+        pass
+    return {'schema': 'fwlab.meta.catalog.v1', 'stations': stations, 'sensors': sensors}
+
+
+def load_meta_catalog(path='config/meta_catalog.json'):
+    p = Path(path)
+    if not p.exists():
+        cat = _bootstrap_meta_catalog()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps(cat, indent=2) + '\n', encoding='utf-8')
+        return cat
+    try:
+        d = json.loads(p.read_text(encoding='utf-8', errors='replace'))
+        if not isinstance(d, dict):
+            return {'schema': 'fwlab.meta.catalog.v1', 'stations': [], 'sensors': []}
+        d.setdefault('schema', 'fwlab.meta.catalog.v1')
+        d.setdefault('stations', [])
+        d.setdefault('sensors', [])
+        return d
+    except Exception:
+        return {'schema': 'fwlab.meta.catalog.v1', 'stations': [], 'sensors': []}
+
+
+def save_meta_catalog(cat: dict, path='config/meta_catalog.json'):
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(cat, indent=2) + '\n', encoding='utf-8')
+
+
 def storage_status():
     pol = load_storage_policy()
     th = pol.get('thresholds', {})
@@ -4075,39 +4194,65 @@ class Handler(BaseHTTPRequestHandler):
                 if idx < 0 or idx >= len(rows):
                     return self._json({'ok': False, 'error': 'index_out_of_range'}, code=400)
                 r = rows[idx]
+                key = str(r.get('station_key', '') or r.get('unitid', '') or r.get('name', '')).strip()
                 nm = str(body.get('name', '')).strip()
                 lat = str(body.get('lat', '')).strip()
                 lon = str(body.get('lon', '')).strip()
                 elev = str(body.get('elevation', '')).strip()
                 enabled = str(body.get('enabled', '')).strip()
-                icon = str(body.get('icon', '')).strip()
-                style = str(body.get('style', '')).strip()
-                locked = str(body.get('locked', '')).strip()
+
+                cat = load_meta_catalog('config/meta_catalog.json')
+                arr = cat.get('stations', [])
+                pos = next((i for i, s in enumerate(arr) if str(s.get('station_key', '')).strip() == key), -1)
+                item = arr[pos] if pos >= 0 else {
+                    'station_key': key,
+                    'bom_stn': str(r.get('unitid', '')).strip(),
+                    'name': str(r.get('name', '') or r.get('unitname', '')).strip(),
+                    'location': str(r.get('location', '') or r.get('name', '') or r.get('unitname', '')).strip(),
+                    'enabled': True,
+                    'active': True,
+                }
                 if nm:
-                    if 'unitname' in r:
-                        r['unitname'] = nm
-                    elif 'name' in r:
-                        r['name'] = nm
-                    else:
-                        r['name'] = nm
+                    item['name'] = nm
+                    item['location'] = nm
                 if lat != '':
-                    r['latitude'] = lat
+                    item['lat'] = lat
                 if lon != '':
-                    r['longitude'] = lon
+                    item['lon'] = lon
                 if elev != '':
-                    r['elevation'] = elev
+                    item['elevation_m'] = elev
                 if enabled != '':
-                    r['enabled'] = enabled
-                if icon != '':
-                    r['icon'] = icon
-                if style != '':
-                    r['style'] = style
-                if locked != '':
-                    r['locked'] = locked
-                rows[idx] = r
-                _save_stations_rows(rows)
+                    item['enabled'] = (str(enabled).strip() not in ('0', 'false', 'False', 'no'))
+                if pos >= 0:
+                    arr[pos] = item
+                else:
+                    arr.append(item)
+                cat['stations'] = arr
+                save_meta_catalog(cat, 'config/meta_catalog.json')
                 _write_stations_master(_load_stations(limit=100000))
-                return self._json({'ok': True, 'index': idx})
+                return self._json({'ok': True, 'index': idx, 'station_key': key})
+            except Exception as e:
+                return self._json({'ok': False, 'error': str(e)}, code=400)
+
+        if parsed.path == '/api/stations/delete':
+            try:
+                length = int(self.headers.get('Content-Length', '0'))
+                raw = self.rfile.read(length) if length > 0 else b'{}'
+                body = json.loads(raw.decode('utf-8', errors='replace'))
+                idx = int(body.get('index'))
+                rows = _load_stations(limit=100000)
+                if idx < 0 or idx >= len(rows):
+                    return self._json({'ok': False, 'error': 'index_out_of_range'}, code=400)
+                r = rows[idx]
+                key = str(r.get('station_key', '') or r.get('unitid', '') or r.get('name', '')).strip()
+                cat = load_meta_catalog('config/meta_catalog.json')
+                arr = cat.get('stations', [])
+                n = len(arr)
+                arr = [s for s in arr if str(s.get('station_key', '')).strip() != key]
+                cat['stations'] = arr
+                save_meta_catalog(cat, 'config/meta_catalog.json')
+                _write_stations_master(_load_stations(limit=100000))
+                return self._json({'ok': True, 'deleted': n-len(arr), 'station_key': key})
             except Exception as e:
                 return self._json({'ok': False, 'error': str(e)}, code=400)
 
@@ -4176,7 +4321,7 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 return self._json({'ok': False, 'error': str(e)}, code=400)
 
-        if parsed.path in ['/api/admin/storage_policy', '/api/admin/rf_control', '/api/admin/receiver_action']:
+        if parsed.path in ['/api/admin/storage_policy', '/api/admin/rf_control', '/api/admin/receiver_action', '/api/admin/meta/catalog']:
             if not admin_authorized(self.headers, self.client_address[0] if self.client_address else ''):
                 audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', False, {'error': 'unauthorized'})
                 return self._json({'ok': False, 'error': 'unauthorized'}, code=403)
@@ -4216,6 +4361,34 @@ class Handler(BaseHTTPRequestHandler):
                     save_rf_control(merged)
                     audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', True, {'keys': ['rf_control']})
                     return self._json({'ok': True, 'rf_control': merged})
+
+                if parsed.path == '/api/admin/meta/catalog':
+                    cat = load_meta_catalog()
+                    entity = str(body.get('entity', '')).strip().lower()  # station|sensor
+                    op = str(body.get('op', '')).strip().lower()  # upsert|delete
+                    item = body.get('item', {}) or {}
+                    if entity not in ('station', 'sensor') or op not in ('upsert', 'delete'):
+                        return self._json({'ok': False, 'error': 'invalid entity/op'}, code=400)
+                    key_field = 'station_key' if entity == 'station' else 'sensor_key'
+                    key = str(item.get(key_field, body.get(key_field, ''))).strip()
+                    arr = cat['stations'] if entity == 'station' else cat['sensors']
+                    idx = next((i for i, r in enumerate(arr) if str(r.get(key_field, '')).strip() == key), -1)
+                    if op == 'delete':
+                        if idx >= 0:
+                            arr.pop(idx)
+                        save_meta_catalog(cat)
+                        audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', True, {'entity': entity, 'op': op, key_field: key})
+                        return self._json({'ok': True, 'entity': entity, 'op': op, key_field: key})
+                    # upsert
+                    if not key:
+                        return self._json({'ok': False, 'error': f'missing {key_field}'}, code=400)
+                    if idx >= 0:
+                        arr[idx].update(item)
+                    else:
+                        arr.append(item)
+                    save_meta_catalog(cat)
+                    audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', True, {'entity': entity, 'op': op, key_field: key})
+                    return self._json({'ok': True, 'entity': entity, 'op': op, key_field: key})
 
                 action = str(body.get('action', '')).strip().lower()
                 if action not in ('start', 'stop', 'restart'):
@@ -4481,6 +4654,11 @@ class Handler(BaseHTTPRequestHandler):
             reg = _load_receivers_registry()
             reg['source'] = str(RECEIVERS_REGISTRY_PATH)
             return self._json(reg)
+
+        if parsed.path in ['/api/meta/catalog', '/api/meta/export']:
+            cat = load_meta_catalog()
+            cat['source'] = 'config/meta_catalog.json'
+            return self._json(cat)
 
         if parsed.path == '/api/stations':
             rows = _load_stations()
