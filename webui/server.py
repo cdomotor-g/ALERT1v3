@@ -2353,6 +2353,8 @@ __NAV__
     <label>Entity <select id='metaEntity'><option value=''>all</option><option value='station'>station</option><option value='sensor'>sensor</option></select></label>
     <label style='margin-left:.6rem'>Operation <select id='metaOp'><option value=''>all</option><option value='upsert'>upsert</option><option value='delete'>delete</option></select></label>
     <button id='metaRefresh' style='margin-left:.6rem'>Refresh</button>
+    <button id='metaCopy' style='margin-left:.4rem'>Copy JSON</button>
+    <button id='metaDownload' style='margin-left:.4rem'>Download JSON</button>
   </div>
   <pre id='metaHist'>loading...</pre>
 </div>
@@ -2435,6 +2437,29 @@ __NAV__
   document.getElementById('metaRefresh').addEventListener('click', loadMetaHistory);
   document.getElementById('metaEntity').addEventListener('change', loadMetaHistory);
   document.getElementById('metaOp').addEventListener('change', loadMetaHistory);
+  document.getElementById('metaCopy').addEventListener('click', function(){
+    var txt = JSON.stringify(lastMetaHistory || [], null, 2);
+    navigator.clipboard.writeText(txt).then(function(){
+      document.getElementById('msg').textContent=' metadata history copied';
+    }).catch(function(){
+      document.getElementById('msg').textContent=' metadata copy failed';
+    });
+  });
+  document.getElementById('metaDownload').addEventListener('click', function(){
+    try {
+      var txt = JSON.stringify(lastMetaHistory || [], null, 2);
+      var blob = new Blob([txt], {type:'application/json'});
+      var u = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = u;
+      a.download = 'meta_history_'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(u); }, 5000);
+      document.getElementById('msg').textContent=' metadata history downloaded';
+    } catch(_) {
+      document.getElementById('msg').textContent=' metadata download failed';
+    }
+  });
 
   document.getElementById('copyDiag').addEventListener('click', function(){
     var snap = {
