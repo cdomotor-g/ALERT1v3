@@ -214,6 +214,7 @@ h2{{font-weight:650;letter-spacing:.2px;}}
       <a href='/stations-map'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z'/><path d='M9 4v14'/><path d='M15 6v14'/></svg></span><span class='fw-label'>Stations Map</span></a>
       <a href='/trip'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 7h13'/><path d='M3 12h9'/><path d='M3 17h11'/><path d='M17 7l4 4-4 4'/></svg></span><span class='fw-label'>Trip</span></a>
       <a href='/file_drop'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v12'/><path d='m8 11 4 4 4-4'/><path d='M4 20h16'/></svg></span><span class='fw-label'>File Drop</span></a>
+      <a href='/bitflipper'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M8 6h8'/><path d='M8 12h8'/><path d='M8 18h8'/><path d='M5 6h.01M5 12h.01M5 18h.01'/></svg></span><span class='fw-label'>BitFlipper</span></a>
       <a href='/admin'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='3'/><path d='M19.4 15a1 1 0 0 0 .2 1.1l.1.1a2 2 0 0 1-2.8 2.8l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V20a2 2 0 0 1-4 0v-.2a1 1 0 0 0-.6-.9 1 1 0 0 0-1.1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H4a2 2 0 0 1 0-4h.2a1 1 0 0 0 .9-.6 1 1 0 0 0-.2-1.1l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1 1 0 0 0 1.1.2h0a1 1 0 0 0 .6-.9V4a2 2 0 0 1 4 0v.2a1 1 0 0 0 .6.9h0a1 1 0 0 0 1.1-.2l.1-.1a2 2 0 0 1 2.8 2.8l-.1.1a1 1 0 0 0-.2 1.1v0a1 1 0 0 0 .9.6H20a2 2 0 0 1 0 4h-.2a1 1 0 0 0-.9.6z'/></svg></span><span class='fw-label'>Admin</span></a>
       <a href='/forensics'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='6.5'/><path d='M20 20l-4.2-4.2'/><path d='M11 8.5v5M8.5 11h5'/></svg></span><span class='fw-label'>Forensics</span></a>
       <a href='/about'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M12 11v5'/><circle cx='12' cy='8' r='1'/></svg></span><span class='fw-label'>About</span></a>
@@ -2334,6 +2335,82 @@ __NAV__
 </script>
 </div></body></html>"""
 
+BITFLIPPER_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB BitFlipper</title>
+<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button,select{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem}.muted{color:#9fb0c3}.tbl{width:100%;border-collapse:collapse;margin-top:.45rem}.tbl th,.tbl td{border-bottom:1px solid #2a3948;padding:.35rem .4rem;text-align:left;vertical-align:top}.tbl th{color:#9fb0c3}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.yes{color:#6dd17c;font-weight:700}.no{color:#f36f6f;font-weight:700}a{color:#7fc8ff}</style></head><body><div class='page'>
+<h2 style='margin-top:0'>BitFlipper</h2>
+<div class='muted' style='margin:-.2rem 0 .55rem'>Analyze likely ALERT address bit-flips and quickly pivot matching results to ARRO graph links. Upload a CSV in the known sensor export format and test one- or multi-bit flip scenarios.</div>
+__NAV__
+<div class='card'>
+  <label>CSV file <input type='file' id='csvFile' accept='.csv'></label><br><br>
+  <label>ALERT Address <input type='number' id='alertAddr' min='0'></label><br><br>
+  <label>Bits to flip <input type='number' id='bitsToFlip' min='1' value='1'></label><br><br>
+  <label>ARRO base URL <input id='arroBase' size='50' value='https://contrail-bom.onerain.au/graph/'></label><br><br>
+  <button id='runBtn'>Run analysis</button>
+</div>
+<div class='card'><div id='output' class='muted'>Ready.</div></div>
+<script>
+(()=>{
+  'use strict';
+  function eh(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]); }); }
+  const parseCSV = t => {
+    const l=t.split(/\r?\n/).filter(x=>x.trim()); if(!l.length) return [];
+    const h=l[0].split(',').map(x=>x.trim());
+    return l.slice(1).map(r=>{ const c=r.split(','); const o={}; h.forEach((k,i)=>o[k]=(c[i]||'').trim()); return o; });
+  };
+  const alertFromSensorId = id => { const p=String(id||'').split('.'), l=p[p.length-1]; return /^\d+$/.test(l)?+l:null; };
+  const combos=(a,k)=>{ const r=[];(function f(s,c){ if(c.length===k) return r.push(c.slice()); for(let i=s;i<a.length;i++) f(i+1,c.concat(a[i])); })(0,[]); return r; };
+  const bin=n=>n.toString(2);
+  const formatLocal=d=>{ const p=x=>String(x).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; };
+
+  document.getElementById('runBtn').onclick=()=>{
+    const csvFile=document.getElementById('csvFile');
+    const alertAddr=document.getElementById('alertAddr');
+    const bitsToFlip=document.getElementById('bitsToFlip');
+    const arroBase=document.getElementById('arroBase');
+    const out=document.getElementById('output');
+    const f=csvFile.files[0];
+    const addr=+alertAddr.value, n=+bitsToFlip.value;
+    const base=arroBase.value||'https://contrail-bom.onerain.au/graph/';
+    if(!f||n<1||addr<0){ out.textContent='Invalid input.'; return; }
+    const rd=new FileReader();
+    rd.onload=()=>{
+      const rows=parseCSV(String(rd.result||''));
+      rows.forEach(r=>r._alert=alertFromSensorId(r['Sensor ID']||''));
+      const bits=[...Array(bin(addr).length).keys()];
+      const map=new Map();
+      combos(bits,n).forEach(b=>{ let v=addr; b.forEach(x=>v^=1<<x); if(v!==addr){ if(!map.has(v)) map.set(v,[]); map.get(v).push(b);} });
+      const results=[];
+      map.forEach((bs,v)=>{ const m=rows.filter(r=>r._alert===v); bs.forEach(b=>{ if(m.length) m.forEach(x=>results.push({b,v,x})); else results.push({b,v,x:null}); }); });
+      const sensors=[...new Set(results.filter(r=>r.x).map(r=>r.x.Sensor))].sort();
+      out.innerHTML='';
+      const top=document.createElement('div'); top.className='muted'; top.style.marginBottom='.4rem'; top.textContent='Found '+results.length+' candidate rows.'; out.appendChild(top);
+      const filt=document.createElement('div');
+      filt.innerHTML='<label>Filter by Sensor <select id="sensorFilter"><option value="">All sensors</option>'+sensors.map(s=>'<option>'+eh(s)+'</option>').join('')+'</select></label> <span id="arroFiltered" style="margin-left:.6rem"></span>';
+      out.appendChild(filt);
+      const wrap=document.createElement('div');
+      wrap.innerHTML='<table class="tbl" id="flipTable"><thead><tr><th>Bits</th><th>Dec</th><th>Bin</th><th>Match</th><th>Site</th><th>Site ID</th><th>Sensor</th><th>Sensor ID</th></tr></thead><tbody>'+
+        results.map(r=>'<tr data-sensor="'+eh(r.x?.Sensor||'')+'" data-site="'+eh(r.x?.site_id||'')+'" data-device="'+eh(r.x?.device_id||'')+'" data-match="'+(r.x?'1':'0')+'">'+
+        '<td class="mono">'+eh(r.b.join(','))+'</td><td>'+eh(r.v)+'</td><td class="mono">'+eh(bin(r.v))+'</td><td class="'+(r.x?'yes':'no')+'">'+(r.x?'YES':'NO')+'</td><td>'+eh(r.x?.Site||'')+'</td><td>'+eh(r.x?.['Site ID']||'')+'</td><td>'+eh(r.x?.Sensor||'')+'</td><td>'+eh(r.x?.['Sensor ID']||'')+'</td></tr>').join('')+
+        '</tbody></table>';
+      out.appendChild(wrap);
+
+      const updateArro=()=>{
+        const now=new Date(), start=new Date(now-7*86400e3);
+        const p=new URLSearchParams({refresh:'off',markers:'false',legend:'true',bin:'86400',time_zone:'Australia/Brisbane',invalid:'true',has_regular_sensors:'true',has_forecast_sensors:'false',for_forecast:'false',hidden_devices:'none',data_start:formatLocal(start),data_end:formatLocal(now)});
+        const seen=new Set();
+        document.querySelectorAll('#flipTable tbody tr').forEach(tr=>{ if(tr.style.display==='none'||tr.dataset.match!=='1') return; const k=tr.dataset.site+'|'+tr.dataset.device; if(!seen.has(k)){ seen.add(k); p.append('devices[]',k);} });
+        const c=document.getElementById('arroFiltered'); c.innerHTML='';
+        if(seen.size){ const a=document.createElement('a'); a.href=base+'?'+p.toString(); a.target='_blank'; a.rel='noopener'; a.textContent='Open ARRO graph ('+seen.size+' sensors)'; c.appendChild(a); }
+      };
+      document.getElementById('sensorFilter').onchange=(e)=>{ const v=e.target.value; document.querySelectorAll('#flipTable tbody tr').forEach(tr=>tr.style.display=(!v||tr.dataset.sensor===v)?'':'none'); updateArro(); };
+      updateArro();
+    };
+    rd.readAsText(f);
+  };
+})();
+</script>
+</div></body></html>"""
+
 OVERVIEW_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Overview</title>
 <style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem;border:1px solid #243243}a{color:#7fc8ff}.muted{color:#9fb0c3}h3{margin:.15rem 0 .4rem}.grid{display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:.6rem}@media(max-width:860px){.grid{grid-template-columns:1fr}}</style></head><body><div class='page'>
 <h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M8 9h8'/><path d='M8 12h8'/><path d='M8 15h5'/></svg></span><span>Overview</span></h2>
@@ -2349,6 +2426,7 @@ __NAV__
   <div class='card'><h3><a href='/stations-map'>Stations Map</a></h3><div class='muted'>Map view of station locations and packet recency state.</div></div>
   <div class='card'><h3><a href='/trip'>Trip Planning</a></h3><div class='muted'>Build and optimize field routes, then hand off to navigation tools.</div></div>
   <div class='card'><h3><a href='/file_drop'>File Drop</a></h3><div class='muted'>Upload CSV/text files for metadata and mapping ingestion workflows.</div></div>
+  <div class='card'><h3><a href='/bitflipper'>BitFlipper</a></h3><div class='muted'>Bit-flip analysis utility to find likely ALERT address collisions and open ARRO graphs.</div></div>
   <div class='card'><h3><a href='/forensics'>Forensics</a></h3><div class='muted'>Analyze anomalies, acceptance metrics, and decode error behavior.</div></div>
   <div class='card'><h3><a href='/admin'>Admin</a></h3><div class='muted'>Controlled operational changes and audited admin actions.</div></div>
   <div class='card'><h3><a href='/about'>About</a></h3><div class='muted'>Project documentation mirror from README and reference links.</div></div>
@@ -4547,7 +4625,7 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         html_paths = {
             '/', '/events', '/packets', '/overview', '/help', '/trends', '/data', '/path', '/stations', '/stations-map', '/map',
-            '/trip', '/radio', '/forensics', '/about', '/admin'
+            '/trip', '/file_drop', '/bitflipper', '/radio', '/forensics', '/about', '/admin'
         }
         if parsed.path in html_paths:
             self.send_response(HTTPStatus.OK)
@@ -4639,6 +4717,15 @@ class Handler(BaseHTTPRequestHandler):
 
         if parsed.path == '/file_drop':
             payload = FILE_DROP_HTML.replace('__NAV__', NAV_HTML).encode('utf-8')
+            self.send_response(HTTPStatus.OK)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Content-Length', str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
+
+        if parsed.path == '/bitflipper':
+            payload = BITFLIPPER_HTML.replace('__NAV__', NAV_HTML).encode('utf-8')
             self.send_response(HTTPStatus.OK)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
             self.send_header('Content-Length', str(len(payload)))
