@@ -2619,15 +2619,21 @@ __NAV__
     Promise.all([
       fetch('/api/control/policy').then(r=>r.json()).catch(()=>({})),
       fetch('/api/deployment_role').then(r=>r.json()).catch(()=>({})),
-      fetch('/api/control/receivers').then(r=>r.json()).catch(()=>({receivers:[]}))
+      fetch('/api/control/receivers').then(r=>r.json()).catch(()=>({receivers:[]})),
+      fetch('/api/control/state_summary').then(r=>r.json()).catch(()=>({}))
     ]).then(function(v){
-      var policy=v[0]||{}, role=v[1]||{}, rr=v[2]||{};
+      var policy=v[0]||{}, role=v[1]||{}, rr=v[2]||{}, ss=v[3]||{};
+      var acp=g(ss,'s3_active_control_plane',{})||{};
+      var aep=g(ss,'s3_active_endpoint',{})||{};
       var cp=document.getElementById('cp');
       cp.innerHTML=''
         +'<div>Role: <strong>'+String(g(role,'role','unknown'))+'</strong></div>'
         +'<div>Ingest auth enabled: <strong>'+(g(policy,'enabled',false)?'yes':'no')+'</strong></div>'
         +'<div>Ingest localhost bypass: <strong>'+(g(policy,'allowLocalhostWithoutToken',true)?'yes':'no')+'</strong></div>'
-        +'<div>Max events/ingest: <strong>'+String(g(policy,'maxEventsPerIngest','n/a'))+'</strong></div>';
+        +'<div>Max events/ingest: <strong>'+String(g(policy,'maxEventsPerIngest','n/a'))+'</strong></div>'
+        +'<div style="margin-top:.45rem">Active CP host (S3): <strong>'+String(g(acp,'active_host','n/a'))+'</strong> · Snapshot <span class="muted">'+String(g(acp,'snapshot','n/a'))+'</span></div>'
+        +'<div>Active endpoint (S3): <strong>'+String(g(aep,'activeBaseUrl','n/a'))+'</strong></div>'
+        +'<div>Active endpoint (local pointer): <strong>'+String(g(ss,'local_active_base_url','n/a'))+'</strong></div>';
 
       var rows=g(rr,'receivers',[])||[];
       if(!rows.length){ document.getElementById('rx').textContent='no receiver ingest yet'; return; }
@@ -4138,6 +4144,72 @@ def meta_history_append(action: str, details: dict | None = None):
         pass
 
 
+def _load_control_endpoints(path='config/control_plane_endpoints.json'):
+    p = Path(path)
+    dflt = {
+        'schema': 'fwlab.control_endpoints.v1',
+        'activeBaseUrl': '',
+        'ingestPath': '/api/control/ingest',
+        'statusPath': '/api/control/policy',
+        'candidates': {},
+    }
+    if not p.exists():
+        return dflt
+    try:
+        d = json.loads(p.read_text(encoding='utf-8', errors='replace'))
+        if not isinstance(d, dict):
+            return dflt
+        out = dict(dflt)
+        out.update(d)
+        return out
+    except Exception:
+        return dflt
+
+
+def _control_state_summary():
+    out = {
+        'role': load_deployment_role().get('role', 'edge'),
+        'local_active_base_url': _load_control_endpoints().get('activeBaseUrl', ''),
+        's3_active_control_plane': {},
+        's3_active_endpoint': {},
+    }
+    try:
+        policy = json.loads(Path('config/archive_policy.json').read_text(encoding='utf-8', errors='replace'))
+        role = load_deployment_role()
+        prefix = str(((role.get('control') or {}).get('state_prefix') or 'fwlab/control-plane')).strip('/ ')
+        bucket = str(policy.get('bucket', '')).strip()
+        if not bucket:
+            return out
+        envp = Path('config/archive_env')
+        if envp.exists():
+            for ln in envp.read_text(encoding='utf-8', errors='replace').splitlines():
+                if '=' in ln and not ln.strip().startswith('#'):
+                    k,v=ln.split('=',1)
+                    os.environ.setdefault(k.strip(), v.strip())
+        if 'AWS_ACCESS_KEY_ID' not in os.environ or 'AWS_SECRET_ACCESS_KEY' not in os.environ:
+            return out
+        try:
+            import boto3  # type: ignore
+        except Exception:
+            return out
+        session = boto3.session.Session(
+            aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
+            aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
+        )
+        s3 = session.client('s3', endpoint_url=policy.get('endpoint') or None, region_name=policy.get('region') or None)
+        def _get_json(key):
+            try:
+                obj = s3.get_object(Bucket=bucket, Key=key)
+                return json.loads(obj['Body'].read().decode('utf-8', errors='replace'))
+            except Exception:
+                return {}
+        out['s3_active_control_plane'] = _get_json(f'{prefix}/active_control_plane.json')
+        out['s3_active_endpoint'] = _get_json(f'{prefix}/active_endpoint.json')
+    except Exception:
+        pass
+    return out
+
+
 def load_deployment_role(path='config/deployment_role.json'):
     p = Path(path)
     default = {
@@ -5314,6 +5386,9 @@ class Handler(BaseHTTPRequestHandler):
             pol = load_control_plane_policy()
             pol.pop('ingestToken', None)
             return self._json(pol)
+
+        if parsed.path == '/api/control/state_summary':
+            return self._json(_control_state_summary())
 
         if parsed.path == '/api/control/receivers':
             _, latest_dir, _ = _control_ingest_paths()
