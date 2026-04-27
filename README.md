@@ -36,6 +36,22 @@ Current goals:
 4. Set center frequency / RF gain / RF squelch
 5. Monitor decoder output + logs
 
+### C) Cross-host bootstrap installer (new)
+
+```bash
+chmod +x scripts/install_fwlab.sh scripts/verify_fwlab.sh
+./scripts/install_fwlab.sh --profile all --yes
+./scripts/verify_fwlab.sh --profile all
+```
+
+Common variants:
+
+```bash
+./scripts/install_fwlab.sh --profile webui --yes
+./scripts/install_fwlab.sh --profile receiver --user "$USER" --yes
+./scripts/install_fwlab.sh --dry-run --profile all
+```
+
 ## Web UI Pages
 
 - `/` Dashboard
