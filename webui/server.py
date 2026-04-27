@@ -2336,11 +2336,11 @@ __NAV__
 </div></body></html>"""
 
 BITFLIPPER_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB BitFlipper</title>
-<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button,select{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem}.muted{color:#9fb0c3}.tbl{width:100%;border-collapse:collapse;margin-top:.45rem}.tbl th,.tbl td{border-bottom:1px solid #2a3948;padding:.35rem .4rem;text-align:left;vertical-align:top}.tbl th{color:#9fb0c3}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.yes{color:#6dd17c;font-weight:700}.no{color:#f36f6f;font-weight:700}a{color:#7fc8ff}.bf-art{max-width:420px;opacity:.95}.bf-art-wrap{display:flex;justify-content:center;align-items:center;padding:.3rem}</style></head><body><div class='page'>
+<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea;position:relative}.page{padding:1rem;position:relative;z-index:1}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button,select{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem}.muted{color:#9fb0c3}.tbl{width:100%;border-collapse:collapse;margin-top:.45rem}.tbl th,.tbl td{border-bottom:1px solid #2a3948;padding:.35rem .4rem;text-align:left;vertical-align:top}.tbl th{color:#9fb0c3}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.yes{color:#6dd17c;font-weight:700}.no{color:#f36f6f;font-weight:700}a{color:#7fc8ff}.bf-bg{position:fixed;inset:0;display:flex;justify-content:center;align-items:center;pointer-events:none;z-index:0}.bf-art{max-width:220px;max-height:220px;opacity:.12;filter:grayscale(1)}</style></head><body><div class='page'>
 <h2 style='margin-top:0'>BitFlipper</h2>
 <div class='muted' style='margin:-.2rem 0 .55rem'>Analyze likely ALERT address bit-flips and quickly pivot matching results to ARRO graph links. Upload a CSV in the known sensor export format and test one- or multi-bit flip scenarios.</div>
 __NAV__
-<div class='card bf-art-wrap'>__BITFLIPPER_ART__</div>
+<div class='bf-bg' aria-hidden='true'>__BITFLIPPER_ART__</div>
 <div class='card'>
   <label>CSV file <input type='file' id='csvFile' accept='.csv'></label><br><br>
   <label>ALERT Address <input type='number' id='alertAddr' min='0'></label><br><br>
