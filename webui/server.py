@@ -216,6 +216,7 @@ h2{{font-weight:650;letter-spacing:.2px;}}
       <a href='/file_drop'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v12'/><path d='m8 11 4 4 4-4'/><path d='M4 20h16'/></svg></span><span class='fw-label'>File Drop</span></a>
       <a href='/bitflipper'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M8 6h8'/><path d='M8 12h8'/><path d='M8 18h8'/><path d='M5 6h.01M5 12h.01M5 18h.01'/></svg></span><span class='fw-label'>BitFlipper</span></a>
       <a href='/admin'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='3'/><path d='M19.4 15a1 1 0 0 0 .2 1.1l.1.1a2 2 0 0 1-2.8 2.8l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V20a2 2 0 0 1-4 0v-.2a1 1 0 0 0-.6-.9 1 1 0 0 0-1.1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H4a2 2 0 0 1 0-4h.2a1 1 0 0 0 .9-.6 1 1 0 0 0-.2-1.1l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1 1 0 0 0 1.1.2h0a1 1 0 0 0 .6-.9V4a2 2 0 0 1 4 0v.2a1 1 0 0 0 .6.9h0a1 1 0 0 0 1.1-.2l.1-.1a2 2 0 0 1 2.8 2.8l-.1.1a1 1 0 0 0-.2 1.1v0a1 1 0 0 0 .9.6H20a2 2 0 0 1 0 4h-.2a1 1 0 0 0-.9.6z'/></svg></span><span class='fw-label'>Admin</span></a>
+      <a href='/control'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 6h16v12H4z'/><path d='M8 10h8M8 14h5'/></svg></span><span class='fw-label'>Control</span></a>
       <a href='/forensics'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='6.5'/><path d='M20 20l-4.2-4.2'/><path d='M11 8.5v5M8.5 11h5'/></svg></span><span class='fw-label'>Forensics</span></a>
       <a href='/about'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M12 11v5'/><circle cx='12' cy='8' r='1'/></svg></span><span class='fw-label'>About</span></a>
     </nav>
@@ -2579,6 +2580,78 @@ __NAV__
 </script>
 </div></body></html>"""
 
+CONTROL_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Control Plane</title>
+<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem}.muted{color:#9fb0c3}.good{color:#6dd17c}.warn{color:#f2c14e}.bad{color:#f36f6f}.tbl{width:100%;border-collapse:collapse}.tbl th,.tbl td{border-bottom:1px solid #2a3948;padding:.35rem .45rem;text-align:left}.tbl th{color:#9fb0c3}@media(max-width:860px){.tbl{font-size:.92rem}}</style></head><body><div class='page'>
+<h2 style='margin-top:0'>Control Plane</h2>
+<div class='muted' style='margin:-.2rem 0 .55rem'>Fleet visibility for active control-plane state, endpoint pointer, and receiver ingest freshness. Use this page to validate CP health before and after failover actions.</div>
+__NAV__
+<div class='card'>
+  <button id='refresh'>Refresh</button> <span id='msg' class='muted'></span>
+</div>
+<div class='card'>
+  <h3 style='margin:.1rem 0 .5rem'>Active control-plane state</h3>
+  <div id='cp' class='muted'>loading…</div>
+</div>
+<div class='card'>
+  <h3 style='margin:.1rem 0 .5rem'>Receiver ingest status</h3>
+  <div id='rx' class='muted'>loading…</div>
+</div>
+<script>
+(function(){
+  function g(o,k,d){ return (o && o[k]!==undefined && o[k]!==null)?o[k]:d; }
+  function ageClass(ts){
+    if(!ts) return 'bad';
+    var t=Date.parse(ts); if(!isFinite(t)) return 'bad';
+    var m=(Date.now()-t)/60000;
+    if(m<5) return 'good';
+    if(m<30) return 'warn';
+    return 'bad';
+  }
+  function fmtAge(ts){
+    if(!ts) return 'n/a';
+    var t=Date.parse(ts); if(!isFinite(t)) return String(ts);
+    var s=Math.max(0,Math.floor((Date.now()-t)/1000));
+    if(s<60) return s+'s';
+    var m=Math.floor(s/60); if(m<60) return m+'m';
+    var h=Math.floor(m/60); return h+'h '+(m%60)+'m';
+  }
+  function load(){
+    Promise.all([
+      fetch('/api/control/policy').then(r=>r.json()).catch(()=>({})),
+      fetch('/api/deployment_role').then(r=>r.json()).catch(()=>({})),
+      fetch('/api/control/receivers').then(r=>r.json()).catch(()=>({receivers:[]}))
+    ]).then(function(v){
+      var policy=v[0]||{}, role=v[1]||{}, rr=v[2]||{};
+      var cp=document.getElementById('cp');
+      cp.innerHTML=''
+        +'<div>Role: <strong>'+String(g(role,'role','unknown'))+'</strong></div>'
+        +'<div>Ingest auth enabled: <strong>'+(g(policy,'enabled',false)?'yes':'no')+'</strong></div>'
+        +'<div>Ingest localhost bypass: <strong>'+(g(policy,'allowLocalhostWithoutToken',true)?'yes':'no')+'</strong></div>'
+        +'<div>Max events/ingest: <strong>'+String(g(policy,'maxEventsPerIngest','n/a'))+'</strong></div>';
+
+      var rows=g(rr,'receivers',[])||[];
+      if(!rows.length){ document.getElementById('rx').textContent='no receiver ingest yet'; return; }
+      var tr=rows.map(function(r){
+        var ts=g(r,'last_ts','');
+        var cls=ageClass(ts);
+        return '<tr>'
+          +'<td>'+String(g(r,'rxs_id',''))+'</td>'
+          +'<td class="'+cls+'">'+fmtAge(ts)+'</td>'
+          +'<td>'+String(ts||'')+'</td>'
+          +'<td>'+String(g(r,'event_count',0))+'</td>'
+          +'<td>'+String(g(g(r,'heartbeat',{}),'state',''))+'</td>'
+          +'</tr>';
+      }).join('');
+      document.getElementById('rx').innerHTML='<table class="tbl"><thead><tr><th>Receiver</th><th>Age</th><th>Last seen (UTC)</th><th>Events</th><th>Heartbeat</th></tr></thead><tbody>'+tr+'</tbody></table>';
+      document.getElementById('msg').textContent='updated '+new Date().toLocaleTimeString();
+    }).catch(function(){ document.getElementById('msg').textContent='refresh failed'; });
+  }
+  document.getElementById('refresh').addEventListener('click', load);
+  load(); setInterval(load, 15000);
+})();
+</script>
+</div></body></html>"""
+
 OVERVIEW_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Overview</title>
 <style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem;border:1px solid #243243}a{color:#7fc8ff}.muted{color:#9fb0c3}h3{margin:.15rem 0 .4rem}.grid{display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:.6rem}@media(max-width:860px){.grid{grid-template-columns:1fr}}</style></head><body><div class='page'>
 <h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M8 9h8'/><path d='M8 12h8'/><path d='M8 15h5'/></svg></span><span>Overview</span></h2>
@@ -2597,6 +2670,7 @@ __NAV__
   <div class='card'><h3><a href='/bitflipper'>BitFlipper</a></h3><div class='muted'>Bit-flip analysis utility to find likely ALERT address collisions and open ARRO graphs.</div></div>
   <div class='card'><h3><a href='/forensics'>Forensics</a></h3><div class='muted'>Analyze anomalies, acceptance metrics, and decode error behavior.</div></div>
   <div class='card'><h3><a href='/admin'>Admin</a></h3><div class='muted'>Controlled operational changes and audited admin actions.</div></div>
+  <div class='card'><h3><a href='/control'>Control Plane</a></h3><div class='muted'>Fleet ingest freshness and control-plane state visibility for failover operations.</div></div>
   <div class='card'><h3><a href='/about'>About</a></h3><div class='muted'>Project documentation mirror from README and reference links.</div></div>
 </div>
 </div></body></html>"""
@@ -4917,7 +4991,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_HEAD(self):
         parsed = urlparse(self.path)
         html_paths = {
-            '/', '/events', '/packets', '/overview', '/help', '/trends', '/data', '/path', '/stations', '/stations-map', '/map',
+            '/', '/events', '/packets', '/overview', '/help', '/control', '/trends', '/data', '/path', '/stations', '/stations-map', '/map',
             '/trip', '/file_drop', '/bitflipper', '/radio', '/forensics', '/about', '/admin'
         }
         if parsed.path in html_paths:
@@ -4956,6 +5030,15 @@ class Handler(BaseHTTPRequestHandler):
 
         if parsed.path == '/help':
             payload = HELP_HTML.replace('__NAV__', NAV_HTML).encode('utf-8')
+            self.send_response(HTTPStatus.OK)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Content-Length', str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
+
+        if parsed.path == '/control':
+            payload = CONTROL_HTML.replace('__NAV__', NAV_HTML).encode('utf-8')
             self.send_response(HTTPStatus.OK)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
             self.send_header('Content-Length', str(len(payload)))
