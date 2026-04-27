@@ -173,8 +173,30 @@ active = {
     'snapshot': latest['snapshot'],
 }
 
+# Publish active endpoint pointer for edge nodes.
+endpoint_cfg = root / 'config' / 'control_plane_endpoints.json'
+active_endpoint = {
+    'schema': 'fwlab.control_endpoint.active.v1',
+    'activeHost': host,
+    'activeBaseUrl': '',
+    'ingestPath': '/api/control/ingest',
+    'statusPath': '/api/control/policy',
+    'updated_ts': datetime.datetime.utcnow().isoformat() + 'Z',
+}
+if endpoint_cfg.exists():
+    try:
+        ep = json.loads(endpoint_cfg.read_text(encoding='utf-8', errors='replace'))
+        cands = ep.get('candidates') or {}
+        base = str(cands.get(host, ep.get('activeBaseUrl', '')) or '').strip()
+        active_endpoint['activeBaseUrl'] = base.rstrip('/')
+        active_endpoint['ingestPath'] = str(ep.get('ingestPath', '/api/control/ingest') or '/api/control/ingest')
+        active_endpoint['statusPath'] = str(ep.get('statusPath', '/api/control/policy') or '/api/control/policy')
+    except Exception:
+        pass
+
 s3.put_object(Bucket=bucket, Key=f"{prefix}/latest.json", Body=(json.dumps(latest, indent=2)+'\n').encode('utf-8'), ContentType='application/json')
 s3.put_object(Bucket=bucket, Key=f"{prefix}/active_control_plane.json", Body=(json.dumps(active, indent=2)+'\n').encode('utf-8'), ContentType='application/json')
+s3.put_object(Bucket=bucket, Key=f"{prefix}/active_endpoint.json", Body=(json.dumps(active_endpoint, indent=2)+'\n').encode('utf-8'), ContentType='application/json')
 try:
     s3.delete_object(Bucket=bucket, Key=lock_key)
 except Exception:

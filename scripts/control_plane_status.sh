@@ -61,6 +61,7 @@ def load_json(key):
 
 active=load_json(f"{prefix}/active_control_plane.json")
 latest=load_json(f"{prefix}/latest.json")
+endpoint=load_json(f"{prefix}/active_endpoint.json")
 
 print('== control plane status ==')
 print(f"bucket: {bucket}")
@@ -69,4 +70,6 @@ print('\n[active_control_plane.json]')
 print(json.dumps(active, indent=2))
 print('\n[latest.json]')
 print(json.dumps(latest, indent=2))
+print('\n[active_endpoint.json]')
+print(json.dumps(endpoint, indent=2))
 PY

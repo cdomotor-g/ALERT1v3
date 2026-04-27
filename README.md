@@ -81,6 +81,15 @@ chmod +x scripts/control_plane_status.sh
 ./scripts/control_plane_status.sh
 ```
 
+Active endpoint pointer helpers:
+
+```bash
+chmod +x scripts/control_endpoint_status.sh scripts/set_active_control_endpoint.sh scripts/sync_active_control_endpoint.sh
+./scripts/control_endpoint_status.sh
+./scripts/set_active_control_endpoint.sh righty
+./scripts/sync_active_control_endpoint.sh
+```
+
 Control-plane failover drill helper:
 
 ```bash

@@ -18,6 +18,15 @@ This repo now includes a role-driven control-plane scaffold.
 - Status: `scripts/control_plane_status.sh`
 - Drill: `scripts/control_plane_drill.sh`
 
+## Active endpoint pointer
+
+- Config: `config/control_plane_endpoints.json`
+- Local status: `scripts/control_endpoint_status.sh`
+- Set local active endpoint: `scripts/set_active_control_endpoint.sh <candidate|url>`
+- Sync local pointer from S3: `scripts/sync_active_control_endpoint.sh`
+
+Promotion publishes `<state_prefix>/active_endpoint.json` so edge nodes can follow active CP.
+
 ## Ingest policy
 
 - `config/control_plane_policy.json`

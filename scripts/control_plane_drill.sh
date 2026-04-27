@@ -16,8 +16,9 @@ echo "[2/6] Bootstrap latest CP state (no promote)"
 echo "[3/6] Promote this host as active CP"
 "$ROOT/scripts/promote_control_plane.sh" --pull-first
 
-echo "[4/6] Inspect S3 CP status"
+echo "[4/6] Inspect S3 CP status + sync local active endpoint pointer"
 "$ROOT/scripts/control_plane_status.sh"
+"$ROOT/scripts/sync_active_control_endpoint.sh" || true
 
 echo "[5/6] Ingest synthetic heartbeat/events"
 curl -sS -X POST "$BASE_URL/api/control/ingest" \

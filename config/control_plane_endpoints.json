@@ -1,0 +1,10 @@
+{
+  "schema": "fwlab.control_endpoints.v1",
+  "activeBaseUrl": "http://127.0.0.1:8088",
+  "ingestPath": "/api/control/ingest",
+  "statusPath": "/api/control/policy",
+  "candidates": {
+    "righty": "https://fwlab.floodwarning.net",
+    "raspberry": "http://127.0.0.1:8088"
+  }
+}
