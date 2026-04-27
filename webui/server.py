@@ -2402,6 +2402,8 @@ __NAV__
   const alertAddrInput=document.getElementById('alertAddr');
   let hintRows=[];
   let hintMap=new Map();
+  let selectedOriginLabel='';
+  let selectedOriginSensorId='';
 
   function buildHints(rows){
     hintRows=(rows||[]).map(r=>Object.assign({},r));
@@ -2453,17 +2455,34 @@ __NAV__
   function applySuggestion(){
     const q=String(stationLookup.value||'').trim();
     if(!q) return;
+    selectedOriginLabel='';
+    selectedOriginSensorId='';
     let a = hintMap.get(q);
+    let m = null;
+    if(a!=null){
+      selectedOriginLabel=q;
+      m=hintRows.find(r=>{
+        const site=String(r['Site']||'').trim();
+        const siteId=String(r['Site ID']||'').trim();
+        const sensor=String(r['Sensor']||'').trim();
+        const sid=String(r['Sensor ID']||'').trim();
+        const aa=alertFromSensorId(sid);
+        const label=(siteId||'n/a')+' · '+(site||'unknown')+' · '+(sensor||'sensor')+' · ALERT '+String(aa==null?'':aa);
+        return label===q;
+      }) || null;
+    }
     if(a==null){
       const ql=q.toLowerCase();
-      const m=hintRows.find(r=>{
+      m=hintRows.find(r=>{
         const site=String(r['Site']||'').toLowerCase();
         const siteId=String(r['Site ID']||'').toLowerCase();
         const sid=String(r['Sensor ID']||'').toLowerCase();
-        return site.includes(ql)||siteId.includes(ql)||sid.includes(ql);
-      });
+        const sensor=String(r['Sensor']||'').toLowerCase();
+        return site.includes(ql)||siteId.includes(ql)||sid.includes(ql)||sensor.includes(ql);
+      }) || null;
       if(m) a=alertFromSensorId(String(m['Sensor ID']||''));
     }
+    if(m) selectedOriginSensorId=String(m['Sensor ID']||'').trim();
     if(a!=null) alertAddrInput.value=String(a);
   }
 
@@ -2507,7 +2526,23 @@ __NAV__
       const results=[];
       map.forEach((bs,v)=>{ const m=rows.filter(r=>r._alert===v); bs.forEach(b=>{ if(m.length) m.forEach(x=>results.push({b,v,x})); else results.push({b,v,x:null}); }); });
       const originRows = rows.filter(r=>r._alert===addr);
-      const originKeys = new Set(originRows.map(r=>String((r.site_id||'')+'|'+(r.device_id||''))));
+      let originPreferred = null;
+      if(selectedOriginSensorId){
+        originPreferred = originRows.find(r=>String(r['Sensor ID']||'').trim()===selectedOriginSensorId) || null;
+      }
+      if(!originPreferred && selectedOriginLabel){
+        originPreferred = originRows.find(r=>{
+          const site=String(r['Site']||'').trim();
+          const siteId=String(r['Site ID']||'').trim();
+          const sensor=String(r['Sensor']||'').trim();
+          const sid=String(r['Sensor ID']||'').trim();
+          const aa=alertFromSensorId(sid);
+          const label=(siteId||'n/a')+' · '+(site||'unknown')+' · '+(sensor||'sensor')+' · ALERT '+String(aa==null?'':aa);
+          return label===selectedOriginLabel;
+        }) || null;
+      }
+      if(!originPreferred && originRows.length) originPreferred = originRows[0];
+      const originKey = originPreferred ? String((originPreferred.site_id||'')+'|'+(originPreferred.device_id||'')) : '';
       const sensors=[...new Set(results.filter(r=>r.x).map(r=>r.x.Sensor))].sort();
       out.innerHTML='';
       const top=document.createElement('div'); top.className='muted'; top.style.marginBottom='.4rem'; top.textContent='Found '+results.length+' candidate rows.'; out.appendChild(top);
@@ -2525,8 +2560,8 @@ __NAV__
         const now=new Date(), start=new Date(now-7*86400e3);
         const p=new URLSearchParams({refresh:'off',markers:'false',legend:'true',bin:'86400',time_zone:'Australia/Brisbane',invalid:'true',has_regular_sensors:'true',has_forecast_sensors:'false',for_forecast:'false',hidden_devices:'none',data_start:formatLocal(start),data_end:formatLocal(now)});
         const seen=new Set();
-        // Always keep traces for the original entered ALERT address.
-        originKeys.forEach(k=>{ if(k && k!=='|'){ seen.add(k); p.append('devices[]',k); } });
+        // Always keep one baseline trace: the original selected sensor/source for this ALERT address.
+        if(originKey && originKey!=='|'){ seen.add(originKey); p.append('devices[]',originKey); }
         // Add currently visible matched bit-flip candidates.
         document.querySelectorAll('#flipTable tbody tr').forEach(tr=>{ if(tr.style.display==='none'||tr.dataset.match!=='1') return; const k=tr.dataset.site+'|'+tr.dataset.device; if(!seen.has(k)){ seen.add(k); p.append('devices[]',k);} });
         const c=document.getElementById('arroFiltered'); c.innerHTML='';
