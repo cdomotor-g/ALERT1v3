@@ -205,6 +205,7 @@ h2{{font-weight:650;letter-spacing:.2px;}}
     <nav class='fw-nav'>
       <a href='/'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 10.5 12 3l9 7.5'/><path d='M5 9.5V21h14V9.5'/></svg></span><span class='fw-label'>Dashboard</span></a>
       <a href='/packets'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='4' width='16' height='16' rx='2'/><path d='M8 9h8M8 13h8M8 17h5'/></svg></span><span class='fw-label'>Packets</span></a>
+      <a href='/overview'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M8 9h8'/><path d='M8 12h8'/><path d='M8 15h5'/></svg></span><span class='fw-label'>Overview</span></a>
       <a href='/radio'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 12h3m12 0h3'/><circle cx='12' cy='12' r='2.5'/><path d='M6.5 8.5a8 8 0 0 1 0 7M17.5 8.5a8 8 0 0 1 0 7'/></svg></span><span class='fw-label'>Radio</span></a>
       <a href='/data'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 19h16'/><path d='m6 15 4-4 3 2 5-6'/><path d='m18 7 0 3h-3'/></svg></span><span class='fw-label'>Data</span></a>
       <a href='/path'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 20V9'/><path d='M4 9c2.5-1.5 5.5-1.5 8 0s5.5 1.5 8 0v11c-2.5 1.5-5.5 1.5-8 0s-5.5-1.5-8 0'/><circle cx='4' cy='9' r='1.2'/><circle cx='20' cy='9' r='1.2'/></svg></span><span class='fw-label'>Path</span></a>
@@ -331,6 +332,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
 <body>
 <div class='page'>
   <h2 id='pageTitle' style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 10.5 12 3l9 7.5'/><path d='M5 9.5V21h14V9.5'/></svg></span><span>Dashboard</span></h2>
+  <div class='muted' style='margin:-.2rem 0 .55rem'>Live operating view for receiver health and packet flow. Use this page for quick situational awareness before drilling into analysis pages.</div>
   __NAV__
 
   <div class='sticky-wrap'>
@@ -1220,6 +1222,7 @@ PATH_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='view
 <script src='https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js'></script>
 <script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script></head><body><div class='page'>
 <h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 20V9'/><path d='M4 9c2.5-1.5 5.5-1.5 8 0s5.5 1.5 8 0v11c-2.5 1.5-5.5 1.5-8 0s-5.5-1.5-8 0'/><circle cx='4' cy='9' r='1.2'/><circle cx='20' cy='9' r='1.2'/></svg></span><span>Path</span></h2>
+<div class='muted' style='margin:-.2rem 0 .55rem'>RF path analysis workspace for terrain, Fresnel clearance, and link budget checks between candidate sites. Use Compare to test scenarios and defaults for repeatable planning.</div>
 __NAV__
 <div class='card grid'>
   <div style='grid-column:1/-1' class='muted'>Optional: pick known stations (type to filter)</div>
@@ -1486,6 +1489,7 @@ __NAV__
 STATIONS_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Stations</title>
 <style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem;max-width:100%;box-sizing:border-box}.muted{color:#9fb0c3}.row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}.mini{font-size:.9em}.num{width:8.5rem}.table-wrap{overflow:auto}.st-table{width:100%;min-width:980px;border-collapse:collapse}.st-table th,.st-table td{padding:.35rem;border-bottom:1px solid #243243;text-align:left}.cards{display:none}.st-card{border:1px solid #2a3948;border-radius:8px;margin:.5rem 0;background:#111a22}.st-card summary{cursor:pointer;padding:.6rem .65rem;list-style:none}.st-card summary::-webkit-details-marker{display:none}.st-card[open] summary{border-bottom:1px solid #243243}.st-body{padding:.6rem}.st-card .grid{display:grid;grid-template-columns:1fr 1fr;gap:.4rem}.st-card input{width:100%;box-sizing:border-box}.stack{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}.stack .grow{flex:1 1 260px}.filter-card{padding:.45rem .6rem}@media(max-width:900px){.table-wrap{display:none}.cards{display:block}.row,.stack{flex-direction:column;align-items:stretch}input,button{width:100%;min-height:40px;font-size:16px}.filter-card{padding:.35rem .55rem}.page{padding:.7rem}}</style></head><body><div class='page'>
 <h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v18'/><path d='M5 8h14'/><path d='M5 16h14'/><circle cx='12' cy='3' r='1.2'/></svg></span><span>Stations</span></h2>
+<div class='muted' style='margin:-.2rem 0 .55rem'>Editable station registry with BoM station numbers, coordinates, and metadata used across maps and planning tools. Use this page to search, review, and maintain station records.</div>
 __NAV__
 <div class='card stack'>
   <input id='csvFile' type='file' accept='.csv,text/csv'>
@@ -1698,6 +1702,7 @@ STATIONS_MAP_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta na
 <style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem}#map{height:72vh;border:1px solid #2a3948;border-radius:8px}.muted{color:#9fb0c3}.touch-note{font-size:.9em;color:#9fb0c3}@media(max-width:900px){input{min-height:40px;font-size:16px}#map{height:76vh}}</style>
 <script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script><script src='https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js'></script></head><body><div class='page'>
 <h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z'/><path d='M9 4v14'/><path d='M15 6v14'/></svg></span><span>Stations Map</span></h2>
+<div class='muted' style='margin:-.2rem 0 .55rem'>Geospatial operations view of stations with packet recency coloring and quick context popups. Use this page to see where activity is fresh, stale, or missing at a glance.</div>
 __NAV__
 <div class='card'>
   <input id='q' placeholder='Type to filter markers by name/id...' style='min-width:280px'>
@@ -2071,6 +2076,7 @@ TRIP_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='view
 <style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem;box-sizing:border-box;max-width:100%;line-height:1.2}input{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}.grow{flex:1 1 280px}.muted{color:#9fb0c3}#map{height:52vh;border:1px solid #2a3948;border-radius:8px}.wp{padding:.45rem;border:1px solid #2a3948;border-radius:8px;margin:.4rem 0;background:#111a22}.wp b{display:block;margin-bottom:.2rem}.trip-entry{padding:.45rem .55rem}.trip-input,.trip-btn{height:32px;min-height:32px;max-height:32px;line-height:1;padding:.12rem .45rem;-webkit-appearance:none;appearance:none;font-size:16px}@media(max-width:900px){input,button{width:100%}.trip-entry{padding:.38rem .5rem}.trip-input,.trip-btn{height:32px !important;min-height:32px !important;max-height:32px !important;line-height:1 !important;font-size:16px !important;padding:.1rem .45rem !important}.row{flex-direction:column;align-items:stretch}.page{padding:.7rem}}</style>
 <script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script></head><body><div class='page'>
 <h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 7h13'/><path d='M3 12h9'/><path d='M3 17h11'/><path d='M17 7l4 4-4 4'/></svg></span><span>Trip Planning</span></h2>
+<div class='muted' style='margin:-.2rem 0 .55rem'>Route planning tool for field visits across stations and ad-hoc waypoints. Build, optimize, and hand off routes to Google Maps for navigation.</div>
 __NAV__
 <div class='card row trip-entry'>
   <input id='stationPick' list='stationsList' class='grow trip-input' placeholder='Add station waypoint (type to filter)'>
@@ -2265,6 +2271,7 @@ __NAV__
 FILE_DROP_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB File Drop</title>
 <style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem}.muted{color:#9fb0c3}.tbl{width:100%;border-collapse:collapse;margin-top:.45rem}.tbl th,.tbl td{border-bottom:1px solid #2a3948;padding:.35rem .4rem;text-align:left;vertical-align:top}.tbl th{color:#9fb0c3;font-weight:600;font-size:.9rem}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.right{text-align:right}@media(max-width:860px){.tbl{font-size:.92rem}.tbl th,.tbl td{padding:.42rem .35rem}}</style></head><body><div class='page'>
 <h2 style='margin-top:0'>File Drop</h2>
+<div class='muted' style='margin:-.2rem 0 .55rem'>Quick ingest page for CSV/text uploads used to update local metadata and mappings. Recent uploads below are timestamped so operators can confirm what was loaded and when.</div>
 __NAV__
 <div class='card'>
   <input id='f' type='file'> <button id='u'>Upload</button>
@@ -2326,10 +2333,32 @@ __NAV__
 </script>
 </div></body></html>"""
 
+OVERVIEW_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Overview</title>
+<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem;border:1px solid #243243}a{color:#7fc8ff}.muted{color:#9fb0c3}h3{margin:.15rem 0 .4rem}.grid{display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:.6rem}@media(max-width:860px){.grid{grid-template-columns:1fr}}</style></head><body><div class='page'>
+<h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M8 9h8'/><path d='M8 12h8'/><path d='M8 15h5'/></svg></span><span>Overview</span></h2>
+<div class='muted' style='margin:-.2rem 0 .55rem'>Quick orientation page for new operators. Each section below explains what the matching page is for and when to use it.</div>
+__NAV__
+<div class='grid'>
+  <div class='card'><h3><a href='/'>Dashboard</a></h3><div class='muted'>Live status and packet activity overview for fast situational awareness.</div></div>
+  <div class='card'><h3><a href='/packets'>Packets</a></h3><div class='muted'>Event stream table for recent decodes and detailed packet drill-down.</div></div>
+  <div class='card'><h3><a href='/radio'>Radio</a></h3><div class='muted'>Waveform/waterfall monitoring for RF tuning and reception troubleshooting.</div></div>
+  <div class='card'><h3><a href='/data'>Data</a></h3><div class='muted'>Time-series trends for sensor values with local/archive source control.</div></div>
+  <div class='card'><h3><a href='/path'>Path</a></h3><div class='muted'>Terrain and Fresnel link analysis for path planning and comparisons.</div></div>
+  <div class='card'><h3><a href='/stations'>Stations</a></h3><div class='muted'>Editable registry of station/site metadata used throughout the platform.</div></div>
+  <div class='card'><h3><a href='/stations-map'>Stations Map</a></h3><div class='muted'>Map view of station locations and packet recency state.</div></div>
+  <div class='card'><h3><a href='/trip'>Trip Planning</a></h3><div class='muted'>Build and optimize field routes, then hand off to navigation tools.</div></div>
+  <div class='card'><h3><a href='/file_drop'>File Drop</a></h3><div class='muted'>Upload CSV/text files for metadata and mapping ingestion workflows.</div></div>
+  <div class='card'><h3><a href='/forensics'>Forensics</a></h3><div class='muted'>Analyze anomalies, acceptance metrics, and decode error behavior.</div></div>
+  <div class='card'><h3><a href='/admin'>Admin</a></h3><div class='muted'>Controlled operational changes and audited admin actions.</div></div>
+  <div class='card'><h3><a href='/about'>About</a></h3><div class='muted'>Project documentation mirror from README and reference links.</div></div>
+</div>
+</div></body></html>"""
+
 ADMIN_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Admin</title>
 <style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button,select{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}a{color:#7fc8ff}.row{margin:.35rem 0}.grid{display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:.6rem}.good{color:#6dd17c}.warn{color:#f2c14e}.bad{color:#f36f6f}pre{white-space:pre-wrap;max-height:220px;overflow:auto;background:#0f141a;border:1px solid #2a3948;padding:.55rem;border-radius:6px}@media(max-width:860px){.grid{grid-template-columns:1fr}input,button,select{min-height:40px;font-size:16px}}</style></head>
 <body><div class='page'>
 <h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='3'/><path d='M19.4 15a1 1 0 0 0 .2 1.1l.1.1a2 2 0 0 1-2.8 2.8l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V20a2 2 0 0 1-4 0v-.2a1 1 0 0 0-.6-.9 1 1 0 0 0-1.1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H4a2 2 0 0 1 0-4h.2a1 1 0 0 0 .9-.6 1 1 0 0 0-.2-1.1l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1 1 0 0 0 1.1.2h0a1 1 0 0 0 .6-.9V4a2 2 0 0 1 4 0v.2a1 1 0 0 0 .6.9h0a1 1 0 0 0 1.1-.2l.1-.1a2 2 0 0 1 2.8 2.8l-.1.1a1 1 0 0 0-.2 1.1v0a1 1 0 0 0 .9.6H20a2 2 0 0 1 0 4h-.2a1 1 0 0 0-.9.6z'/></svg></span><span>Admin</span></h2>
+<div class='muted' style='margin:-.2rem 0 .55rem'>Operational control page for receiver lifecycle, storage policy, and audited admin actions. Use this area for controlled changes and diagnostics snapshots.</div>
 __NAV__
 <div class='card'>
   <div class='grid'>
@@ -2505,6 +2534,7 @@ TRENDS_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='vi
 <style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,select,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}a{color:#7fc8ff}#chart{height:420px}.controls{display:flex;flex-wrap:wrap;gap:.35rem .5rem;align-items:center}@media(max-width:860px){.controls{display:grid;grid-template-columns:1fr 1fr;gap:.45rem}#chart{height:320px}input,select,button{min-height:40px;font-size:16px}}</style></head>
 <body><div class='page'>
 <h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 19h16'/><path d='m6 15 4-4 3 2 5-6'/><path d='m18 7 0 3h-3'/></svg></span><span>Data</span></h2>
+<div class='muted' style='margin:-.2rem 0 .55rem'>Time-series trends view for sensor values with source selection (local/archive), windowing, and derived metrics. Use this page to inspect behavior over time and save repeat views.</div>
 __NAV__<br><br>
 <div class='card controls'>
 Sensor ID: <input id='sensor' list='sensorList' style='width:120px' placeholder='e.g. 4099'>
@@ -2673,6 +2703,7 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
 </style>
 <script src='https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js'></script></head><body><div class='wrap'>
   <h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 12h3m12 0h3'/><circle cx='12' cy='12' r='2.5'/><path d='M6.5 8.5a8 8 0 0 1 0 7M17.5 8.5a8 8 0 0 1 0 7'/></svg></span><span>Radio</span></h2>
+  <div class='muted' style='margin:-.2rem 0 .55rem'>Real-time RF monitor with waveform/waterfall views and stream controls for signal quality checks. Use this page during live tuning and reception troubleshooting.</div>
   __NAV__
   <div id='radioAudioCard' class='card'><strong>Radio Live</strong> <span class='muted'>· Real-time RF/decode health</span> · <button id='freezeBtn'>Freeze</button> <span id='freezeState' class='muted'>live</span> · <button id='audioBtn'>Load Audio</button> <span id='audioState' class='muted'>off</span> · Codec: <select id='audioCodec'><option value='auto' selected>auto</option><option value='opus'>opus</option><option value='aac'>aac</option></select> · Gain <input id='audioGain' type='number' min='0.5' max='4.0' step='0.1' value='1.6' style='width:70px'><br><audio id='audioPlayer' controls playsinline preload='none' style='margin-top:.35rem;width:100%'></audio><div class='muted' style='margin-top:.25rem'>If blocked on iOS, tap play on the native control above. Test links: <a href='/api/audio_aac' target='_blank' style='color:#7fc8ff'>aac</a> · <a href='/api/audio_opus' target='_blank' style='color:#7fc8ff'>opus</a></div></div>
   <div class='card'>
@@ -2906,6 +2937,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;border:1px sol
 @media(max-width:980px){.grid{grid-template-columns:1fr}}
 </style></head><body><div class='wrap'>
 <h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='6.5'/><path d='M20 20l-4.2-4.2'/><path d='M11 8.5v5M8.5 11h5'/></svg></span><span>Forensics</span></h2>
+<div class='muted' style='margin:-.2rem 0 .55rem'>Deep diagnostics for decode quality, anomaly patterns, and error distributions across chosen windows. Use this page to validate demod changes and investigate packet integrity issues.</div>
 __NAV__
 <div class='card'>
   <strong>Purpose</strong><br>
@@ -3526,7 +3558,7 @@ a{{color:#7fc8ff}}
 {nav}
 <div class='card'><h2 style='margin:.2rem 0 0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M12 11v5'/><circle cx='12' cy='8' r='1'/></svg></span><span>About</span></h2>
 <div>Project repo: <a href='https://github.com/cdomotor-g/ALERT1v3' target='_blank' rel='noopener'>github.com/cdomotor-g/ALERT1v3</a></div>
-<div class='muted'>This page mirrors README.md from the running repo.</div>
+<div class='muted'>This page mirrors README.md from the running repo so operators can verify behavior against current docs. Use it for release notes, setup references, and implementation context.</div>
 </div>
 <div class='card'><div class='md'>{rendered}</div></div>
 </div></body></html>"""
@@ -4511,7 +4543,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_HEAD(self):
         parsed = urlparse(self.path)
         html_paths = {
-            '/', '/events', '/packets', '/trends', '/data', '/path', '/stations', '/stations-map', '/map',
+            '/', '/events', '/packets', '/overview', '/trends', '/data', '/path', '/stations', '/stations-map', '/map',
             '/trip', '/radio', '/forensics', '/about', '/admin'
         }
         if parsed.path in html_paths:
@@ -4532,6 +4564,15 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         if parsed.path in ['/', '/events', '/packets']:
             payload = HTML.replace('__NAV__', NAV_HTML).encode('utf-8')
+            self.send_response(HTTPStatus.OK)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Content-Length', str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
+
+        if parsed.path == '/overview':
+            payload = OVERVIEW_HTML.replace('__NAV__', NAV_HTML).encode('utf-8')
             self.send_response(HTTPStatus.OK)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
             self.send_header('Content-Length', str(len(payload)))
