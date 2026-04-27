@@ -2350,7 +2350,7 @@ __NAV__
   </label><br><br>
   <label id='csvWrap'>CSV file <input type='file' id='csvFile' accept='.csv'></label><br><br>
   <label>Find station/site
-    <input id='stationLookup' list='stationHints' placeholder='Type BoM station # or site name' style='min-width:280px'>
+    <input id='stationLookup' list='stationHints' placeholder='Type BoM station # or site name' style='min-width:420px;width:min(900px,70vw)'>
     <button id='useSuggestion' type='button'>Use</button>
   </label>
   <datalist id='stationHints'></datalist><br><br>
