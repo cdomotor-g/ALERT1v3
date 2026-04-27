@@ -172,8 +172,9 @@ enable_for_profile() {
       timers=()
       ;;
     control)
-      en=(fwlab-webui.service fwlab-host-monitor.service fwlab-control-sync.service)
+      en=(fwlab-webui.service fwlab-host-monitor.service)
       timers=(fwlab-log-retention.timer fwlab-archive-uploader.timer fwlab-control-sync.timer)
+      # fwlab-control-sync.service is oneshot and should run via timer/on-demand, not --now on install.
       ;;
     all)
       en=(fwlab-receiver.service fwlab-webui.service fwlab-host-monitor.service fwlab-rx-agg.service)
