@@ -2263,7 +2263,7 @@ __NAV__
 </div></body></html>"""
 
 FILE_DROP_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB File Drop</title>
-<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem}.muted{color:#9fb0c3}</style></head><body><div class='page'>
+<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem}.muted{color:#9fb0c3}.tbl{width:100%;border-collapse:collapse;margin-top:.45rem}.tbl th,.tbl td{border-bottom:1px solid #2a3948;padding:.35rem .4rem;text-align:left;vertical-align:top}.tbl th{color:#9fb0c3;font-weight:600;font-size:.9rem}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.right{text-align:right}@media(max-width:860px){.tbl{font-size:.92rem}.tbl th,.tbl td{padding:.42rem .35rem}}</style></head><body><div class='page'>
 <h2 style='margin-top:0'>File Drop</h2>
 __NAV__
 <div class='card'>
@@ -2277,14 +2277,29 @@ __NAV__
 </div>
 <script>
 (function(){
+  function eh(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]); }); }
   function loadList(){
     fetch('/api/file_drop/list?limit=20').then(function(r){return r.json();}).then(function(d){
       var a=d.files||[];
       if(!a.length){ document.getElementById('lst').textContent='no uploads yet'; }
       else {
-        var lines=[];
-        a.forEach(function(x){ lines.push((x.mtime||'')+'  '+(x.type||'generic')+'  '+(x.name||'')+'  ('+(x.size||0)+' bytes)'); });
-        document.getElementById('lst').textContent=lines.join('\\n');
+        var rows = a.map(function(x){
+          var ts = String(x.mtime||'');
+          var d = new Date(ts);
+          var local = isNaN(d.getTime()) ? ts : d.toLocaleString();
+          return '<tr>'
+            +'<td class="mono">'+eh(local)+'</td>'
+            +'<td class="mono">'+eh(ts)+'</td>'
+            +'<td>'+eh(x.type||'generic')+'</td>'
+            +'<td class="mono">'+eh(x.name||'')+'</td>'
+            +'<td class="right mono">'+eh(String(x.size||0))+'</td>'
+            +'</tr>';
+        });
+        document.getElementById('lst').innerHTML = ''
+          +'<table class="tbl">'
+          +'<thead><tr><th>Local time</th><th>UTC/ISO</th><th>Type</th><th>File</th><th class="right">Bytes</th></tr></thead>'
+          +'<tbody>'+rows.join('')+'</tbody>'
+          +'</table>';
       }
     }).catch(function(){ document.getElementById('lst').textContent='failed to load uploads'; });
 
