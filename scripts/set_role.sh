@@ -17,6 +17,10 @@ Options:
 EOF
 }
 
+if [[ "$ROLE" == "-h" || "$ROLE" == "--help" ]]; then
+  usage; exit 0
+fi
+
 [[ -n "$ROLE" ]] || { usage; exit 2; }
 shift || true
 
