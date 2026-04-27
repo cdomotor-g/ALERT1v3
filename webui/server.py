@@ -2349,6 +2349,11 @@ __NAV__
     </select>
   </label><br><br>
   <label id='csvWrap'>CSV file <input type='file' id='csvFile' accept='.csv'></label><br><br>
+  <label>Find station/site
+    <input id='stationLookup' list='stationHints' placeholder='Type BoM station # or site name' style='min-width:280px'>
+    <button id='useSuggestion' type='button'>Use</button>
+  </label>
+  <datalist id='stationHints'></datalist><br><br>
   <label>ALERT Address <input type='number' id='alertAddr' min='0'></label><br><br>
   <label>Bits to flip <input type='number' id='bitsToFlip' min='1' value='1'></label><br><br>
   <label>ARRO base URL <input id='arroBase' size='50' value='https://contrail-bom.onerain.au/graph/'></label><br><br>
@@ -2390,7 +2395,78 @@ __NAV__
   const dataSource=document.getElementById('dataSource');
   const csvWrap=document.getElementById('csvWrap');
   const csvFile=document.getElementById('csvFile');
-  dataSource.onchange=()=>{ csvWrap.style.display=(dataSource.value==='upload')?'':'none'; };
+  const stationLookup=document.getElementById('stationLookup');
+  const stationHints=document.getElementById('stationHints');
+  const useSuggestion=document.getElementById('useSuggestion');
+  const alertAddrInput=document.getElementById('alertAddr');
+  let hintRows=[];
+  let hintMap=new Map();
+
+  function buildHints(rows){
+    hintRows=(rows||[]).map(r=>Object.assign({},r));
+    hintMap=new Map();
+    const seen=new Set();
+    const opts=[];
+    hintRows.forEach(r=>{
+      const site=String(r['Site']||'').trim();
+      const siteId=String(r['Site ID']||'').trim();
+      const sensor=String(r['Sensor']||'').trim();
+      const sid=String(r['Sensor ID']||'').trim();
+      const a=alertFromSensorId(sid);
+      if(a==null) return;
+      const label=(siteId||'n/a')+' · '+(site||'unknown')+' · '+(sensor||'sensor')+' · ALERT '+String(a);
+      if(seen.has(label)) return;
+      seen.add(label);
+      hintMap.set(label, a);
+      opts.push('<option value="'+eh(label)+'"></option>');
+    });
+    stationHints.innerHTML=opts.join('');
+  }
+
+  function rowsFromUploadFile(){
+    return new Promise((resolve,reject)=>{
+      const f=csvFile.files[0];
+      if(!f) return resolve([]);
+      const rd=new FileReader();
+      rd.onload=()=>resolve(parseCSV(String(rd.result||'')));
+      rd.onerror=()=>reject(new Error('file_read_failed'));
+      rd.readAsText(f);
+    });
+  }
+
+  function loadRowsForSource(){
+    if(dataSource.value==='fwlab'){
+      return fetch('/api/meta/catalog').then(r=>r.json()).then(cat=>rowsFromMetaCatalog(cat));
+    }
+    return rowsFromUploadFile();
+  }
+
+  function applySuggestion(){
+    const q=String(stationLookup.value||'').trim();
+    if(!q) return;
+    let a = hintMap.get(q);
+    if(a==null){
+      const ql=q.toLowerCase();
+      const m=hintRows.find(r=>{
+        const site=String(r['Site']||'').toLowerCase();
+        const siteId=String(r['Site ID']||'').toLowerCase();
+        const sid=String(r['Sensor ID']||'').toLowerCase();
+        return site.includes(ql)||siteId.includes(ql)||sid.includes(ql);
+      });
+      if(m) a=alertFromSensorId(String(m['Sensor ID']||''));
+    }
+    if(a!=null) alertAddrInput.value=String(a);
+  }
+
+  useSuggestion.addEventListener('click', applySuggestion);
+  stationLookup.addEventListener('change', applySuggestion);
+  stationLookup.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); applySuggestion(); } });
+
+  dataSource.onchange=()=>{
+    csvWrap.style.display=(dataSource.value==='upload')?'':'none';
+    loadRowsForSource().then(buildHints).catch(()=>buildHints([]));
+  };
+  csvFile.addEventListener('change', ()=>{ if(dataSource.value==='upload') loadRowsForSource().then(buildHints).catch(()=>buildHints([])); });
   dataSource.onchange();
 
   document.getElementById('runBtn').onclick=()=>{
@@ -2442,19 +2518,9 @@ __NAV__
       updateArro();
     };
 
-    if(dataSource.value==='fwlab'){
-      out.textContent='Loading FW-LAB catalog…';
-      fetch('/api/meta/catalog').then(r=>r.json()).then(cat=>{
-        const rows=rowsFromMetaCatalog(cat);
-        runWithRows(rows);
-      }).catch(()=>{ out.textContent='Failed to load FW-LAB catalog.'; });
-      return;
-    }
-
-    if(!f){ out.textContent='Choose a CSV file first, or switch data source to FW-LAB catalog.'; return; }
-    const rd=new FileReader();
-    rd.onload=()=>{ runWithRows(parseCSV(String(rd.result||''))); };
-    rd.readAsText(f);
+    if(dataSource.value==='upload' && !f){ out.textContent='Choose a CSV file first, or switch data source to FW-LAB catalog.'; return; }
+    out.textContent = (dataSource.value==='fwlab') ? 'Loading FW-LAB catalog…' : 'Loading CSV…';
+    loadRowsForSource().then(runWithRows).catch(()=>{ out.textContent='Failed to load selected data source.'; });
   };
 })();
 </script>
