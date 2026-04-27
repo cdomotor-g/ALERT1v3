@@ -182,6 +182,8 @@ enable_for_profile() {
   esac
   if [[ ${#en[@]} -gt 0 ]]; then
     run "sudo systemctl enable --now ${en[*]}"
+    # ensure latest code is loaded after upgrades/edits
+    run "sudo systemctl restart ${en[*]}"
   fi
   if [[ ${#timers[@]} -gt 0 ]]; then
     run "sudo systemctl enable --now ${timers[*]}"
