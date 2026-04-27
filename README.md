@@ -74,6 +74,13 @@ chmod +x scripts/promote_control_plane.sh
 ./scripts/promote_control_plane.sh --bootstrap-only
 ```
 
+Control-plane status helper:
+
+```bash
+chmod +x scripts/control_plane_status.sh
+./scripts/control_plane_status.sh
+```
+
 ## Web UI Pages
 
 - `/` Dashboard
