@@ -2336,7 +2336,7 @@ __NAV__
 </div></body></html>"""
 
 BITFLIPPER_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB BitFlipper</title>
-<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea;position:relative}.page{padding:1rem;position:relative;z-index:1}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button,select{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem}.muted{color:#9fb0c3}.tbl{width:100%;border-collapse:collapse;margin-top:.45rem}.tbl th,.tbl td{border-bottom:1px solid #2a3948;padding:.35rem .4rem;text-align:left;vertical-align:top}.tbl th{color:#9fb0c3}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.yes{color:#6dd17c;font-weight:700}.no{color:#f36f6f;font-weight:700}a{color:#7fc8ff}.bf-bg{position:fixed;inset:0;display:flex;justify-content:center;align-items:center;pointer-events:none;z-index:0}.bf-art{max-width:220px;max-height:220px;opacity:.12;filter:grayscale(1)}</style></head><body><div class='page'>
+<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea;position:relative}.page{padding:1rem;position:relative;z-index:1}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button,select{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem}.muted{color:#9fb0c3}.tbl{width:100%;border-collapse:collapse;margin-top:.45rem}.tbl th,.tbl td{border-bottom:1px solid #2a3948;padding:.35rem .4rem;text-align:left;vertical-align:top}.tbl th{color:#9fb0c3}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.yes{color:#6dd17c;font-weight:700}.no{color:#f36f6f;font-weight:700}a{color:#7fc8ff}.bf-bg{position:fixed;inset:0;display:flex;justify-content:center;align-items:center;pointer-events:none;z-index:0}.bf-art{max-width:220px;max-height:220px;opacity:.12;filter:grayscale(1)}.sugg-wrap{position:relative;display:inline-block}.sugg-list{position:absolute;left:0;top:100%;margin-top:4px;min-width:700px;max-width:min(1100px,90vw);max-height:320px;overflow:auto;background:#0f141a;border:1px solid #2a3948;border-radius:8px;z-index:30;box-shadow:0 8px 24px rgba(0,0,0,.35)}.sugg-item{padding:.42rem .55rem;white-space:normal;cursor:pointer;border-bottom:1px solid #1f2b37}.sugg-item:last-child{border-bottom:none}.sugg-item:hover{background:#172533}</style></head><body><div class='page'>
 <h2 style='margin-top:0'>BitFlipper</h2>
 <div class='muted' style='margin:-.2rem 0 .55rem'>Analyze likely ALERT address bit-flips and quickly pivot matching results to ARRO graph links. Upload a CSV in the known sensor export format and test one- or multi-bit flip scenarios.</div>
 __NAV__
@@ -2349,11 +2349,12 @@ __NAV__
     </select>
   </label><br><br>
   <label id='csvWrap'>CSV file <input type='file' id='csvFile' accept='.csv'></label><br><br>
-  <label>Find station/site
-    <input id='stationLookup' list='stationHints' placeholder='Type BoM station # or site name' style='min-width:420px;width:min(900px,70vw)'>
-    <button id='useSuggestion' type='button'>Use</button>
-  </label>
-  <datalist id='stationHints'></datalist><br><br>
+  <label>Find station/site</label>
+  <div class='sugg-wrap'>
+    <input id='stationLookup' placeholder='Type BoM station # or site name' style='min-width:420px;width:min(900px,70vw)'>
+    <div id='stationSuggestList' class='sugg-list' style='display:none'></div>
+  </div>
+  <button id='useSuggestion' type='button'>Use</button><br><br>
   <label>ALERT Address <input type='number' id='alertAddr' min='0'></label><br><br>
   <label>Bits to flip <input type='number' id='bitsToFlip' min='1' value='1'></label><br><br>
   <label>ARRO base URL <input id='arroBase' size='50' value='https://contrail-bom.onerain.au/graph/'></label><br><br>
@@ -2396,7 +2397,7 @@ __NAV__
   const csvWrap=document.getElementById('csvWrap');
   const csvFile=document.getElementById('csvFile');
   const stationLookup=document.getElementById('stationLookup');
-  const stationHints=document.getElementById('stationHints');
+  const stationSuggestList=document.getElementById('stationSuggestList');
   const useSuggestion=document.getElementById('useSuggestion');
   const alertAddrInput=document.getElementById('alertAddr');
   let hintRows=[];
@@ -2406,7 +2407,6 @@ __NAV__
     hintRows=(rows||[]).map(r=>Object.assign({},r));
     hintMap=new Map();
     const seen=new Set();
-    const opts=[];
     hintRows.forEach(r=>{
       const site=String(r['Site']||'').trim();
       const siteId=String(r['Site ID']||'').trim();
@@ -2418,9 +2418,18 @@ __NAV__
       if(seen.has(label)) return;
       seen.add(label);
       hintMap.set(label, a);
-      opts.push('<option value="'+eh(label)+'"></option>');
     });
-    stationHints.innerHTML=opts.join('');
+    renderSuggestions();
+  }
+
+  function renderSuggestions(){
+    const q=String(stationLookup.value||'').trim().toLowerCase();
+    const keys=[...hintMap.keys()];
+    const list=q?keys.filter(k=>k.toLowerCase().includes(q)):keys;
+    const top=list.slice(0,30);
+    if(!top.length){ stationSuggestList.style.display='none'; stationSuggestList.innerHTML=''; return; }
+    stationSuggestList.innerHTML=top.map(k=>'<div class="sugg-item" data-v="'+eh(k)+'">'+eh(k)+'</div>').join('');
+    stationSuggestList.style.display='block';
   }
 
   function rowsFromUploadFile(){
@@ -2459,8 +2468,17 @@ __NAV__
   }
 
   useSuggestion.addEventListener('click', applySuggestion);
+  stationLookup.addEventListener('input', renderSuggestions);
+  stationLookup.addEventListener('focus', renderSuggestions);
   stationLookup.addEventListener('change', applySuggestion);
-  stationLookup.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); applySuggestion(); } });
+  stationLookup.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); applySuggestion(); stationSuggestList.style.display='none'; } });
+  stationSuggestList.addEventListener('click', (e)=>{
+    const t=e.target.closest('.sugg-item'); if(!t) return;
+    stationLookup.value=t.getAttribute('data-v')||'';
+    applySuggestion();
+    stationSuggestList.style.display='none';
+  });
+  document.addEventListener('click', (e)=>{ if(!e.target.closest('.sugg-wrap') && e.target!==useSuggestion) stationSuggestList.style.display='none'; });
 
   dataSource.onchange=()=>{
     csvWrap.style.display=(dataSource.value==='upload')?'':'none';
