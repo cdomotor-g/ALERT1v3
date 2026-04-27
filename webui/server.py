@@ -2382,6 +2382,8 @@ __NAV__
       combos(bits,n).forEach(b=>{ let v=addr; b.forEach(x=>v^=1<<x); if(v!==addr){ if(!map.has(v)) map.set(v,[]); map.get(v).push(b);} });
       const results=[];
       map.forEach((bs,v)=>{ const m=rows.filter(r=>r._alert===v); bs.forEach(b=>{ if(m.length) m.forEach(x=>results.push({b,v,x})); else results.push({b,v,x:null}); }); });
+      const originRows = rows.filter(r=>r._alert===addr);
+      const originKeys = new Set(originRows.map(r=>String((r.site_id||'')+'|'+(r.device_id||''))));
       const sensors=[...new Set(results.filter(r=>r.x).map(r=>r.x.Sensor))].sort();
       out.innerHTML='';
       const top=document.createElement('div'); top.className='muted'; top.style.marginBottom='.4rem'; top.textContent='Found '+results.length+' candidate rows.'; out.appendChild(top);
@@ -2399,9 +2401,12 @@ __NAV__
         const now=new Date(), start=new Date(now-7*86400e3);
         const p=new URLSearchParams({refresh:'off',markers:'false',legend:'true',bin:'86400',time_zone:'Australia/Brisbane',invalid:'true',has_regular_sensors:'true',has_forecast_sensors:'false',for_forecast:'false',hidden_devices:'none',data_start:formatLocal(start),data_end:formatLocal(now)});
         const seen=new Set();
+        // Always keep traces for the original entered ALERT address.
+        originKeys.forEach(k=>{ if(k && k!=='|'){ seen.add(k); p.append('devices[]',k); } });
+        // Add currently visible matched bit-flip candidates.
         document.querySelectorAll('#flipTable tbody tr').forEach(tr=>{ if(tr.style.display==='none'||tr.dataset.match!=='1') return; const k=tr.dataset.site+'|'+tr.dataset.device; if(!seen.has(k)){ seen.add(k); p.append('devices[]',k);} });
         const c=document.getElementById('arroFiltered'); c.innerHTML='';
-        if(seen.size){ const a=document.createElement('a'); a.href=base+'?'+p.toString(); a.target='_blank'; a.rel='noopener'; a.textContent='Open ARRO graph ('+seen.size+' sensors)'; c.appendChild(a); }
+        if(seen.size){ const a=document.createElement('a'); a.href=base+'?'+p.toString(); a.target='_blank'; a.rel='noopener'; a.textContent='Open ARRO graph ('+seen.size+' traces incl. original ALERT '+addr+')'; c.appendChild(a); }
       };
       document.getElementById('sensorFilter').onchange=(e)=>{ const v=e.target.value; document.querySelectorAll('#flipTable tbody tr').forEach(tr=>tr.style.display=(!v||tr.dataset.sensor===v)?'':'none'); updateArro(); };
       updateArro();
