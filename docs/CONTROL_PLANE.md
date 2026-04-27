@@ -27,6 +27,17 @@ This repo now includes a role-driven control-plane scaffold.
 
 Promotion publishes `<state_prefix>/active_endpoint.json` so edge nodes can follow active CP.
 
+## Cloudflare automatic failover (LB)
+
+Scripts:
+- `scripts/cloudflare_lb_bootstrap.sh --righty <origin> --pi <origin> [--hostname fwlab.floodwarning.net]`
+- `scripts/cloudflare_lb_status.sh [hostname]`
+- `scripts/cloudflare_lb_pin_primary.sh <righty|pi> [hostname]`
+
+Prereqs:
+- `config/cloudflare_env` with `CF_API_TOKEN`, `CF_ACCOUNT_ID`, `CF_ZONE_ID`
+- Token must include zone-scoped Load Balancer edit permissions.
+
 ## Ingest policy
 
 - `config/control_plane_policy.json`
