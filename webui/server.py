@@ -2353,7 +2353,7 @@ __NAV__
   'use strict';
   function eh(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]); }); }
   const parseCSV = t => {
-    const l=t.split(/\r?\n/).filter(x=>x.trim()); if(!l.length) return [];
+    const l=t.split(/\\r?\\n/).filter(x=>x.trim()); if(!l.length) return [];
     const h=l[0].split(',').map(x=>x.trim());
     return l.slice(1).map(r=>{ const c=r.split(','); const o={}; h.forEach((k,i)=>o[k]=(c[i]||'').trim()); return o; });
   };
