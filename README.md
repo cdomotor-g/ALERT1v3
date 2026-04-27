@@ -64,6 +64,16 @@ chmod +x scripts/set_role.sh
 ./scripts/set_role.sh hybrid --apply --verify
 ```
 
+Control-plane promotion/bootstrap helper:
+
+```bash
+chmod +x scripts/promote_control_plane.sh
+# Pull latest state from S3, upload this host snapshot, mark active
+./scripts/promote_control_plane.sh --pull-first
+# Bootstrap only (restore latest state, no promotion)
+./scripts/promote_control_plane.sh --bootstrap-only
+```
+
 ## Web UI Pages
 
 - `/` Dashboard
