@@ -3828,6 +3828,55 @@ a{{color:#7fc8ff}}
 </div></body></html>"""
 
 
+def load_control_plane_policy(path='config/control_plane_policy.json'):
+    p = Path(path)
+    default = {
+        'schema': 'fwlab.control_policy.v1',
+        'enabled': False,
+        'ingestToken': '',
+        'allowLocalhostWithoutToken': True,
+        'maxEventsPerIngest': 5000,
+        'ingestStateDir': 'rf_log/control_ingest',
+    }
+    if not p.exists():
+        return default
+    try:
+        d = json.loads(p.read_text(encoding='utf-8', errors='replace'))
+        if not isinstance(d, dict):
+            return default
+        out = dict(default)
+        out.update(d)
+        out['enabled'] = bool(out.get('enabled', False))
+        out['ingestToken'] = str(out.get('ingestToken', ''))
+        out['allowLocalhostWithoutToken'] = bool(out.get('allowLocalhostWithoutToken', True))
+        out['maxEventsPerIngest'] = int(out.get('maxEventsPerIngest', 5000) or 5000)
+        out['ingestStateDir'] = str(out.get('ingestStateDir', 'rf_log/control_ingest') or 'rf_log/control_ingest')
+        return out
+    except Exception:
+        return default
+
+
+def control_ingest_authorized(headers, remote_addr: str) -> bool:
+    pol = load_control_plane_policy()
+    if not bool(pol.get('enabled', False)):
+        return True
+    if bool(pol.get('allowLocalhostWithoutToken', True)) and is_local_request(remote_addr):
+        return True
+    expected = str(pol.get('ingestToken', ''))
+    supplied = str(headers.get('X-Control-Token', ''))
+    return bool(expected) and (supplied == expected)
+
+
+def _control_ingest_paths():
+    pol = load_control_plane_policy()
+    base = Path(str(pol.get('ingestStateDir', 'rf_log/control_ingest')))
+    latest = base / 'latest'
+    by_rx = base / 'by_receiver'
+    latest.mkdir(parents=True, exist_ok=True)
+    by_rx.mkdir(parents=True, exist_ok=True)
+    return base, latest, by_rx
+
+
 def load_access_policy(path='config/access_policy.json'):
     p = Path(path)
     if not p.exists():
@@ -4737,6 +4786,46 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 return self._json({'ok': False, 'error': str(e)}, code=400)
 
+        if parsed.path == '/api/control/ingest':
+            ra = self.client_address[0] if self.client_address else ''
+            if not control_ingest_authorized(self.headers, ra):
+                return self._json({'ok': False, 'error': 'unauthorized'}, code=403)
+            try:
+                length = int(self.headers.get('Content-Length', '0'))
+                raw = self.rfile.read(length) if length > 0 else b'{}'
+                body = json.loads(raw.decode('utf-8', errors='replace'))
+                if not isinstance(body, dict):
+                    raise ValueError('body must be object')
+                rxs_id = str(body.get('rxs_id', '')).strip().upper()
+                if not _is_valid_rxs_id(rxs_id):
+                    return self._json({'ok': False, 'error': 'invalid_rxs_id'}, code=400)
+                pol = load_control_plane_policy()
+                max_events = max(1, min(int(pol.get('maxEventsPerIngest', 5000)), 20000))
+                events = body.get('events', [])
+                if not isinstance(events, list):
+                    events = []
+                events = events[:max_events]
+                heartbeat = body.get('heartbeat', {}) if isinstance(body.get('heartbeat', {}), dict) else {}
+                stats = body.get('stats', {}) if isinstance(body.get('stats', {}), dict) else {}
+                rec = {
+                    'ts': datetime.utcnow().isoformat() + 'Z',
+                    'rxs_id': rxs_id,
+                    'remote_addr': ra,
+                    'events': events,
+                    'event_count': len(events),
+                    'heartbeat': heartbeat,
+                    'stats': stats,
+                }
+                base, latest_dir, by_rx = _control_ingest_paths()
+                day = datetime.utcnow().strftime('%Y-%m-%d')
+                out = by_rx / f'{rxs_id}_{day}.jsonl'
+                with out.open('a', encoding='utf-8') as f:
+                    f.write(json.dumps(rec) + '\n')
+                (latest_dir / f'{rxs_id}.json').write_text(json.dumps(rec, indent=2) + '\n', encoding='utf-8')
+                return self._json({'ok': True, 'rxs_id': rxs_id, 'event_count': len(events), 'path': str(out)})
+            except Exception as e:
+                return self._json({'ok': False, 'error': str(e)}, code=400)
+
         if parsed.path in ['/api/admin/storage_policy', '/api/admin/rf_control', '/api/admin/receiver_action', '/api/admin/meta/catalog']:
             if not admin_authorized(self.headers, self.client_address[0] if self.client_address else ''):
                 audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', False, {'error': 'unauthorized'})
@@ -5137,6 +5226,70 @@ class Handler(BaseHTTPRequestHandler):
             d = load_deployment_role()
             d['source'] = 'config/deployment_role.json'
             return self._json(d)
+
+        if parsed.path == '/api/control/policy':
+            pol = load_control_plane_policy()
+            pol.pop('ingestToken', None)
+            return self._json(pol)
+
+        if parsed.path == '/api/control/receivers':
+            _, latest_dir, _ = _control_ingest_paths()
+            rows = []
+            for p in sorted(latest_dir.glob('*.json')):
+                try:
+                    d = json.loads(p.read_text(encoding='utf-8', errors='replace'))
+                    rows.append({
+                        'rxs_id': str(d.get('rxs_id', '')).strip().upper(),
+                        'last_ts': d.get('ts', ''),
+                        'event_count': int(d.get('event_count', 0) or 0),
+                        'heartbeat': d.get('heartbeat', {}),
+                        'stats': d.get('stats', {}),
+                    })
+                except Exception:
+                    pass
+            return self._json({'receivers': rows, 'count': len(rows)})
+
+        if parsed.path == '/api/control/receiver_latest':
+            q = parse_qs(parsed.query)
+            rxs_id = str((q.get('rxs_id', [''])[0] or '')).strip().upper()
+            if not _is_valid_rxs_id(rxs_id):
+                return self._json({'ok': False, 'error': 'invalid_rxs_id'}, code=400)
+            _, latest_dir, _ = _control_ingest_paths()
+            p = latest_dir / f'{rxs_id}.json'
+            if not p.exists():
+                return self._json({'ok': False, 'error': 'not_found'}, code=404)
+            try:
+                d = json.loads(p.read_text(encoding='utf-8', errors='replace'))
+                return self._json({'ok': True, 'data': d})
+            except Exception as e:
+                return self._json({'ok': False, 'error': str(e)}, code=500)
+
+        if parsed.path == '/api/receiver_proxy':
+            q = parse_qs(parsed.query)
+            rxs_id = str((q.get('rxs_id', [''])[0] or '')).strip().upper()
+            subpath = str((q.get('path', [''])[0] or '')).strip()
+            if not _is_valid_rxs_id(rxs_id):
+                return self._json({'ok': False, 'error': 'invalid_rxs_id'}, code=400)
+            if not subpath.startswith('/api/'):
+                return self._json({'ok': False, 'error': 'path_must_start_api'}, code=400)
+            reg = _load_receivers_registry()
+            rx = next((r for r in (reg.get('receivers') or []) if str(r.get('rxs_id', '')).strip().upper() == rxs_id), None)
+            if not rx:
+                return self._json({'ok': False, 'error': 'receiver_not_found'}, code=404)
+            base = str(rx.get('base_url', 'local') or 'local').strip()
+            if base in ('', 'local'):
+                return self._json({'ok': False, 'error': 'receiver_is_local_use_direct'}, code=400)
+            try:
+                url = base.rstrip('/') + subpath
+                with urllib.request.urlopen(url, timeout=10) as resp:
+                    raw = resp.read().decode('utf-8', errors='replace')
+                try:
+                    obj = json.loads(raw)
+                except Exception:
+                    obj = {'raw': raw}
+                return self._json({'ok': True, 'rxs_id': rxs_id, 'path': subpath, 'data': obj})
+            except Exception as e:
+                return self._json({'ok': False, 'error': str(e)}, code=502)
 
         if parsed.path == '/api/stations':
             rows = _load_stations()

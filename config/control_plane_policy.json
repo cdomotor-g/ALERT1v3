@@ -1,0 +1,8 @@
+{
+  "schema": "fwlab.control_policy.v1",
+  "enabled": false,
+  "ingestToken": "",
+  "allowLocalhostWithoutToken": true,
+  "maxEventsPerIngest": 5000,
+  "ingestStateDir": "rf_log/control_ingest"
+}

@@ -7,10 +7,12 @@ ARCHIVE_POLICY="$ROOT/config/archive_policy.json"
 ARCHIVE_ENV="$ROOT/config/archive_env"
 PULL_FIRST=0
 BOOTSTRAP_ONLY=0
+FORCE=0
+LEASE_SECONDS=300
 
 usage(){
   cat <<EOF
-Usage: $0 [--pull-first] [--bootstrap-only]
+Usage: $0 [--pull-first] [--bootstrap-only] [--force] [--lease-seconds N]
 
 Promotes this host as active control plane and syncs control-plane state via S3-compatible storage.
 Reads:
@@ -24,6 +26,8 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --pull-first) PULL_FIRST=1; shift ;;
     --bootstrap-only) BOOTSTRAP_ONLY=1; shift ;;
+    --force) FORCE=1; shift ;;
+    --lease-seconds) LEASE_SECONDS="${2:-300}"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown arg: $1"; usage; exit 2 ;;
   esac
@@ -37,7 +41,7 @@ set -a
 source "$ARCHIVE_ENV"
 set +a
 
-python3 - "$ROOT" "$ROLE_FILE" "$ARCHIVE_POLICY" "$PULL_FIRST" "$BOOTSTRAP_ONLY" <<'PY'
+python3 - "$ROOT" "$ROLE_FILE" "$ARCHIVE_POLICY" "$PULL_FIRST" "$BOOTSTRAP_ONLY" "$FORCE" "$LEASE_SECONDS" <<'PY'
 import json, os, socket, sys, datetime
 from pathlib import Path
 
@@ -46,6 +50,8 @@ role_file = Path(sys.argv[2])
 policy_file = Path(sys.argv[3])
 pull_first = bool(int(sys.argv[4]))
 bootstrap_only = bool(int(sys.argv[5]))
+force = bool(int(sys.argv[6]))
+lease_seconds = int(sys.argv[7])
 
 import boto3
 
@@ -115,6 +121,33 @@ if bootstrap_only:
     print('Bootstrap-only mode complete.')
     raise SystemExit(0)
 
+lock_key = f"{prefix}/promotion_lock.json"
+now = datetime.datetime.utcnow()
+lock_doc = {
+    'schema': 'fwlab.control_plane.lock.v1',
+    'host': host,
+    'acquired_ts': now.isoformat() + 'Z',
+    'lease_seconds': lease_seconds,
+}
+if not force:
+    try:
+        cur = s3.get_object(Bucket=bucket, Key=lock_key)
+        cur_doc = json.loads(cur['Body'].read().decode('utf-8', errors='replace'))
+        ts = str(cur_doc.get('acquired_ts', ''))
+        lease = int(cur_doc.get('lease_seconds', lease_seconds) or lease_seconds)
+        lock_host = str(cur_doc.get('host', 'unknown'))
+        if ts:
+            try:
+                t0 = datetime.datetime.fromisoformat(ts.replace('Z', '+00:00')).replace(tzinfo=None)
+                age = (now - t0).total_seconds()
+                if age < lease:
+                    raise SystemExit(f"Refusing promote: active promotion lock held by {lock_host} (age={int(age)}s lease={lease}s). Use --force if intentional.")
+            except Exception:
+                pass
+    except Exception:
+        pass
+s3.put_object(Bucket=bucket, Key=lock_key, Body=(json.dumps(lock_doc, indent=2)+'\n').encode('utf-8'), ContentType='application/json')
+
 entries = []
 for p in files:
     if not p.exists():
@@ -142,5 +175,9 @@ active = {
 
 s3.put_object(Bucket=bucket, Key=f"{prefix}/latest.json", Body=(json.dumps(latest, indent=2)+'\n').encode('utf-8'), ContentType='application/json')
 s3.put_object(Bucket=bucket, Key=f"{prefix}/active_control_plane.json", Body=(json.dumps(active, indent=2)+'\n').encode('utf-8'), ContentType='application/json')
+try:
+    s3.delete_object(Bucket=bucket, Key=lock_key)
+except Exception:
+    pass
 print(f"Promoted active control plane: host={host} snapshot={latest['snapshot']}")
 PY

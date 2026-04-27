@@ -81,6 +81,13 @@ chmod +x scripts/control_plane_status.sh
 ./scripts/control_plane_status.sh
 ```
 
+Control-plane failover drill helper:
+
+```bash
+chmod +x scripts/control_plane_drill.sh
+./scripts/control_plane_drill.sh
+```
+
 ## Web UI Pages
 
 - `/` Dashboard
@@ -131,6 +138,7 @@ Tip: if mobile appears blocked, use **Load Audio** then press play on the native
 - Access governance runbook: `docs/REMOTE_ACCESS_ACCESS.md`
 - Access model: `docs/ACCESS_MODEL.md`
 - Packaging/run mode: `docs/PACKAGING.md`
+- Control-plane scaffold: `docs/CONTROL_PLANE.md`
 - Log retention controls: `docs/RETENTION.md`
 - Soak and resilience: `docs/SOAK.md`
 - Resilience runbook: `docs/RESILIENCE.md`
