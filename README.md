@@ -40,7 +40,8 @@ Current goals:
 
 ```bash
 chmod +x scripts/install_fwlab.sh scripts/verify_fwlab.sh
-./scripts/install_fwlab.sh --profile all --yes
+# profile auto-resolves from config/deployment_role.json
+./scripts/install_fwlab.sh --profile auto --yes
 ./scripts/verify_fwlab.sh --profile all
 ```
 
@@ -51,6 +52,8 @@ Common variants:
 ./scripts/install_fwlab.sh --profile receiver --user "$USER" --yes
 ./scripts/install_fwlab.sh --dry-run --profile all
 ```
+
+Role scaffold lives at `config/deployment_role.json` (`edge`, `control`, or `hybrid/all`).
 
 ## Web UI Pages
 

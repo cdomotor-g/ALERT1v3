@@ -4015,6 +4015,27 @@ def meta_history_append(action: str, details: dict | None = None):
         pass
 
 
+def load_deployment_role(path='config/deployment_role.json'):
+    p = Path(path)
+    default = {
+        'schema': 'fwlab.deployment_role.v1',
+        'role': 'edge',
+        'receiver': {'rxs_id': '0000', 'name': 'FW-LAB Receiver', 'location': 'unknown'},
+        'control': {'enabled': False, 'state_backend': 's3', 'state_prefix': 'fwlab/control-plane'},
+    }
+    if not p.exists():
+        return default
+    try:
+        d = json.loads(p.read_text(encoding='utf-8', errors='replace'))
+        if not isinstance(d, dict):
+            return default
+        out = dict(default)
+        out.update(d)
+        return out
+    except Exception:
+        return default
+
+
 def storage_status():
     pol = load_storage_policy()
     th = pol.get('thresholds', {})
@@ -5111,6 +5132,11 @@ class Handler(BaseHTTPRequestHandler):
             cat = load_meta_catalog()
             cat['source'] = 'config/meta_catalog.json'
             return self._json(cat)
+
+        if parsed.path == '/api/deployment_role':
+            d = load_deployment_role()
+            d['source'] = 'config/deployment_role.json'
+            return self._json(d)
 
         if parsed.path == '/api/stations':
             rows = _load_stations()

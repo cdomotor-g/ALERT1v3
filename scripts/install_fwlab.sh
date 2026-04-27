@@ -7,7 +7,7 @@ mkdir -p "$LOG_DIR"
 LOG_FILE="$LOG_DIR/install_$(date +%Y%m%d_%H%M%S).log"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
-PROFILE="all"           # all|webui|receiver|control
+PROFILE="auto"          # auto|all|webui|receiver|control
 TARGET_USER="${SUDO_USER:-$USER}"
 ASSUME_YES=0
 DRY_RUN=0
@@ -18,7 +18,7 @@ usage() {
 FW-LAB installer
 
 Usage: $0 [options]
-  --profile <all|webui|receiver|control>
+  --profile <auto|all|webui|receiver|control>
   --user <linux_user>         Install/run services as this user (default: ${TARGET_USER})
   --yes                       Non-interactive (assume yes)
   --dry-run                   Print actions without changing system
@@ -48,6 +48,31 @@ while [[ $# -gt 0 ]]; do
     *) echo "Unknown arg: $1"; usage; exit 2 ;;
   esac
 done
+
+if [[ "$PROFILE" == "auto" ]]; then
+  ROLE_FILE="$ROOT/config/deployment_role.json"
+  ROLE=""
+  if [[ -f "$ROLE_FILE" ]]; then
+    ROLE="$(python3 - <<'PY'
+import json
+from pathlib import Path
+p=Path('config/deployment_role.json')
+try:
+  d=json.loads(p.read_text(encoding='utf-8'))
+  print(str(d.get('role','')).strip().lower())
+except Exception:
+  print('')
+PY
+)"
+  fi
+  case "$ROLE" in
+    edge|node) PROFILE="receiver" ;;
+    control|control-plane) PROFILE="control" ;;
+    hybrid|all) PROFILE="all" ;;
+    *) PROFILE="all" ;;
+  esac
+  echo "Auto profile resolved from deployment role '$ROLE' -> '$PROFILE'"
+fi
 
 case "$PROFILE" in all|webui|receiver|control) ;; *) echo "invalid profile: $PROFILE"; exit 2 ;; esac
 

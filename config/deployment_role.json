@@ -1,0 +1,14 @@
+{
+  "schema": "fwlab.deployment_role.v1",
+  "role": "edge",
+  "receiver": {
+    "rxs_id": "0000",
+    "name": "FW-LAB Receiver",
+    "location": "unknown"
+  },
+  "control": {
+    "enabled": false,
+    "state_backend": "s3",
+    "state_prefix": "fwlab/control-plane"
+  }
+}
