@@ -55,6 +55,15 @@ Common variants:
 
 Role scaffold lives at `config/deployment_role.json` (`edge`, `control`, or `hybrid/all`).
 
+Quick role switch helper:
+
+```bash
+chmod +x scripts/set_role.sh
+./scripts/set_role.sh edge --apply --verify
+./scripts/set_role.sh control --apply --verify
+./scripts/set_role.sh hybrid --apply --verify
+```
+
 ## Web UI Pages
 
 - `/` Dashboard
