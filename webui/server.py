@@ -2342,7 +2342,13 @@ BITFLIPPER_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name
 __NAV__
 <div class='bf-bg' aria-hidden='true'>__BITFLIPPER_ART__</div>
 <div class='card'>
-  <label>CSV file <input type='file' id='csvFile' accept='.csv'></label><br><br>
+  <label>Data source
+    <select id='dataSource'>
+      <option value='fwlab' selected>FW-LAB stations list (current catalog)</option>
+      <option value='upload'>Upload CSV file</option>
+    </select>
+  </label><br><br>
+  <label id='csvWrap'>CSV file <input type='file' id='csvFile' accept='.csv'></label><br><br>
   <label>ALERT Address <input type='number' id='alertAddr' min='0'></label><br><br>
   <label>Bits to flip <input type='number' id='bitsToFlip' min='1' value='1'></label><br><br>
   <label>ARRO base URL <input id='arroBase' size='50' value='https://contrail-bom.onerain.au/graph/'></label><br><br>
@@ -2358,13 +2364,36 @@ __NAV__
     const h=l[0].split(',').map(x=>x.trim());
     return l.slice(1).map(r=>{ const c=r.split(','); const o={}; h.forEach((k,i)=>o[k]=(c[i]||'').trim()); return o; });
   };
+  const rowsFromMetaCatalog = cat => {
+    const stations=(cat&&cat.stations)||[];
+    const sensors=(cat&&cat.sensors)||[];
+    const byBom=new Map();
+    stations.forEach(s=>{ const k=String(s.bom_stn||s.station_key||'').trim(); if(k) byBom.set(k,s); });
+    return sensors.map(sn=>{
+      const bom=String(sn.station_bom_stn||'').trim();
+      const st=byBom.get(bom)||{};
+      return {
+        'Site': String(st.name||st.location||'').trim(),
+        'Site ID': bom,
+        'Sensor': String(sn.sensor_type||'').trim(),
+        'Sensor ID': String(sn.sensor_id||sn.sensor_key||'').trim(),
+        'site_id': String(sn.arro_site_id||st.arro_site_id||'').trim(),
+        'device_id': String(sn.device_id||'').trim(),
+      };
+    }).filter(r=>r['Sensor ID']);
+  };
   const alertFromSensorId = id => { const p=String(id||'').split('.'), l=p[p.length-1]; return /^\d+$/.test(l)?+l:null; };
   const combos=(a,k)=>{ const r=[];(function f(s,c){ if(c.length===k) return r.push(c.slice()); for(let i=s;i<a.length;i++) f(i+1,c.concat(a[i])); })(0,[]); return r; };
   const bin=n=>n.toString(2);
   const formatLocal=d=>{ const p=x=>String(x).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; };
 
+  const dataSource=document.getElementById('dataSource');
+  const csvWrap=document.getElementById('csvWrap');
+  const csvFile=document.getElementById('csvFile');
+  dataSource.onchange=()=>{ csvWrap.style.display=(dataSource.value==='upload')?'':'none'; };
+  dataSource.onchange();
+
   document.getElementById('runBtn').onclick=()=>{
-    const csvFile=document.getElementById('csvFile');
     const alertAddr=document.getElementById('alertAddr');
     const bitsToFlip=document.getElementById('bitsToFlip');
     const arroBase=document.getElementById('arroBase');
@@ -2372,10 +2401,11 @@ __NAV__
     const f=csvFile.files[0];
     const addr=+alertAddr.value, n=+bitsToFlip.value;
     const base=arroBase.value||'https://contrail-bom.onerain.au/graph/';
-    if(!f||n<1||addr<0){ out.textContent='Invalid input.'; return; }
-    const rd=new FileReader();
-    rd.onload=()=>{
-      const rows=parseCSV(String(rd.result||''));
+    if(n<1||addr<0){ out.textContent='Invalid input.'; return; }
+
+    const runWithRows=(rows)=>{
+      if(!rows||!rows.length){ out.textContent='No rows found in selected data source.'; return; }
+      rows = rows.map(r=>Object.assign({}, r));
       rows.forEach(r=>r._alert=alertFromSensorId(r['Sensor ID']||''));
       const bits=[...Array(bin(addr).length).keys()];
       const map=new Map();
@@ -2411,6 +2441,19 @@ __NAV__
       document.getElementById('sensorFilter').onchange=(e)=>{ const v=e.target.value; document.querySelectorAll('#flipTable tbody tr').forEach(tr=>tr.style.display=(!v||tr.dataset.sensor===v)?'':'none'); updateArro(); };
       updateArro();
     };
+
+    if(dataSource.value==='fwlab'){
+      out.textContent='Loading FW-LAB catalog…';
+      fetch('/api/meta/catalog').then(r=>r.json()).then(cat=>{
+        const rows=rowsFromMetaCatalog(cat);
+        runWithRows(rows);
+      }).catch(()=>{ out.textContent='Failed to load FW-LAB catalog.'; });
+      return;
+    }
+
+    if(!f){ out.textContent='Choose a CSV file first, or switch data source to FW-LAB catalog.'; return; }
+    const rd=new FileReader();
+    rd.onload=()=>{ runWithRows(parseCSV(String(rd.result||''))); };
     rd.readAsText(f);
   };
 })();
