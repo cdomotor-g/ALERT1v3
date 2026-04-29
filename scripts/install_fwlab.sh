@@ -14,6 +14,10 @@ DRY_RUN=0
 SKIP_DEPS=0
 UPDATE_MODE=0
 ORIGIN_HOSTNAME=""
+CF_TUNNEL_ID=""
+CF_TUNNEL_SECRET=""
+CF_ACCOUNT_TAG=""
+CF_ROUTE_DNS=0
 
 usage() {
   cat <<EOF
@@ -27,6 +31,10 @@ Usage: $0 [options]
   --skip-deps                 Skip package installation
   --update                    Run as install/update pass (safe re-run)
   --origin-hostname <fqdn>    Configure nginx+certbot TLS reverse proxy to :8088
+  --cf-tunnel-id <id>         Cloudflare Tunnel UUID (managed mode)
+  --cf-tunnel-secret <b64>    Cloudflare Tunnel secret (base64)
+  --cf-account-tag <id>       Cloudflare account tag for tunnel credentials
+  --cf-route-dns              Run 'cloudflared tunnel route dns <id> <origin-hostname>'
   -h, --help
 EOF
 }
@@ -50,6 +58,10 @@ while [[ $# -gt 0 ]]; do
     --skip-deps) SKIP_DEPS=1; shift ;;
     --update) UPDATE_MODE=1; shift ;;
     --origin-hostname) ORIGIN_HOSTNAME="${2:-}"; shift 2 ;;
+    --cf-tunnel-id) CF_TUNNEL_ID="${2:-}"; shift 2 ;;
+    --cf-tunnel-secret) CF_TUNNEL_SECRET="${2:-}"; shift 2 ;;
+    --cf-account-tag) CF_ACCOUNT_TAG="${2:-}"; shift 2 ;;
+    --cf-route-dns) CF_ROUTE_DNS=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown arg: $1"; usage; exit 2 ;;
   esac
@@ -198,6 +210,56 @@ enable_for_profile() {
 
 enable_for_profile
 
+configure_cloudflared_tunnel() {
+  local host="$1"
+  local tid="$2"
+  local tsec="$3"
+  local acct="$4"
+  [[ -n "$host" && -n "$tid" && -n "$tsec" && -n "$acct" ]] || return 0
+
+  echo "Configuring cloudflared managed tunnel for $host"
+  run "sudo mkdir -p /etc/cloudflared"
+  run "sudo apt-get update"
+  run "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y cloudflared"
+
+  run "cat > /tmp/fwlab_tunnel.json <<EOF
+{
+  \"AccountTag\": \"$acct\",
+  \"TunnelID\": \"$tid\",
+  \"TunnelSecret\": \"$tsec\"
+}
+EOF"
+  run "sudo mv /tmp/fwlab_tunnel.json /etc/cloudflared/$tid.json"
+  run "sudo chown root:root /etc/cloudflared/$tid.json"
+  run "sudo chmod 600 /etc/cloudflared/$tid.json"
+
+  run "cat > /tmp/fwlab_cloudflared.yml <<EOF
+tunnel: $tid
+credentials-file: /etc/cloudflared/$tid.json
+ingress:
+  - hostname: $host
+    service: http://127.0.0.1:8088
+  - service: http_status:404
+EOF"
+  run "sudo mv /tmp/fwlab_cloudflared.yml /etc/cloudflared/config.yml"
+
+  if [[ "$CF_ROUTE_DNS" -eq 1 ]]; then
+    run "sudo cloudflared tunnel route dns $tid $host || true"
+  fi
+
+  run "sudo cloudflared tunnel --config /etc/cloudflared/config.yml ingress validate"
+  run "sudo systemctl enable --now cloudflared"
+  run "sudo systemctl restart cloudflared"
+
+  if [[ "$DRY_RUN" -eq 0 ]]; then
+    sleep 3
+    systemctl is-active cloudflared || true
+    sudo journalctl -u cloudflared -n 20 --no-pager || true
+    curl -sS -o /dev/null -w "edge root (%{http_code})\n" "https://$host/" --max-time 15 || true
+    curl -sS -o /dev/null -w "edge policy (%{http_code})\n" "https://$host/api/control/policy" --max-time 15 || true
+  fi
+}
+
 configure_origin_tls() {
   local host="$1"
   [[ -n "$host" ]] || return 0
@@ -224,7 +286,11 @@ NG"
 }
 
 if [[ -n "$ORIGIN_HOSTNAME" ]]; then
-  configure_origin_tls "$ORIGIN_HOSTNAME"
+  if [[ -n "$CF_TUNNEL_ID" && -n "$CF_TUNNEL_SECRET" && -n "$CF_ACCOUNT_TAG" ]]; then
+    configure_cloudflared_tunnel "$ORIGIN_HOSTNAME" "$CF_TUNNEL_ID" "$CF_TUNNEL_SECRET" "$CF_ACCOUNT_TAG"
+  else
+    configure_origin_tls "$ORIGIN_HOSTNAME"
+  fi
 fi
 
 if [[ "$DRY_RUN" -eq 0 ]]; then
