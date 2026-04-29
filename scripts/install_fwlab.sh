@@ -13,11 +13,13 @@ ASSUME_YES=0
 DRY_RUN=0
 SKIP_DEPS=0
 UPDATE_MODE=0
+SELF_UPDATE=0
 ORIGIN_HOSTNAME=""
 CF_TUNNEL_ID=""
 CF_TUNNEL_SECRET=""
 CF_ACCOUNT_TAG=""
 CF_ROUTE_DNS=0
+PRESET=""
 
 usage() {
   cat <<EOF
@@ -30,6 +32,8 @@ Usage: $0 [options]
   --dry-run                   Print actions without changing system
   --skip-deps                 Skip package installation
   --update                    Run as install/update pass (safe re-run)
+  --self-update               Git fetch + reset to origin/main before install
+  --preset <name>             Load tunnel/origin settings from config/tunnel_role.json preset
   --origin-hostname <fqdn>    Configure nginx+certbot TLS reverse proxy to :8088
   --cf-tunnel-id <id>         Cloudflare Tunnel UUID (managed mode)
   --cf-tunnel-secret <b64>    Cloudflare Tunnel secret (base64)
@@ -57,6 +61,8 @@ while [[ $# -gt 0 ]]; do
     --dry-run) DRY_RUN=1; shift ;;
     --skip-deps) SKIP_DEPS=1; shift ;;
     --update) UPDATE_MODE=1; shift ;;
+    --self-update) SELF_UPDATE=1; shift ;;
+    --preset) PRESET="${2:-}"; shift 2 ;;
     --origin-hostname) ORIGIN_HOSTNAME="${2:-}"; shift 2 ;;
     --cf-tunnel-id) CF_TUNNEL_ID="${2:-}"; shift 2 ;;
     --cf-tunnel-secret) CF_TUNNEL_SECRET="${2:-}"; shift 2 ;;
@@ -93,6 +99,38 @@ PY
 fi
 
 case "$PROFILE" in all|webui|receiver|control) ;; *) echo "invalid profile: $PROFILE"; exit 2 ;; esac
+
+if [[ "$SELF_UPDATE" -eq 1 && "$DRY_RUN" -eq 0 ]]; then
+  if [[ -d "$ROOT/.git" ]]; then
+    echo "Self-updating repo at $ROOT"
+    git -C "$ROOT" fetch origin || true
+    git -C "$ROOT" checkout main || true
+    git -C "$ROOT" reset --hard origin/main || true
+  else
+    echo "WARN: --self-update requested but $ROOT is not a git repo"
+  fi
+fi
+
+if [[ -n "$PRESET" ]]; then
+  PRESET_FILE="$ROOT/config/tunnel_role.json"
+  if [[ ! -f "$PRESET_FILE" ]]; then
+    echo "ERROR: preset requested but missing $PRESET_FILE (copy from config/tunnel_role.example.json)" >&2
+    exit 1
+  fi
+  eval "$(python3 - <<'PY'
+import json
+from pathlib import Path
+p=Path('config/tunnel_role.json')
+d=json.loads(p.read_text(encoding='utf-8'))
+pr=(d.get('presets') or {}).get('''$PRESET''') or {}
+for k,key in [('ORIGIN_HOSTNAME','originHostname'),('CF_TUNNEL_ID','tunnelId'),('CF_ACCOUNT_TAG','accountTag'),('CF_TUNNEL_SECRET','tunnelSecret')]:
+    v=str(pr.get(key,'')).replace('"','\\"')
+    print(f'{k}="{v}"')
+print('CF_ROUTE_DNS='+('1' if bool(pr.get('routeDns',False)) else '0'))
+PY
+)"
+  echo "Loaded preset '$PRESET' from config/tunnel_role.json"
+fi
 
 if ! need_cmd systemctl; then
   echo "ERROR: systemd required (systemctl missing)." >&2

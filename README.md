@@ -54,6 +54,17 @@ Common variants:
 ./scripts/install_fwlab.sh --profile control --update --origin-hostname cloud.floodwarning.net --yes
 ```
 
+One-shot cloud/backup deploy (recommended):
+
+1) Copy `config/tunnel_role.example.json` to `config/tunnel_role.json` and fill real values.
+2) Run:
+
+```bash
+./scripts/install_fwlab.sh --self-update --profile control --preset cloud --yes
+# or
+./scripts/install_fwlab.sh --self-update --profile control --preset backup1 --yes
+```
+
 Role scaffold lives at `config/deployment_role.json` (`edge`, `control`, or `hybrid/all`).
 
 Quick role switch helper:

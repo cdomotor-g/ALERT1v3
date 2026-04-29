@@ -1,0 +1,19 @@
+{
+  "schema": "fwlab.tunnel_role.v1",
+  "presets": {
+    "cloud": {
+      "originHostname": "cloud.floodwarning.net",
+      "tunnelId": "REPLACE_TUNNEL_ID",
+      "accountTag": "REPLACE_ACCOUNT_TAG",
+      "tunnelSecret": "REPLACE_BASE64_TUNNEL_SECRET",
+      "routeDns": true
+    },
+    "backup1": {
+      "originHostname": "backup1.floodwarning.net",
+      "tunnelId": "REPLACE_TUNNEL_ID",
+      "accountTag": "REPLACE_ACCOUNT_TAG",
+      "tunnelSecret": "REPLACE_BASE64_TUNNEL_SECRET",
+      "routeDns": true
+    }
+  }
+}
