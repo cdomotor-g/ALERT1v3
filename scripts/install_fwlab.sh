@@ -208,19 +208,7 @@ server {
   listen 80;
   server_name ${host};
   location /.well-known/acme-challenge/ { root /var/www/html; }
-  location / { return 301 https://$host\$request_uri; }
-}
-server {
-  listen 443 ssl;
-  server_name ${host};
-  ssl_certificate /etc/letsencrypt/live/${host}/fullchain.pem;
-  ssl_certificate_key /etc/letsencrypt/live/${host}/privkey.pem;
-  location / {
-    proxy_pass http://127.0.0.1:8088;
-    proxy_set_header Host \$host;
-    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto https;
-  }
+  location / { proxy_pass http://127.0.0.1:8088; }
 }
 NG"
   run "sed -i 's|\${host}|$host|g' /tmp/fwlab_origin_nginx.conf"
