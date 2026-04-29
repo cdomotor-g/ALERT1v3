@@ -12,6 +12,8 @@ TARGET_USER="${SUDO_USER:-$USER}"
 ASSUME_YES=0
 DRY_RUN=0
 SKIP_DEPS=0
+UPDATE_MODE=0
+ORIGIN_HOSTNAME=""
 
 usage() {
   cat <<EOF
@@ -23,6 +25,8 @@ Usage: $0 [options]
   --yes                       Non-interactive (assume yes)
   --dry-run                   Print actions without changing system
   --skip-deps                 Skip package installation
+  --update                    Run as install/update pass (safe re-run)
+  --origin-hostname <fqdn>    Configure nginx+certbot TLS reverse proxy to :8088
   -h, --help
 EOF
 }
@@ -44,6 +48,8 @@ while [[ $# -gt 0 ]]; do
     --yes) ASSUME_YES=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
     --skip-deps) SKIP_DEPS=1; shift ;;
+    --update) UPDATE_MODE=1; shift ;;
+    --origin-hostname) ORIGIN_HOSTNAME="${2:-}"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown arg: $1"; usage; exit 2 ;;
   esac
@@ -103,7 +109,7 @@ install_deps_debian() {
     git curl ca-certificates
     python3 python3-pip python3-venv
     python3-yaml python3-websockets python3-paho-mqtt python3-packaging python3-boto3
-    jq
+    jq nginx certbot python3-certbot-nginx
   )
   if [[ "$PROFILE" == "all" || "$PROFILE" == "receiver" ]]; then
     pkgs+=(gnuradio gr-osmosdr rtl-sdr)
@@ -191,6 +197,47 @@ enable_for_profile() {
 }
 
 enable_for_profile
+
+configure_origin_tls() {
+  local host="$1"
+  [[ -n "$host" ]] || return 0
+  echo "Configuring HTTPS reverse proxy for $host -> 127.0.0.1:8088"
+  run "sudo mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled"
+  run "cat > /tmp/fwlab_origin_nginx.conf <<'NG'
+server {
+  listen 80;
+  server_name ${host};
+  location /.well-known/acme-challenge/ { root /var/www/html; }
+  location / { return 301 https://$host$request_uri; }
+}
+server {
+  listen 443 ssl;
+  server_name ${host};
+  ssl_certificate /etc/letsencrypt/live/${host}/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/${host}/privkey.pem;
+  location / {
+    proxy_pass http://127.0.0.1:8088;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto https;
+  }
+}
+NG"
+  run "sed -i 's|\${host}|$host|g' /tmp/fwlab_origin_nginx.conf"
+  run "sudo mv /tmp/fwlab_origin_nginx.conf /etc/nginx/sites-available/fwlab-origin.conf"
+  run "sudo ln -sf /etc/nginx/sites-available/fwlab-origin.conf /etc/nginx/sites-enabled/fwlab-origin.conf"
+  run "sudo nginx -t"
+  run "sudo systemctl enable --now nginx"
+  run "sudo systemctl reload nginx"
+  if [[ "$DRY_RUN" -eq 0 ]]; then
+    sudo certbot --nginx -d "$host" --non-interactive --agree-tos -m "admin@${host#*.}" --redirect || true
+    curl -k -sS -o /dev/null -w "origin https check (%{http_code})\n" "https://$host/api/control/policy" --max-time 10 || true
+  fi
+}
+
+if [[ -n "$ORIGIN_HOSTNAME" ]]; then
+  configure_origin_tls "$ORIGIN_HOSTNAME"
+fi
 
 if [[ "$DRY_RUN" -eq 0 ]]; then
   "$ROOT/scripts/verify_fwlab.sh" --profile "$PROFILE" --user "$TARGET_USER" || true
