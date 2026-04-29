@@ -24,7 +24,7 @@ units=(fwlab-webui.service)
 case "$PROFILE" in
   all) units+=(fwlab-receiver.service fwlab-host-monitor.service fwlab-rx-agg.service) ;;
   receiver) units+=(fwlab-receiver.service fwlab-host-monitor.service fwlab-rx-agg.service) ;;
-  control) units+=(fwlab-host-monitor.service fwlab-control-sync.service) ;;
+  control) units+=(fwlab-host-monitor.service) ;;
   webui) ;;
   *) echo "invalid profile: $PROFILE"; exit 2 ;;
 esac

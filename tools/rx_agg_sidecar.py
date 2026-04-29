@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import os
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -89,8 +90,10 @@ def build_bins(ts_list, now_s):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--log-dir', default='/home/cdomotor/rf_log')
-    ap.add_argument('--out', default='/home/cdomotor/.openclaw/workspace/projects/ALERT1v3/rf_log/rx_agg.json')
+    default_log_dir = os.environ.get('FWLAB_LOG_BASE', str(Path.home() / 'rf_log'))
+    default_out = os.environ.get('FWLAB_RX_AGG_OUT', str(Path(__file__).resolve().parents[1] / 'rf_log' / 'rx_agg.json'))
+    ap.add_argument('--log-dir', default=default_log_dir)
+    ap.add_argument('--out', default=default_out)
     ap.add_argument('--interval', type=float, default=10.0)
     args = ap.parse_args()
 

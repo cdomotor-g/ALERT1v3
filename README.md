@@ -51,6 +51,7 @@ Common variants:
 ./scripts/install_fwlab.sh --profile webui --yes
 ./scripts/install_fwlab.sh --profile receiver --user "$USER" --yes
 ./scripts/install_fwlab.sh --dry-run --profile all
+./scripts/install_fwlab.sh --profile control --update --origin-hostname cloud.floodwarning.net --yes
 ```
 
 Role scaffold lives at `config/deployment_role.json` (`edge`, `control`, or `hybrid/all`).
