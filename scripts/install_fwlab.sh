@@ -150,9 +150,7 @@ install_units() {
     fwlab-archive-uploader.service
     fwlab-archive-uploader.timer
   )
-  if [[ "$PROFILE" == "control" ]]; then
-    units+=(fwlab-control-sync.service fwlab-control-sync.timer)
-  fi
+  # control-sync units are deprecated in S3-driven control-plane model
   if [[ "$PROFILE" == "all" || "$PROFILE" == "receiver" ]]; then
     units+=(fwlab-rx-agg.service)
   fi
@@ -165,6 +163,9 @@ install_units() {
 install_units
 run "chmod +x '$ROOT/tools/'*.sh '$ROOT/tools/fwlabctl' || true"
 run "sudo systemctl daemon-reload"
+
+# Retire legacy control-sync in favor of S3 control-plane state model.
+run "sudo systemctl disable --now fwlab-control-sync.timer fwlab-control-sync.service 2>/dev/null || true"
 
 enable_for_profile() {
   local en=(fwlab-webui.service fwlab-host-monitor.service)
@@ -179,8 +180,7 @@ enable_for_profile() {
       ;;
     control)
       en=(fwlab-webui.service fwlab-host-monitor.service)
-      timers=(fwlab-log-retention.timer fwlab-archive-uploader.timer fwlab-control-sync.timer)
-      # fwlab-control-sync.service is oneshot and should run via timer/on-demand, not --now on install.
+      timers=(fwlab-log-retention.timer fwlab-archive-uploader.timer)
       ;;
     all)
       en=(fwlab-receiver.service fwlab-webui.service fwlab-host-monitor.service fwlab-rx-agg.service)

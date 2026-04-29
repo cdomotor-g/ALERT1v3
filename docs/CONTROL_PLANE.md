@@ -27,6 +27,11 @@ This repo now includes a role-driven control-plane scaffold.
 
 Promotion publishes `<state_prefix>/active_endpoint.json` so edge nodes can follow active CP.
 
+## Deprecated
+
+- `fwlab-control-sync.service` / `fwlab-control-sync.timer` are deprecated in the S3-driven control-plane model.
+- Installer now disables them by default.
+
 ## Cloudflare automatic failover (LB)
 
 Scripts:
