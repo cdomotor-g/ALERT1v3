@@ -233,28 +233,32 @@ EOF"
   run "sudo chown root:root /etc/cloudflared/$tid.json"
   run "sudo chmod 600 /etc/cloudflared/$tid.json"
 
-  run "cat > /tmp/fwlab_cloudflared.yml <<EOF
-tunnel: $tid
-credentials-file: /etc/cloudflared/$tid.json
-ingress:
-  - hostname: $host
-    service: http://127.0.0.1:8088
-  - service: http_status:404
-EOF"
+  # Render YAML via Python to avoid shell/heredoc formatting edge cases.
+  run "python3 - <<'PY'
+from pathlib import Path
+tid = '''$tid'''.strip()
+host = '''$host'''.strip()
+yml = f'''tunnel: {tid}\ncredentials-file: /etc/cloudflared/{tid}.json\ningress:\n  - hostname: {host}\n    service: http://127.0.0.1:8088\n  - service: http_status:404\n'''
+Path('/tmp/fwlab_cloudflared.yml').write_text(yml, encoding='utf-8')
+PY"
   run "sudo mv /tmp/fwlab_cloudflared.yml /etc/cloudflared/config.yml"
 
   if [[ "$CF_ROUTE_DNS" -eq 1 ]]; then
     run "sudo cloudflared tunnel route dns $tid $host || true"
   fi
 
-  run "sudo cloudflared tunnel --config /etc/cloudflared/config.yml ingress validate"
+  if ! sudo cloudflared tunnel --config /etc/cloudflared/config.yml ingress validate; then
+    echo "cloudflared ingress validate failed; dumping /etc/cloudflared/config.yml with line numbers:" >&2
+    sudo nl -ba /etc/cloudflared/config.yml >&2 || true
+    return 1
+  fi
   run "sudo systemctl enable --now cloudflared"
   run "sudo systemctl restart cloudflared"
 
   if [[ "$DRY_RUN" -eq 0 ]]; then
-    sleep 3
+    sleep 4
     systemctl is-active cloudflared || true
-    sudo journalctl -u cloudflared -n 20 --no-pager || true
+    sudo journalctl -u cloudflared -n 30 --no-pager || true
     curl -sS -o /dev/null -w "edge root (%{http_code})\n" "https://$host/" --max-time 15 || true
     curl -sS -o /dev/null -w "edge policy (%{http_code})\n" "https://$host/api/control/policy" --max-time 15 || true
   fi

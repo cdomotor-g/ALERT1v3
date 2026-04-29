@@ -39,6 +39,10 @@ Scripts:
 - `scripts/cloudflare_lb_status.sh [hostname]`
 - `scripts/cloudflare_lb_pin_primary.sh <righty|pi> [hostname]`
 
+Installer supports managed tunnel mode for one-shot host setup:
+- `scripts/install_fwlab.sh --profile control --update --yes --origin-hostname <fqdn> --cf-tunnel-id <uuid> --cf-account-tag <acct> --cf-tunnel-secret <base64-secret> --cf-route-dns`
+- script validates cloudflared ingress config before restart and prints numbered YAML on failure.
+
 Prereqs:
 - `config/cloudflare_env` with `CF_API_TOKEN`, `CF_ACCOUNT_ID`, `CF_ZONE_ID`
 - Token must include zone-scoped Load Balancer edit permissions.
