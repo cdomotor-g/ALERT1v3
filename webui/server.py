@@ -2604,6 +2604,11 @@ __NAV__
   <h3 style='margin:.1rem 0 .5rem'>Receiver ingest status</h3>
   <div id='rx' class='muted'>loading…</div>
 </div>
+<div class='card'>
+  <h3 style='margin:.1rem 0 .5rem'>Receiver Registry (Pi1)</h3>
+  <div class='muted'>Registry manager UI is being wired here next. This confirms control-page extension is active on this build.</div>
+</div>
+
 <script>
 (function(){
   function g(o,k,d){ return (o && o[k]!==undefined && o[k]!==null)?o[k]:d; }
