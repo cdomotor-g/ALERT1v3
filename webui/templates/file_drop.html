@@ -1,0 +1,64 @@
+<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB File Drop</title>
+<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem}.muted{color:#9fb0c3}.tbl{width:100%;border-collapse:collapse;margin-top:.45rem}.tbl th,.tbl td{border-bottom:1px solid #2a3948;padding:.35rem .4rem;text-align:left;vertical-align:top}.tbl th{color:#9fb0c3;font-weight:600;font-size:.9rem}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.right{text-align:right}@media(max-width:860px){.tbl{font-size:.92rem}.tbl th,.tbl td{padding:.42rem .35rem}}</style></head><body><div class='page'>
+<h2 style='margin-top:0'>File Drop</h2>
+<div class='muted' style='margin:-.2rem 0 .55rem'>Quick ingest page for CSV/text uploads used to update local metadata and mappings. Recent uploads below are timestamped so operators can confirm what was loaded and when.</div>
+__NAV__
+<div class='card'>
+  <input id='f' type='file'> <button id='u'>Upload</button>
+  <div id='m' class='muted' style='margin-top:.4rem'></div>
+</div>
+<div class='card'>
+  <strong>Recent uploads</strong>
+  <div id='mapStatus' class='muted' style='margin-top:.35rem'></div>
+  <div id='lst' class='muted' style='margin-top:.4rem'>loading...</div>
+</div>
+<script>
+(function(){
+  function eh(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]); }); }
+  function loadList(){
+    fetch('/api/file_drop/list?limit=20').then(function(r){return r.json();}).then(function(d){
+      var a=d.files||[];
+      if(!a.length){ document.getElementById('lst').textContent='no uploads yet'; }
+      else {
+        var rows = a.map(function(x){
+          var ts = String(x.mtime||'');
+          var d = new Date(ts);
+          var local = isNaN(d.getTime()) ? ts : d.toLocaleString();
+          return '<tr>'
+            +'<td class="mono">'+eh(local)+'</td>'
+            +'<td class="mono">'+eh(ts)+'</td>'
+            +'<td>'+eh(x.type||'generic')+'</td>'
+            +'<td class="mono">'+eh(x.name||'')+'</td>'
+            +'<td class="right mono">'+eh(String(x.size||0))+'</td>'
+            +'</tr>';
+        });
+        document.getElementById('lst').innerHTML = ''
+          +'<table class="tbl">'
+          +'<thead><tr><th>Local time</th><th>UTC/ISO</th><th>Type</th><th>File</th><th class="right">Bytes</th></tr></thead>'
+          +'<tbody>'+rows.join('')+'</tbody>'
+          +'</table>';
+      }
+    }).catch(function(){ document.getElementById('lst').textContent='failed to load uploads'; });
+
+    fetch('/api/sensor_map/status').then(function(r){return r.json();}).then(function(s){
+      document.getElementById('mapStatus').textContent = s.exists ? ('Sensor map active: '+s.mapped_alert1_ids+' ALERT1 IDs ('+s.path+')') : 'Sensor map not loaded yet';
+    }).catch(function(){ document.getElementById('mapStatus').textContent='sensor map status unavailable'; });
+  }
+  document.getElementById('u').addEventListener('click', function(){
+    var f=document.getElementById('f').files[0]; if(!f){ document.getElementById('m').textContent='choose file first'; return; }
+    var fr=new FileReader();
+    fr.onload=function(){
+      fetch('/api/file_drop/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:f.name, content:String(fr.result||'')})})
+      .then(function(r){return r.json();}).then(function(d){
+        var extra=(d.type==='sensor_map') ? (' mapped IDs='+String(d.mapped_alert1_ids||0)) : '';
+        document.getElementById('m').textContent = d.ok ? ('uploaded: '+(d.path||'')+' ['+(d.type||'generic')+']'+extra) : ('upload failed: '+(d.error||'unknown'));
+        loadList();
+      })
+      .catch(function(){ document.getElementById('m').textContent='upload failed'; });
+    };
+    fr.readAsText(f);
+  });
+  loadList();
+})();
+</script>
+</div></body></html>
