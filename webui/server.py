@@ -203,22 +203,25 @@ h2{{font-weight:650;letter-spacing:.2px;}}
     <div class='fw-build' style='padding:0 .45rem .2rem'>build {BUILD_STAMP}</div>
     <div style='padding:0 .45rem .5rem'><select id='fwRxSelectDesk' style='width:100%'></select></div>
     <nav class='fw-nav'>
-      <a href='/'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 10.5 12 3l9 7.5'/><path d='M5 9.5V21h14V9.5'/></svg></span><span class='fw-label'>Dashboard</span></a>
-      <a href='/packets'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='4' width='16' height='16' rx='2'/><path d='M8 9h8M8 13h8M8 17h5'/></svg></span><span class='fw-label'>Packets</span></a>
-      <a href='/overview'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M8 9h8'/><path d='M8 12h8'/><path d='M8 15h5'/></svg></span><span class='fw-label'>Overview</span></a>
-      <a href='/help'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M9.1 9a3 3 0 1 1 5.2 2c-.8.7-1.3 1.2-1.3 2.2'/><circle cx='12' cy='17' r='1'/></svg></span><span class='fw-label'>Help</span></a>
-      <a href='/radio'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 12h3m12 0h3'/><circle cx='12' cy='12' r='2.5'/><path d='M6.5 8.5a8 8 0 0 1 0 7M17.5 8.5a8 8 0 0 1 0 7'/></svg></span><span class='fw-label'>Radio</span></a>
-      <a href='/data'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 19h16'/><path d='m6 15 4-4 3 2 5-6'/><path d='m18 7 0 3h-3'/></svg></span><span class='fw-label'>Data</span></a>
-      <a href='/path'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 20V9'/><path d='M4 9c2.5-1.5 5.5-1.5 8 0s5.5 1.5 8 0v11c-2.5 1.5-5.5 1.5-8 0s-5.5-1.5-8 0'/><circle cx='4' cy='9' r='1.2'/><circle cx='20' cy='9' r='1.2'/></svg></span><span class='fw-label'>Path</span></a>
-      <a href='/stations'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v18'/><path d='M5 8h14'/><path d='M5 16h14'/><circle cx='12' cy='3' r='1.2'/></svg></span><span class='fw-label'>Stations</span></a>
-      <a href='/stations-map'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z'/><path d='M9 4v14'/><path d='M15 6v14'/></svg></span><span class='fw-label'>Stations Map</span></a>
-      <a href='/trip'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 7h13'/><path d='M3 12h9'/><path d='M3 17h11'/><path d='M17 7l4 4-4 4'/></svg></span><span class='fw-label'>Trip</span></a>
-      <a href='/file_drop'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v12'/><path d='m8 11 4 4 4-4'/><path d='M4 20h16'/></svg></span><span class='fw-label'>File Drop</span></a>
-      <a href='/bitflipper'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M8 6h8'/><path d='M8 12h8'/><path d='M8 18h8'/><path d='M5 6h.01M5 12h.01M5 18h.01'/></svg></span><span class='fw-label'>BitFlipper</span></a>
-      <a href='/admin'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='3'/><path d='M19.4 15a1 1 0 0 0 .2 1.1l.1.1a2 2 0 0 1-2.8 2.8l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V20a2 2 0 0 1-4 0v-.2a1 1 0 0 0-.6-.9 1 1 0 0 0-1.1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H4a2 2 0 0 1 0-4h.2a1 1 0 0 0 .9-.6 1 1 0 0 0-.2-1.1l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1 1 0 0 0 1.1.2h0a1 1 0 0 0 .6-.9V4a2 2 0 0 1 4 0v.2a1 1 0 0 0 .6.9h0a1 1 0 0 0 1.1-.2l.1-.1a2 2 0 0 1 2.8 2.8l-.1.1a1 1 0 0 0-.2 1.1v0a1 1 0 0 0 .9.6H20a2 2 0 0 1 0 4h-.2a1 1 0 0 0-.9.6z'/></svg></span><span class='fw-label'>Admin</span></a>
-      <a href='/control'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 6h16v12H4z'/><path d='M8 10h8M8 14h5'/></svg></span><span class='fw-label'>Control</span></a>
-      <a href='/forensics'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='6.5'/><path d='M20 20l-4.2-4.2'/><path d='M11 8.5v5M8.5 11h5'/></svg></span><span class='fw-label'>Forensics</span></a>
-      <a href='/about'><span class='fw-ico'><svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M12 11v5'/><circle cx='12' cy='8' r='1'/></svg></span><span class='fw-label'>About</span></a>
+      <div class='muted' style='padding:.2rem .25rem;font-size:.78rem'>1) Stations</div>
+      <a href='/stations-map'><span class='fw-label'>Map</span></a>
+      <a href='/stations'><span class='fw-label'>List</span></a>
+      <a href='/data'><span class='fw-label'>Data</span></a>
+      <div class='muted' style='padding:.5rem .25rem .2rem;font-size:.78rem'>2) Tools</div>
+      <a href='/bitflipper'><span class='fw-label'>BitFlipper2.0</span></a>
+      <a href='/radio'><span class='fw-label'>Radio</span></a>
+      <a href='/path'><span class='fw-label'>Path Analysis</span></a>
+      <a href='/trip'><span class='fw-label'>Trip Planning</span></a>
+      <div class='muted' style='padding:.5rem .25rem .2rem;font-size:.78rem'>3) Receiver</div>
+      <a href='/'><span class='fw-label'>Dashboard</span></a>
+      <a href='/packets'><span class='fw-label'>Packets</span></a>
+      <a href='/forensics'><span class='fw-label'>Radio Diagnostics</span></a>
+      <div class='muted' style='padding:.5rem .25rem .2rem;font-size:.78rem'>4) System</div>
+      <a href='/admin'><span class='fw-label'>Admin</span></a>
+      <a href='/control'><span class='fw-label'>Control</span></a>
+      <a href='/file_drop'><span class='fw-label'>File Drop</span></a>
+      <a href='/about'><span class='fw-label'>About</span></a>
+      <a href='/help'><span class='fw-label'>Help</span></a>
     </nav>
   </aside>
 </div>
@@ -1224,7 +1227,7 @@ PATH_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='view
 <link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'/>
 <script src='https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js'></script>
 <script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script></head><body><div class='page'>
-<h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 20V9'/><path d='M4 9c2.5-1.5 5.5-1.5 8 0s5.5 1.5 8 0v11c-2.5 1.5-5.5 1.5-8 0s-5.5-1.5-8 0'/><circle cx='4' cy='9' r='1.2'/><circle cx='20' cy='9' r='1.2'/></svg></span><span>Path</span></h2>
+<h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 20V9'/><path d='M4 9c2.5-1.5 5.5-1.5 8 0s5.5 1.5 8 0v11c-2.5 1.5-5.5 1.5-8 0s-5.5-1.5-8 0'/><circle cx='4' cy='9' r='1.2'/><circle cx='20' cy='9' r='1.2'/></svg></span><span>Path Analysis</span></h2>
 <div class='muted' style='margin:-.2rem 0 .55rem'>RF path analysis workspace for terrain, Fresnel clearance, and link budget checks between candidate sites. Use Compare to test scenarios and defaults for repeatable planning.</div>
 __NAV__
 <div class='card grid'>
@@ -1491,7 +1494,7 @@ __NAV__
 
 STATIONS_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Stations</title>
 <style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem;max-width:100%;box-sizing:border-box}.muted{color:#9fb0c3}.row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}.mini{font-size:.9em}.num{width:8.5rem}.table-wrap{overflow:auto}.st-table{width:100%;min-width:980px;border-collapse:collapse}.st-table th,.st-table td{padding:.35rem;border-bottom:1px solid #243243;text-align:left}.cards{display:none}.st-card{border:1px solid #2a3948;border-radius:8px;margin:.5rem 0;background:#111a22}.st-card summary{cursor:pointer;padding:.6rem .65rem;list-style:none}.st-card summary::-webkit-details-marker{display:none}.st-card[open] summary{border-bottom:1px solid #243243}.st-body{padding:.6rem}.st-card .grid{display:grid;grid-template-columns:1fr 1fr;gap:.4rem}.st-card input{width:100%;box-sizing:border-box}.stack{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}.stack .grow{flex:1 1 260px}.filter-card{padding:.45rem .6rem}@media(max-width:900px){.table-wrap{display:none}.cards{display:block}.row,.stack{flex-direction:column;align-items:stretch}input,button{width:100%;min-height:40px;font-size:16px}.filter-card{padding:.35rem .55rem}.page{padding:.7rem}}</style></head><body><div class='page'>
-<h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v18'/><path d='M5 8h14'/><path d='M5 16h14'/><circle cx='12' cy='3' r='1.2'/></svg></span><span>Stations</span></h2>
+<h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v18'/><path d='M5 8h14'/><path d='M5 16h14'/><circle cx='12' cy='3' r='1.2'/></svg></span><span>List</span></h2>
 <div class='muted' style='margin:-.2rem 0 .55rem'>Editable station registry with BoM station numbers, coordinates, and metadata used across maps and planning tools. Use this page to search, review, and maintain station records.</div>
 __NAV__
 <div class='card stack'>
@@ -1704,7 +1707,7 @@ STATIONS_MAP_HTML = """<!doctype html><html><head><meta charset='utf-8'><meta na
 <link rel='stylesheet' href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css'/>
 <style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}input{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.35rem}#map{height:72vh;border:1px solid #2a3948;border-radius:8px}.muted{color:#9fb0c3}.touch-note{font-size:.9em;color:#9fb0c3}@media(max-width:900px){input{min-height:40px;font-size:16px}#map{height:76vh}}</style>
 <script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script><script src='https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js'></script></head><body><div class='page'>
-<h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z'/><path d='M9 4v14'/><path d='M15 6v14'/></svg></span><span>Stations Map</span></h2>
+<h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z'/><path d='M9 4v14'/><path d='M15 6v14'/></svg></span><span>Map</span></h2>
 <div class='muted' style='margin:-.2rem 0 .55rem'>Geospatial operations view of stations with packet recency coloring and quick context popups. Use this page to see where activity is fresh, stale, or missing at a glance.</div>
 __NAV__
 <div class='card'>
@@ -2668,13 +2671,13 @@ __NAV__
   <div class='card'><h3><a href='/packets'>Packets</a></h3><div class='muted'>Event stream table for recent decodes and detailed packet drill-down.</div></div>
   <div class='card'><h3><a href='/radio'>Radio</a></h3><div class='muted'>Waveform/waterfall monitoring for RF tuning and reception troubleshooting.</div></div>
   <div class='card'><h3><a href='/data'>Data</a></h3><div class='muted'>Time-series trends for sensor values with local/archive source control.</div></div>
-  <div class='card'><h3><a href='/path'>Path</a></h3><div class='muted'>Terrain and Fresnel link analysis for path planning and comparisons.</div></div>
-  <div class='card'><h3><a href='/stations'>Stations</a></h3><div class='muted'>Editable registry of station/site metadata used throughout the platform.</div></div>
-  <div class='card'><h3><a href='/stations-map'>Stations Map</a></h3><div class='muted'>Map view of station locations and packet recency state.</div></div>
+  <div class='card'><h3><a href='/path'>Path Analysis</a></h3><div class='muted'>Terrain and Fresnel link analysis for path planning and comparisons.</div></div>
+  <div class='card'><h3><a href='/stations'>List</a></h3><div class='muted'>Editable registry of station/site metadata used throughout the platform.</div></div>
+  <div class='card'><h3><a href='/stations-map'>Map</a></h3><div class='muted'>Map view of station locations and packet recency state.</div></div>
   <div class='card'><h3><a href='/trip'>Trip Planning</a></h3><div class='muted'>Build and optimize field routes, then hand off to navigation tools.</div></div>
   <div class='card'><h3><a href='/file_drop'>File Drop</a></h3><div class='muted'>Upload CSV/text files for metadata and mapping ingestion workflows.</div></div>
-  <div class='card'><h3><a href='/bitflipper'>BitFlipper</a></h3><div class='muted'>Bit-flip analysis utility to find likely ALERT address collisions and open ARRO graphs.</div></div>
-  <div class='card'><h3><a href='/forensics'>Forensics</a></h3><div class='muted'>Analyze anomalies, acceptance metrics, and decode error behavior.</div></div>
+  <div class='card'><h3><a href='/bitflipper'>BitFlipper2.0</a></h3><div class='muted'>Bit-flip analysis utility to find likely ALERT address collisions and open ARRO graphs.</div></div>
+  <div class='card'><h3><a href='/forensics'>Radio Diagnostics</a></h3><div class='muted'>Analyze anomalies, acceptance metrics, and decode error behavior.</div></div>
   <div class='card'><h3><a href='/admin'>Admin</a></h3><div class='muted'>Controlled operational changes and audited admin actions.</div></div>
   <div class='card'><h3><a href='/control'>Control Plane</a></h3><div class='muted'>Fleet ingest freshness and control-plane state visibility for failover operations.</div></div>
   <div class='card'><h3><a href='/about'>About</a></h3><div class='muted'>Project documentation mirror from README and reference links.</div></div>
@@ -3265,7 +3268,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;border:1px sol
 .muted{color:#9fb0c3}a{color:#7fc8ff}
 @media(max-width:980px){.grid{grid-template-columns:1fr}}
 </style></head><body><div class='wrap'>
-<h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='6.5'/><path d='M20 20l-4.2-4.2'/><path d='M11 8.5v5M8.5 11h5'/></svg></span><span>Forensics</span></h2>
+<h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='6.5'/><path d='M20 20l-4.2-4.2'/><path d='M11 8.5v5M8.5 11h5'/></svg></span><span>Radio Diagnostics</span></h2>
 <div class='muted' style='margin:-.2rem 0 .55rem'>Deep diagnostics for decode quality, anomaly patterns, and error distributions across chosen windows. Use this page to validate demod changes and investigate packet integrity issues.</div>
 __NAV__
 <div class='card'>
