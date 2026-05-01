@@ -152,7 +152,7 @@ NAV_HTML = f"""
 <style>
 :root{{--sidebar-w:212px;--sidebar-w-c:64px;--content-gap:14px;}}
 .fw-shell{{display:flex;gap:0;}}
-.fw-sidebar{{position:fixed;left:0;top:0;bottom:0;width:var(--sidebar-w);background:#0d131a;border-right:1px solid #243243;padding:.75rem .55rem;z-index:1300;transition:width .18s ease;overflow:hidden;}}
+.fw-sidebar{{position:fixed;left:0;top:0;bottom:0;width:var(--sidebar-w);background:#0d131a;border-right:1px solid #243243;padding:.75rem .55rem;z-index:1300;transition:width .18s ease;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;}}
 .fw-sidebar.collapsed{{width:var(--sidebar-w-c);}}
 .fw-brand{{display:flex;align-items:center;justify-content:space-between;color:#cfe2f5;font-weight:700;padding:.35rem .4rem .65rem .4rem;}}
 .fw-build{{font-size:.78rem;color:#8ea6bf;}}
