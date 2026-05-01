@@ -159,6 +159,7 @@ NAV_HTML = f"""
 .fw-nav a{{display:flex;align-items:center;gap:.55rem;color:#d7e5f3;text-decoration:none;padding:.55rem .55rem;border-radius:8px;margin:.15rem 0;}}
 .fw-nav a:hover{{background:#15212d;}}
 .fw-nav a.active{{background:#1e2f40;color:#8fd1ff;}}
+.fw-nav-group{{margin:.35rem .1rem .15rem .1rem;padding:.28rem .45rem;border-radius:7px;background:#13202d;color:#9fc3e7;font-size:.76rem;font-weight:700;text-transform:uppercase;letter-spacing:.35px;border:1px solid #24374a;}}
 .fw-ico{{width:1.15rem;display:inline-flex;justify-content:center;}}
 .fw-label{{white-space:nowrap;}}
 .fw-sidebar.collapsed .fw-label{{display:none;}}
@@ -203,20 +204,20 @@ h2{{font-weight:650;letter-spacing:.2px;}}
     <div class='fw-build' style='padding:0 .45rem .2rem'>build {BUILD_STAMP}</div>
     <div style='padding:0 .45rem .5rem'><select id='fwRxSelectDesk' style='width:100%'></select></div>
     <nav class='fw-nav'>
-      <div class='muted' style='padding:.2rem .25rem;font-size:.78rem'>1) Stations</div>
+      <div class='fw-nav-group'>1) Stations</div>
       <a href='/stations-map'><span class='fw-label'>Map</span></a>
       <a href='/stations'><span class='fw-label'>List</span></a>
       <a href='/data'><span class='fw-label'>Data</span></a>
-      <div class='muted' style='padding:.5rem .25rem .2rem;font-size:.78rem'>2) Tools</div>
+      <div class='fw-nav-group'>2) Tools</div>
       <a href='/bitflipper'><span class='fw-label'>BitFlipper2.0</span></a>
       <a href='/radio'><span class='fw-label'>Radio</span></a>
       <a href='/path'><span class='fw-label'>Path Analysis</span></a>
       <a href='/trip'><span class='fw-label'>Trip Planning</span></a>
-      <div class='muted' style='padding:.5rem .25rem .2rem;font-size:.78rem'>3) Receiver</div>
+      <div class='fw-nav-group'>3) Receiver</div>
       <a href='/'><span class='fw-label'>Dashboard</span></a>
       <a href='/packets'><span class='fw-label'>Packets</span></a>
       <a href='/forensics'><span class='fw-label'>Radio Diagnostics</span></a>
-      <div class='muted' style='padding:.5rem .25rem .2rem;font-size:.78rem'>4) System</div>
+      <div class='fw-nav-group'>4) System</div>
       <a href='/admin'><span class='fw-label'>Admin</span></a>
       <a href='/control'><span class='fw-label'>Control</span></a>
       <a href='/file_drop'><span class='fw-label'>File Drop</span></a>
@@ -5085,7 +5086,13 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
-        if parsed.path in ['/', '/events', '/packets']:
+        if parsed.path == '/':
+            self.send_response(HTTPStatus.FOUND)
+            self.send_header('Location', '/stations-map')
+            self.end_headers()
+            return
+
+        if parsed.path in ['/events', '/packets']:
             payload = HTML.replace('__NAV__', NAV_HTML).encode('utf-8')
             self.send_response(HTTPStatus.OK)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
