@@ -2667,8 +2667,25 @@ __NAV__
         var rr=(reg&&reg.receivers)||[];
         document.getElementById('regMsg').textContent='registry entries: '+rr.length;
         if(!rr.length){ document.getElementById('regTable').textContent='no receivers'; return; }
-        var t=rr.map(function(x){ return '<tr><td>'+String(x.rxs_id||'')+'</td><td>'+String(x.name||'')+'</td><td>'+String(x.location||'')+'</td><td>'+String(x.base_url||'')+'</td></tr>'; }).join('');
-        document.getElementById('regTable').innerHTML='<table class="tbl"><thead><tr><th>rxs_id</th><th>Name</th><th>Location</th><th>Base URL</th></tr></thead><tbody>'+t+'</tbody></table>';
+        var t=rr.map(function(x){
+          return '<tr data-rxid="'+String(x.rxs_id||'')+'">'
+            +'<td>'+String(x.rxs_id||'')+'</td>'
+            +'<td><input data-k="name" value="'+String(x.name||'').replace(/"/g,'&quot;')+'"></td>'
+            +'<td><input data-k="location" value="'+String(x.location||'').replace(/"/g,'&quot;')+'"></td>'
+            +'<td><input data-k="base_url" value="'+String(x.base_url||'').replace(/"/g,'&quot;')+'"></td>'
+            +'<td><button class="regSave">Save</button></td>'
+            +'</tr>';
+        }).join('');
+        document.getElementById('regTable').innerHTML='<table class="tbl"><thead><tr><th>rxs_id</th><th>Name</th><th>Location</th><th>Base URL</th><th>Action</th></tr></thead><tbody>'+t+'</tbody></table>';
+        document.querySelectorAll('#regTable .regSave').forEach(function(b){ b.addEventListener('click', function(){
+          var tr=b.closest('tr'); if(!tr) return;
+          var rid=tr.getAttribute('data-rxid')||'';
+          var body={op:'upsert',item:{rxs_id:rid,name:(tr.querySelector('input[data-k="name"]')||{}).value||'',location:(tr.querySelector('input[data-k="location"]')||{}).value||'',base_url:(tr.querySelector('input[data-k="base_url"]')||{}).value||''}};
+          fetch('/api/receivers_registry_update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+            .then(function(r){return r.json();})
+            .then(function(d){ document.getElementById('regMsg').textContent = d.ok ? ('saved '+rid) : ('save failed: '+(d.error||'unknown')); })
+            .catch(function(){ document.getElementById('regMsg').textContent='save failed'; });
+        }); });
       }).catch(function(){ document.getElementById('regMsg').textContent='registry load failed'; });
       document.getElementById('msg').textContent='updated '+new Date().toLocaleTimeString();
     }).catch(function(){ document.getElementById('msg').textContent='refresh failed'; });
