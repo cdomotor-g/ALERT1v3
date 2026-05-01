@@ -233,6 +233,7 @@ enable_for_profile() {
     control)
       en=(fwlab-webui.service fwlab-host-monitor.service)
       timers=(fwlab-log-retention.timer fwlab-archive-uploader.timer)
+      run "sudo systemctl disable --now fwlab-receiver.service 2>/dev/null || true"
       ;;
     all)
       en=(fwlab-receiver.service fwlab-webui.service fwlab-host-monitor.service fwlab-rx-agg.service)
@@ -339,6 +340,16 @@ fi
 
 if [[ "$DRY_RUN" -eq 0 ]]; then
   "$ROOT/scripts/verify_fwlab.sh" --profile "$PROFILE" --user "$TARGET_USER" || true
+fi
+
+echo "== role report =="
+echo "profile: $PROFILE"
+echo "target_user: $TARGET_USER"
+echo "origin_hostname: ${ORIGIN_HOSTNAME:-none}"
+echo "preset: ${PRESET:-none}"
+if [[ "$PROFILE" == "control" ]]; then
+  echo "receiver.service expected: disabled"
+  systemctl is-enabled fwlab-receiver.service 2>/dev/null || true
 fi
 
 echo
