@@ -1,0 +1,15 @@
+[Unit]
+Description=FW-LAB Auto Update (git pull + install)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=cdomotor
+Group=cdomotor
+WorkingDirectory=/home/cdomotor/.openclaw/workspace/projects/ALERT1v3
+ExecStart=/home/cdomotor/.openclaw/workspace/projects/ALERT1v3/tools/auto_update.sh
+Environment=PYTHONUNBUFFERED=1
+# Optional role tuning:
+# Environment=FWLAB_AUTO_PROFILE=control
+# Environment=FWLAB_AUTO_PRESET=cloud

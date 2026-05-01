@@ -199,6 +199,8 @@ install_units() {
     fwlab-log-retention.timer
     fwlab-archive-uploader.service
     fwlab-archive-uploader.timer
+    fwlab-auto-update.service
+    fwlab-auto-update.timer
   )
   # control-sync units are deprecated in S3-driven control-plane model
   if [[ "$PROFILE" == "all" || "$PROFILE" == "receiver" ]]; then
@@ -219,7 +221,7 @@ run "sudo systemctl disable --now fwlab-control-sync.timer fwlab-control-sync.se
 
 enable_for_profile() {
   local en=(fwlab-webui.service fwlab-host-monitor.service)
-  local timers=(fwlab-log-retention.timer fwlab-archive-uploader.timer)
+  local timers=(fwlab-log-retention.timer fwlab-archive-uploader.timer fwlab-auto-update.timer)
   case "$PROFILE" in
     receiver)
       en=(fwlab-receiver.service fwlab-webui.service fwlab-host-monitor.service fwlab-rx-agg.service)

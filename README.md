@@ -65,6 +65,22 @@ One-shot cloud/backup deploy (recommended):
 ./scripts/install_fwlab.sh --self-update --profile control --preset backup1 --yes
 ```
 
+Auto-follow updates (systemd timer):
+
+```bash
+# installed/enabled by install_fwlab.sh
+systemctl status fwlab-auto-update.timer
+systemctl list-timers | grep fwlab-auto-update
+# manual run
+systemctl start fwlab-auto-update.service
+```
+
+Behavior:
+- every ~15 minutes, fetches `origin/main`
+- if unchanged: exits
+- if changed: hard-resets to `origin/main` and runs installer update
+- skips when repo has local uncommitted changes
+
 Role scaffold lives at `config/deployment_role.json` (`edge`, `control`, or `hybrid/all`).
 
 Quick role switch helper:
