@@ -1,0 +1,346 @@
+(function(){
+  var all=[], map=L.map('map',{tapTolerance:25});
+  var pointMarkersByName={};
+  var initialFitDone=false;
+  var pointMarkersByBom={};
+  var lastSeenByName={};
+  var lastSeenByBom={};
+  var lastPacketsByName={};
+  var lastPacketsByBom={};
+  var stationParam=(new URLSearchParams(window.location.search).get('station')||'').trim();
+  var focusDone=false;
+  function norm(s){ return String(s||'').trim().toLowerCase().replace(/\s+/g,' '); }
+  function firstCsv(v){ return String(v||'').split(',').map(function(x){return x.trim();}).filter(Boolean)[0]||''; }
+  function arroUrl(r){
+    var siteId=String(r.arro_site_id||'').trim();
+    var devId=firstCsv(r.device_ids||'');
+    if(!siteId) return '';
+    var u='https://contrail-bom.onerain.au/administration/sensor/details/?site_id='+encodeURIComponent(siteId);
+    if(devId) u += '&device_id='+encodeURIComponent(devId);
+    return u;
+  }
+  function fadeWindowMs(){
+    var h=Number((document.getElementById('fadeHours')||{}).value||3);
+    if(!isFinite(h)||h<=0) h=3;
+    return h*3600*1000;
+  }
+  function mix(a,b,t){ return Math.round(a + (b-a)*Math.max(0,Math.min(1,t))); }
+  function colorForAge(ageMs){
+    var W=fadeWindowMs();
+    var t=Math.max(0,Math.min(1, ageMs/W));
+    // fresh=green, stale=red
+    var r=mix(46, 233, t), g=mix(204, 76, t), bl=mix(113, 60, t);
+    return 'rgb('+r+','+g+','+bl+')';
+  }
+  function recentTsForStationRef(ref){
+    if(!ref) return null;
+    var bom=String(ref.bom||'').trim();
+    var nm=norm(ref.name||'');
+    if(bom && lastSeenByBom[bom]) return lastSeenByBom[bom];
+    if(nm && lastSeenByName[nm]) return lastSeenByName[nm];
+    return null;
+  }
+  function pushRecentPacket(store, k, pkt){
+    if(!k) return;
+    var arr=store[k]||[];
+    arr.unshift(pkt);
+    if(arr.length>4) arr=arr.slice(0,4);
+    store[k]=arr;
+  }
+
+  function stationIsStale(r){
+    var now=Date.now();
+    var bom=(r&&r.unitid!=null)?String(r.unitid).trim():'';
+    var nm=norm(r.name||r.unitname||'');
+    var ts=recentTsForStationRef({bom:bom,name:nm});
+    if(!ts) return true;
+    return (now-ts) >= fadeWindowMs();
+  }
+  function applyMarkerColorForStation(r,m){
+    var now=Date.now();
+    var bom=(r&&r.unitid!=null)?String(r.unitid).trim():'';
+    var nm=norm(r.name||r.unitname||'');
+    var ts=recentTsForStationRef({bom:bom,name:nm});
+    var col = ts ? colorForAge(now-ts) : '#e94c3c';
+    m.setStyle({color:col, fillColor:col, fillOpacity:0.9, weight:2});
+  }
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+  var clustered=(L.markerClusterGroup ? L.markerClusterGroup({
+    chunkedLoading:true,
+    showCoverageOnHover:false,
+    spiderfyOnMaxZoom:true,
+    disableClusteringAtZoom:13,
+    maxClusterRadius:45,
+    iconCreateFunction: function(cluster){
+      var kids=cluster.getAllChildMarkers();
+      var now=Date.now();
+      var newestTs=null;
+      for(var i=0;i<kids.length;i++){
+        var ref=kids[i]._stationRef||null;
+        var ts=recentTsForStationRef(ref);
+        if(ts && (!newestTs || ts>newestTs)) newestTs=ts;
+      }
+      var col=newestTs ? colorForAge(now-newestTs) : '#e94c3c';
+      var cnt=cluster.getChildCount();
+      var html='<div style="background:'+col+';width:32px;height:32px;border-radius:16px;border:2px solid rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700">'+cnt+'</div>';
+      return L.divIcon({html:html,className:'fw-cluster',iconSize:[32,32]});
+    }
+  }) : L.layerGroup());
+  var plain=L.layerGroup();
+  var useClusters=!!L.markerClusterGroup;
+  map.addLayer(clustered);
+  function match(r,q){ if(!q) return true; q=q.toLowerCase(); return [r.name,r.unitname,r.unitid].some(function(v){return String(v||'').toLowerCase().indexOf(q)>=0;}); }
+  function ageText(ts){
+    var t=Date.parse(ts||'');
+    if(!isFinite(t)) return '';
+    var sec=Math.max(0, Math.floor((Date.now()-t)/1000));
+    if(sec<60) return sec+'s ago';
+    var min=Math.floor(sec/60);
+    if(min<60) return min+'m ago';
+    var hr=Math.floor(min/60);
+    if(hr<48) return hr+'h ago';
+    var d=Math.floor(hr/24);
+    return d+'d ago';
+  }
+  function markerHtml(r, lat, lon){
+    var dir='https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(String(lat)+','+String(lon))+'&travelmode=driving';
+    var sv='https://maps.googleapis.com/maps/api/streetview?size=360x180&location='+encodeURIComponent(String(lat)+','+String(lon))+'&fov=90&pitch=0&source=outdoor';
+    var pano='https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+encodeURIComponent(String(lat)+','+String(lon));
+    var bom=(r&&r.unitid!=null)?String(r.unitid).trim():'';
+    var nm=norm(r.name||r.unitname||'');
+    var lps=(bom && lastPacketsByBom[bom]) ? lastPacketsByBom[bom] : (lastPacketsByName[nm]||[]);
+    var st=(r.unitid||r.name||r.unitname||'');
+    var stLink='/stations?q='+encodeURIComponent(String(st));
+    var arro=arroUrl(r);
+    var name=String(r.name||r.unitname||'Station');
+    var meta='';
+    meta += '<div><b>BoM_Stn#:</b> '+String(r.unitid||'-')+'</div>';
+    meta += '<div><b>Location:</b> '+lat+', '+lon+(r.elevation?(' · elev '+r.elevation+' m'):'')+'</div>';
+    if(r.sensor_types) meta += '<div><b>Sensor types:</b> '+String(r.sensor_types)+'</div>';
+    if(r.sensor_ids) meta += '<div><b>Sensor IDs:</b> '+String(r.sensor_ids)+'</div>';
+    if(r.arro_site_id||r.device_ids) meta += '<div><b>ARRO:</b> site_id '+String(r.arro_site_id||'-')+' · device_ids '+String(r.device_ids||'-')+'</div>';
+    if(r.kml_name||r.source) meta += '<div><b>Catalog:</b> '+String(r.kml_name||'-')+' · '+String(r.source||'-')+'</div>';
+
+    var rowStyle='display:flex;justify-content:space-between;gap:.7rem;padding:.15rem 0;border-bottom:1px dashed rgba(180,210,240,.16)';
+    function kv(k,v){ return '<div style="'+rowStyle+'"><span style="color:#9fc2e6">'+k+'</span><span style="color:#f4f8ff;font-weight:600">'+v+'</span></div>'; }
+    var loc=lat+', '+lon;
+    if(r.elevation) loc += ' · '+r.elevation+' m';
+    var chips=''
+      +'<a href="'+stLink+'" style="text-decoration:none;color:#dff3ff;background:#20486a;border:1px solid #3e6f97;padding:.24rem .52rem;border-radius:999px">Stations</a>'
+      +(arro?(' <a href="'+arro+'" target="_blank" rel="noopener" style="text-decoration:none;color:#dff3ff;background:#20486a;border:1px solid #3e6f97;padding:.24rem .52rem;border-radius:999px">ARRO</a>'):'')
+      +' <a href="'+dir+'" target="_blank" rel="noopener" style="text-decoration:none;color:#dff3ff;background:#20486a;border:1px solid #3e6f97;padding:.24rem .52rem;border-radius:999px">Directions</a>'
+      +' <a href="'+pano+'" target="_blank" rel="noopener" style="text-decoration:none;color:#dff3ff;background:#20486a;border:1px solid #3e6f97;padding:.24rem .52rem;border-radius:999px">Street</a>';
+
+    return ''
+      +'<div style="min-width:270px;max-width:380px;line-height:1.45;color:#f4f8ff;font-size:14px;background:#122235;border:1px solid #2c4663;border-radius:8px;padding:.62rem .68rem">'
+      +'<div style="font-weight:700;font-size:1.08em;margin-bottom:.48rem;color:#ffffff">'+name+'</div>'
+      +kv('BoM_Stn#', String(r.unitid||'-'))
+      +kv('Location', loc)
+      +'<div style="margin:.55rem 0;padding:.55rem .6rem;background:#18324f;border:1px solid #2f5b84;border-radius:8px;color:#ffffff">'
+      +'<div style="font-weight:700;margin-bottom:.35rem">Recent packets</div>'
+      +(function(){
+          if(!lps || !lps.length) return '<div style="color:#dcecff">No packet data yet</div>';
+          var mode=((document.getElementById('pktTimeMode')||{}).value||'age');
+          function ttxt(lp){
+            if(mode==='exact'){
+              var t=lp.ts?new Date(lp.ts):null;
+              return (t && !isNaN(t.getTime())) ? t.toLocaleTimeString() : String(lp.ts||'-');
+            }
+            return String(ageText(lp.ts)||'-');
+          }
+          function btxt(lp){
+            var raw='';
+            if(lp.binary) raw=String(lp.binary).replace(/[^01]/g,'');
+            if(!raw){
+              var v=Number(lp.data_val);
+              if(isFinite(v)){
+                raw=(Math.trunc(v)>>>0).toString(2);
+                raw=raw.padStart(Math.max(8,raw.length),'0');
+              }
+            }
+            if(!raw) return 'n/a';
+            var groups=[];
+            for(var i=0;i<raw.length;i+=8) groups.push(raw.slice(i,i+8));
+            return groups.join(' ');
+          }
+          var h='';
+          lps.slice(0,4).forEach(function(lp){
+            h+='<details style="border:1px solid rgba(190,220,255,.2);border-radius:6px;padding:.22rem .38rem;margin:.28rem 0;background:rgba(8,20,34,.35)">';
+            h+='<summary style="cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:.6rem">'
+              +'<span style="color:#ffffff">'+String(lp.sensor||'-')+'</span>'
+              +'<span style="color:#ffffff">'+String(lp.data_val==null?'-':lp.data_val)+'</span>'
+              +'<span style="color:#dcecff">'+ttxt(lp)+'</span>'
+              +'</summary>';
+            h+='<div style="padding:.26rem .1rem .18rem .1rem;color:#dcecff;font-family:monospace;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere">binary:\\n'+btxt(lp)+'</div>';
+            h+='</details>';
+          });
+          return h;
+        })()
+      +'</div>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:.42rem .48rem;margin:.48rem 0 .55rem 0">'+chips+'</div>'
+      +'<details style="margin:.2rem 0 .4rem 0">'
+      +'<summary style="cursor:pointer;color:#9fc2e6">More details</summary>'
+      +'<div style="margin-top:.45rem">'
+      +(r.sensor_types?kv('Sensor types', String(r.sensor_types)):'')
+      +(r.sensor_ids?kv('Sensor IDs', String(r.sensor_ids)):'')
+      +((r.arro_site_id||r.device_ids)?kv('ARRO IDs', 'site '+String(r.arro_site_id||'-')+' · dev '+String(r.device_ids||'-')):'')
+      +((r.kml_name||r.source)?kv('Catalog', String(r.kml_name||'-')+' · '+String(r.source||'-')):'')
+      +'</div></details>'
+      +'<details>'
+      +'<summary style="cursor:pointer;color:#9fc2e6">Show Street View</summary>'
+      +'<img src="'+sv+'" style="margin-top:.35rem;width:100%;max-width:340px;border:1px solid #2a3948;border-radius:6px" onerror="this.style.display=&quot;none&quot;">'
+      +'</details>'
+      +'</div>';
+  }
+  function render(){
+    var q=(document.getElementById('q').value||'').trim();
+    var hideStale=!!(document.getElementById('hideStale')&&document.getElementById('hideStale').checked);
+    clustered.clearLayers();
+    plain.clearLayers();
+    pointMarkersByName={};
+    pointMarkersByBom={};
+    var pts=[];
+    all.forEach(function(r){
+      if(!match(r,q)) return;
+      if(hideStale && stationIsStale(r)) return;
+      if(r.latitude===''||r.longitude==='') return;
+      var lat=Number(r.latitude), lon=Number(r.longitude);
+      if(!isFinite(lat)||!isFinite(lon)) return;
+      pts.push([lat,lon]);
+      var m=L.circleMarker([lat,lon],{
+        radius:8,
+        weight:2,
+        color:'#e94c3c',
+        fillColor:'#e94c3c',
+        fillOpacity:0.9
+      });
+      m.bindPopup(markerHtml(r,lat,lon));
+      m.on('click', function(){ m.openPopup(); });
+      m._stationRef={name:(r.name||r.unitname||''), bom:(r.unitid||'')};
+      pointMarkersByName[norm(r.name||r.unitname||'')] = m;
+      if(r.unitid!==undefined && r.unitid!==null && String(r.unitid).trim()!=='') pointMarkersByBom[String(r.unitid).trim()] = m;
+      applyMarkerColorForStation(r,m);
+      if(useClusters) clustered.addLayer(m); else plain.addLayer(m);
+    });
+    document.getElementById('vis').textContent=pts.length;
+    if(pts.length && !initialFitDone){ map.fitBounds(L.latLngBounds(pts).pad(0.12)); initialFitDone=true; }
+    if(stationParam && !focusDone){
+      var q=String(stationParam).trim();
+      var m=pointMarkersByBom[q] || pointMarkersByName[norm(q)] || null;
+      if(m){
+        focusDone=true;
+        map.setView(m.getLatLng(), Math.max(map.getZoom(), 13));
+        m.openPopup();
+      }
+    }
+  }
+  function seedRecentFromHistory(){
+    fetch('/api/events?limit=1200').then(function(r){return r.json();}).then(function(d){
+      var evs=d.events||[];
+      for(var i=0;i<evs.length;i++){
+        var ev=evs[i]||{};
+        var sm=ev.sensor_map||null;
+        var ts=Date.parse(ev.ts||'');
+        if(!sm || !isFinite(ts)) continue;
+        var bom=String(sm.site_id_bom||'').trim();
+        var key=norm(sm.site||'');
+        if(bom) lastSeenByBom[bom]=Math.max(lastSeenByBom[bom]||0, ts);
+        if(key) lastSeenByName[key]=Math.max(lastSeenByName[key]||0, ts);
+
+        var de=ev.decode||{}, fr=ev.frame||{};
+        var pbin=String(fr.payload_bits||de.payload_bits||'').trim();
+        if(pbin.length>96) pbin=pbin.slice(0,96)+'…';
+        var pkt={
+          ts: ev.ts||'',
+          sensor: sm.sensor||'',
+          data_val: (de.data_val!==undefined?de.data_val:null),
+          binary: pbin
+        };
+        if(bom) pushRecentPacket(lastPacketsByBom, bom, pkt);
+        if(key) pushRecentPacket(lastPacketsByName, key, pkt);
+      }
+      refreshAllMarkerColors();
+      render();
+    }).catch(function(){});
+  }
+
+  fetch('/api/stations/rows?limit=50000').then(function(r){return r.json();}).then(function(d){
+    all=d.rows||[]; document.getElementById('total').textContent=all.length; render();
+    seedRecentFromHistory();
+    setTimeout(function(){ map.invalidateSize(); }, 120);
+  }).catch(function(){ setTimeout(function(){ map.invalidateSize(); }, 120); });
+  function updateFreshnessFromPacket(ev){
+    var sm=(ev&&ev.sensor_map)||null;
+    var pf=document.getElementById('pktFlash');
+    if(!pf) return;
+    if(sm){
+      var now=Date.now();
+      var bom=String(sm.site_id_bom||'').trim();
+      var key=norm(sm.site||'');
+      if(bom) lastSeenByBom[bom]=now;
+      if(key) lastSeenByName[key]=now;
+      var de=(ev&&ev.decode)||{}, fr=(ev&&ev.frame)||{};
+      var pbin=String(fr.payload_bits||de.payload_bits||'').trim();
+      if(pbin.length>96) pbin=pbin.slice(0,96)+'…';
+      var pkt={ts: ev.ts||new Date(now).toISOString(), sensor: sm.sensor||'', data_val:(de.data_val!==undefined?de.data_val:null), binary:pbin};
+      if(bom) pushRecentPacket(lastPacketsByBom, bom, pkt);
+      if(key) pushRecentPacket(lastPacketsByName, key, pkt);
+
+      var m=null;
+      if(bom && pointMarkersByBom[bom]) m=pointMarkersByBom[bom];
+      if(!m && key) m=pointMarkersByName[key] || null;
+      if(m){
+        var col=colorForAge(0);
+        m.setStyle({color:col, fillColor:col, fillOpacity:0.95, weight:2.5});
+        // Refresh popup body to include latest packet values/timestamp.
+        var ref=m._stationRef||{};
+        var rr={name:ref.name||sm.site||'', unitname:ref.name||sm.site||'', unitid:ref.bom||sm.site_id_bom||''};
+        m.setPopupContent(markerHtml(rr, m.getLatLng().lat, m.getLatLng().lng));
+        if(clustered && clustered.refreshClusters) try{ clustered.refreshClusters(); }catch(e){}
+        pf.textContent='Packet mapped: '+(sm.site||('BoM# '+(sm.site_id_bom||'?')))+' ('+(sm.sensor||'')+')';
+        pf.style.color='#5cd66f';
+      } else {
+        pf.textContent='Packet unmatched station on map: '+(sm.site||('BoM# '+(sm.site_id_bom||'?')));
+        pf.style.color='#f36f6f';
+      }
+    } else {
+      pf.textContent='Packet received with no station mapping';
+      pf.style.color='#f36f6f';
+    }
+  }
+
+  function refreshAllMarkerColors(){
+    all.forEach(function(r){
+      var m=null;
+      var bom=(r&&r.unitid!=null)?String(r.unitid).trim():'';
+      if(bom && pointMarkersByBom[bom]) m=pointMarkersByBom[bom];
+      if(!m){
+        var key=norm(r.name||r.unitname||'');
+        m=pointMarkersByName[key]||null;
+      }
+      if(m) applyMarkerColorForStation(r,m);
+    });
+    if(clustered && clustered.refreshClusters) try{ clustered.refreshClusters(); }catch(e){}
+  }
+
+  document.getElementById('q').addEventListener('input', render);
+  var fh=document.getElementById('fadeHours');
+  if(fh) fh.addEventListener('input', function(){ render(); });
+  var hs=document.getElementById('hideStale');
+  if(hs) hs.addEventListener('change', render);
+  document.getElementById('clustersOn').addEventListener('change', function(){
+    useClusters=!!this.checked;
+    if(useClusters){ if(map.hasLayer(plain)) map.removeLayer(plain); if(!map.hasLayer(clustered)) map.addLayer(clustered); }
+    else { if(map.hasLayer(clustered)) map.removeLayer(clustered); if(!map.hasLayer(plain)) map.addLayer(plain); }
+    render();
+  });
+
+  var es=new EventSource('/api/live');
+  es.onmessage=function(m){
+    try{ var ev=JSON.parse(m.data); updateFreshnessFromPacket(ev); }catch(e){}
+  };
+  setInterval(function(){
+    var hs=document.getElementById('hideStale');
+    if(hs && hs.checked) render(); else refreshAllMarkerColors();
+  }, 30000);
+})();
