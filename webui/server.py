@@ -2606,7 +2606,8 @@ __NAV__
 </div>
 <div class='card'>
   <h3 style='margin:.1rem 0 .5rem'>Receiver Registry (Pi1)</h3>
-  <div class='muted'>Registry manager UI is being wired here next. This confirms control-page extension is active on this build.</div>
+  <div id='regMsg' class='muted' style='margin-bottom:.45rem'>loading registry…</div>
+  <div id='regTable' class='muted'>loading…</div>
 </div>
 
 <script>
@@ -2662,6 +2663,13 @@ __NAV__
           +'</tr>';
       }).join('');
       document.getElementById('rx').innerHTML='<table class="tbl"><thead><tr><th>Receiver</th><th>Age</th><th>Last seen (UTC)</th><th>Events</th><th>Heartbeat</th></tr></thead><tbody>'+tr+'</tbody></table>';
+      fetch('/api/receivers_registry').then(function(r){return r.json();}).then(function(reg){
+        var rr=(reg&&reg.receivers)||[];
+        document.getElementById('regMsg').textContent='registry entries: '+rr.length;
+        if(!rr.length){ document.getElementById('regTable').textContent='no receivers'; return; }
+        var t=rr.map(function(x){ return '<tr><td>'+String(x.rxs_id||'')+'</td><td>'+String(x.name||'')+'</td><td>'+String(x.location||'')+'</td><td>'+String(x.base_url||'')+'</td></tr>'; }).join('');
+        document.getElementById('regTable').innerHTML='<table class="tbl"><thead><tr><th>rxs_id</th><th>Name</th><th>Location</th><th>Base URL</th></tr></thead><tbody>'+t+'</tbody></table>';
+      }).catch(function(){ document.getElementById('regMsg').textContent='registry load failed'; });
       document.getElementById('msg').textContent='updated '+new Date().toLocaleTimeString();
     }).catch(function(){ document.getElementById('msg').textContent='refresh failed'; });
   }
