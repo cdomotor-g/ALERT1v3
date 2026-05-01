@@ -2650,7 +2650,7 @@ __NAV__
         +'<div>Active endpoint (local pointer): <strong>'+String(g(ss,'local_active_base_url','n/a'))+'</strong></div>';
 
       var rows=g(rr,'receivers',[])||[];
-      if(!rows.length){ document.getElementById('rx').textContent='no receiver ingest yet'; return; }
+      if(!rows.length){ document.getElementById('rx').textContent='no receiver ingest yet'; }
       var tr=rows.map(function(r){
         var ts=g(r,'last_ts','');
         var cls=ageClass(ts);
@@ -2662,7 +2662,7 @@ __NAV__
           +'<td>'+String(g(g(r,'heartbeat',{}),'state',''))+'</td>'
           +'</tr>';
       }).join('');
-      document.getElementById('rx').innerHTML='<table class="tbl"><thead><tr><th>Receiver</th><th>Age</th><th>Last seen (UTC)</th><th>Events</th><th>Heartbeat</th></tr></thead><tbody>'+tr+'</tbody></table>';
+      if(rows.length){ document.getElementById('rx').innerHTML='<table class="tbl"><thead><tr><th>Receiver</th><th>Age</th><th>Last seen (UTC)</th><th>Events</th><th>Heartbeat</th></tr></thead><tbody>'+tr+'</tbody></table>'; }
       fetch('/api/receivers_registry').then(function(r){return r.json();}).then(function(reg){
         var rr=(reg&&reg.receivers)||[];
         document.getElementById('regMsg').textContent='registry entries: '+rr.length;
