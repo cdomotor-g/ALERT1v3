@@ -4639,6 +4639,22 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
+        if parsed.path.startswith('/static/'):
+            rel = parsed.path[len('/static/'):]
+            fp = Path('webui/static') / rel
+            if not fp.exists() or not fp.is_file():
+                self.send_response(HTTPStatus.NOT_FOUND)
+                self.end_headers()
+                return
+            ctype = 'application/javascript; charset=utf-8' if fp.suffix.lower() == '.js' else 'text/plain; charset=utf-8'
+            raw = fp.read_bytes()
+            self.send_response(HTTPStatus.OK)
+            self.send_header('Content-Type', ctype)
+            self.send_header('Content-Length', str(len(raw)))
+            self.end_headers()
+            self.wfile.write(raw)
+            return
+
         if parsed.path == '/':
             self.send_response(HTTPStatus.FOUND)
             self.send_header('Location', '/stations-map')
