@@ -19,6 +19,7 @@ from urllib.parse import parse_qs, urlparse, quote
 import urllib.request
 import csv
 import io
+from webui.routes_control import handle_control_get
 
 def _build_stamp():
     sha = os.environ.get('FWLAB_BUILD', '').strip()
@@ -1793,6 +1794,19 @@ class Handler(BaseHTTPRequestHandler):
     store: EventStore = None
     host_metrics_store: EventStore = None
 
+    # thin wrappers used by extracted route helpers
+    def load_control_plane_policy(self):
+        return load_control_plane_policy()
+
+    def _control_state_summary(self):
+        return _control_state_summary()
+
+    def _control_ingest_paths(self):
+        return _control_ingest_paths()
+
+    def _is_valid_rxs_id(self, v):
+        return _is_valid_rxs_id(v)
+
     def _json(self, obj, code=200):
         payload = json.dumps(obj, default=str).encode('utf-8')
         self.send_response(code)
@@ -2168,6 +2182,10 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header('Content-Length', str(len(raw)))
             self.end_headers()
             self.wfile.write(raw)
+            return
+
+        _ctl = handle_control_get(self, parsed)
+        if _ctl is not None:
             return
 
         if parsed.path == '/':
