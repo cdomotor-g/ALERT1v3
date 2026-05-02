@@ -68,7 +68,7 @@
             +'<td><input data-k="name" value="'+String(x.name||'').replace(/"/g,'&quot;')+'"></td>'
             +'<td><input data-k="location" value="'+String(x.location||'').replace(/"/g,'&quot;')+'"></td>'
             +'<td><input data-k="base_url" value="'+String(x.base_url||'').replace(/"/g,'&quot;')+'"></td>'
-            +'<td><button class="regSave">Save</button> <button class="regDel">Delete</button></td>'
+            +'<td><button class=\"regTest\">Test</button> <button class=\"regSave\">Save</button> <button class=\"regDel\">Delete</button></td>'
             +'</tr>';
         }).join('');
         document.getElementById('regTable').innerHTML='<table class=\"tbl\"><thead><tr><th>rxs_id</th><th>Name</th><th>Location</th><th>Base URL</th><th>Action</th></tr></thead><tbody>'+t+'</tbody></table>' + '<div style=\"margin-top:.5rem\">' + '<input id=\"regNewId\" placeholder=\"rxs_id (0002)\" style=\"width:9rem\"> ' + '<input id=\"regNewName\" placeholder=\"Name\" style=\"width:10rem\"> ' + '<input id=\"regNewLoc\" placeholder=\"Location\" style=\"width:10rem\"> ' + '<input id=\"regNewBase\" placeholder=\"Base URL\" style=\"width:16rem\"> ' + '<button id=\"regAdd\">Add</button>' + '</div>';
@@ -82,6 +82,14 @@
             .catch(function(){ document.getElementById('regMsg').textContent='save failed'; });
         }); });
 
+        document.querySelectorAll('#regTable .regTest').forEach(function(b){ b.addEventListener('click', function(){
+          var tr=b.closest('tr'); if(!tr) return;
+          var rid=tr.getAttribute('data-rxid')||'';
+          fetch('/api/receiver_proxy?rxs_id='+encodeURIComponent(rid)+'&path='+encodeURIComponent('/api/receiver_status'))
+            .then(function(r){return r.json();})
+            .then(function(d){ document.getElementById('regMsg').textContent = (d && d.ok) ? ('test ok '+rid) : ('test failed '+rid+': '+(d&&d.error?d.error:'unknown')); })
+            .catch(function(){ document.getElementById('regMsg').textContent='test failed '+rid; });
+        }); });
         document.querySelectorAll('#regTable .regDel').forEach(function(b){ b.addEventListener('click', function(){
           var tr=b.closest('tr'); if(!tr) return;
           var rid=tr.getAttribute('data-rxid')||'';
