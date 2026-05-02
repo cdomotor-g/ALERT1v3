@@ -2473,46 +2473,6 @@ class Handler(BaseHTTPRequestHandler):
             d['source'] = 'config/deployment_role.json'
             return self._json(d)
 
-        if parsed.path == '/api/control/policy':
-            pol = load_control_plane_policy()
-            pol.pop('ingestToken', None)
-            return self._json(pol)
-
-        if parsed.path == '/api/control/state_summary':
-            return self._json(_control_state_summary())
-
-        if parsed.path == '/api/control/receivers':
-            _, latest_dir, _ = _control_ingest_paths()
-            rows = []
-            for p in sorted(latest_dir.glob('*.json')):
-                try:
-                    d = json.loads(p.read_text(encoding='utf-8', errors='replace'))
-                    rows.append({
-                        'rxs_id': str(d.get('rxs_id', '')).strip().upper(),
-                        'last_ts': d.get('ts', ''),
-                        'event_count': int(d.get('event_count', 0) or 0),
-                        'heartbeat': d.get('heartbeat', {}),
-                        'stats': d.get('stats', {}),
-                    })
-                except Exception:
-                    pass
-            return self._json({'receivers': rows, 'count': len(rows)})
-
-        if parsed.path == '/api/control/receiver_latest':
-            q = parse_qs(parsed.query)
-            rxs_id = str((q.get('rxs_id', [''])[0] or '')).strip().upper()
-            if not _is_valid_rxs_id(rxs_id):
-                return self._json({'ok': False, 'error': 'invalid_rxs_id'}, code=400)
-            _, latest_dir, _ = _control_ingest_paths()
-            p = latest_dir / f'{rxs_id}.json'
-            if not p.exists():
-                return self._json({'ok': False, 'error': 'not_found'}, code=404)
-            try:
-                d = json.loads(p.read_text(encoding='utf-8', errors='replace'))
-                return self._json({'ok': True, 'data': d})
-            except Exception as e:
-                return self._json({'ok': False, 'error': str(e)}, code=500)
-
         if parsed.path == '/api/stations':
             rows = _load_stations()
             pairs = _pairs_within_km(rows, max_km=100.0, limit=5000)
