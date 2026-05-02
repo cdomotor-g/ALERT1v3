@@ -1,0 +1,234 @@
+<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Radio</title>
+<style>
+body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;background:#0f141a;color:#e6edf3;margin:0}
+.wrap{max-width:1200px;margin:0 auto;padding:1rem}
+.card{background:#17212b;border:1px solid #243243;border-radius:10px;padding:.8rem;margin:.6rem 0}
+@media (max-width: 860px){#radioAudioCard{position:sticky;top:46px;z-index:105}}
+.row{display:flex;gap:1rem;flex-wrap:wrap}
+.kpi{min-width:180px}.muted{color:#9fb0c3}.good{color:#6dd17c}.warn{color:#f2c14e}.bad{color:#f36f6f}
+pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:.86rem}
+</style>
+<script src='https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js'></script></head><body><div class='wrap'>
+  <h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 12h3m12 0h3'/><circle cx='12' cy='12' r='2.5'/><path d='M6.5 8.5a8 8 0 0 1 0 7M17.5 8.5a8 8 0 0 1 0 7'/></svg></span><span>Radio</span></h2>
+  <div class='muted' style='margin:-.2rem 0 .55rem'>Real-time RF monitor with waveform/waterfall views and stream controls for signal quality checks. Use this page during live tuning and reception troubleshooting.</div>
+  __NAV__
+  <div id='radioAudioCard' class='card'><strong>Radio Live</strong> <span class='muted'>· Real-time RF/decode health</span> · <button id='freezeBtn'>Freeze</button> <span id='freezeState' class='muted'>live</span> · <button id='audioBtn'>Load Audio</button> <span id='audioState' class='muted'>off</span> · Codec: <select id='audioCodec'><option value='auto' selected>auto</option><option value='opus'>opus</option><option value='aac'>aac</option></select> · Gain <input id='audioGain' type='number' min='0.5' max='4.0' step='0.1' value='1.6' style='width:70px'><br><audio id='audioPlayer' controls playsinline preload='none' style='margin-top:.35rem;width:100%'></audio><div class='muted' style='margin-top:.25rem'>If blocked on iOS, tap play on the native control above. Test links: <a href='/api/audio_aac' target='_blank' style='color:#7fc8ff'>aac</a> · <a href='/api/audio_opus' target='_blank' style='color:#7fc8ff'>opus</a></div></div>
+  <div class='card'>
+    RF now: Freq <span id='rf-freq-now'>-</span> Hz · Gain <span id='rf-gain-now'>-</span> dB · Squelch <span id='rf-sq-now'>-</span> dB<br>
+    RF control (pending/apply on receiver restart):
+    Freq <input id='rf-freq-set' style='width:140px' placeholder='173900000'>
+    Gain <input id='rf-gain-set' style='width:80px' placeholder='40'>
+    Squelch <input id='rf-sq-set' style='width:80px' placeholder='-33'>
+    <button id='rf-apply'>Save RF config</button>
+    <button id='rx-start'>Start receiver</button>
+    <button id='rx-stop'>Stop receiver</button>
+    <button id='rx-restart'>Restart receiver</button>
+    <span id='rf-msg' class='muted'></span>
+  </div>
+  <div class='row'>
+    <div class='card kpi'>Receiver<br><strong id='rx'>unknown</strong></div>
+    <div class='card kpi'>Events/min<br><strong id='rate'>0.0</strong></div>
+    <div class='card kpi'>Ones ratio avg<br><strong id='ones'>n/a</strong></div>
+    <div class='card kpi'>Top error<br><strong id='toperr'>none</strong></div>
+  </div>
+  <div class='card'><strong>Latest symbol waveform</strong> · Source: <select id='wavesrc'><option value='symbol' selected>symbol_samples</option><option value='bits'>payload_bits step</option></select><div id='symchart' style='height:220px'></div></div>
+  <div class='card'><strong>Symbol waterfall (recent frames)</strong><div id='wfchart' style='height:520px'></div></div>
+  <div class='card'><strong>Recent error codes</strong><pre id='errs'>none</pre></div>
+  <div class='card'><div id='chart' style='height:220px'></div></div>
+</div>
+<script>
+(function(){
+  function g(o,k,d){return (o&&o[k]!==undefined&&o[k]!==null)?o[k]:d;}
+  var events=[]; var max=1200;
+  var rx=document.getElementById('rx'), rate=document.getElementById('rate'), ones=document.getElementById('ones'), toperr=document.getElementById('toperr'), errs=document.getElementById('errs');
+  var wavesrc=document.getElementById('wavesrc');
+  var freezeBtn=document.getElementById('freezeBtn'), freezeState=document.getElementById('freezeState');
+  var audioBtn=document.getElementById('audioBtn'), audioState=document.getElementById('audioState');
+  var audioCodec=document.getElementById('audioCodec');
+  var audioGain=document.getElementById('audioGain');
+  var audioPlayer=document.getElementById('audioPlayer');
+  var rfFreqNow=document.getElementById('rf-freq-now'), rfGainNow=document.getElementById('rf-gain-now'), rfSqNow=document.getElementById('rf-sq-now');
+  var rfFreqSet=document.getElementById('rf-freq-set'), rfGainSet=document.getElementById('rf-gain-set'), rfSqSet=document.getElementById('rf-sq-set');
+  var rfApply=document.getElementById('rf-apply'), rfMsg=document.getElementById('rf-msg');
+  var rxStart=document.getElementById('rx-start'), rxStop=document.getElementById('rx-stop'), rxRestart=document.getElementById('rx-restart');
+  var paused=false;
+  var audioOn=false, audioEl=null;
+  var chart=(window.echarts)?echarts.init(document.getElementById('chart')):null;
+  var symchart=(window.echarts)?echarts.init(document.getElementById('symchart')):null;
+  var wfchart=(window.echarts)?echarts.init(document.getElementById('wfchart')):null;
+
+  function renderRfNow(){
+    if(!events.length || !rfFreqNow) return;
+    var ev=events[events.length-1]||{}, rxm=g(ev,'rx',{});
+    rfFreqNow.textContent=(rxm.center_freq_hz!=null?rxm.center_freq_hz:'-');
+    rfGainNow.textContent=(rxm.rf_gain_db!=null?rxm.rf_gain_db:'-');
+    rfSqNow.textContent=(rxm.rf_squelch_db!=null?rxm.rf_squelch_db:'-');
+  }
+
+  function loadRfConfig(){
+    if(!rfFreqSet) return;
+    fetch('/api/admin/rf_control').then(function(r){return r.json();}).then(function(c){
+      rfFreqSet.value=(c.center_freq_hz!=null?c.center_freq_hz:'');
+      rfGainSet.value=(c.rf_gain_db!=null?c.rf_gain_db:'');
+      rfSqSet.value=(c.rf_squelch_db!=null?c.rf_squelch_db:'');
+    })['catch'](function(){});
+  }
+
+  function refresh(){
+    if(!events.length) return;
+    var now=Date.now();
+    var recent=events.filter(function(e){var t=Date.parse(g(e,'ts','')); return isFinite(t) && (now-t)<=300000;});
+    rate.textContent=(recent.length/5.0).toFixed(2);
+
+    var rs={}, sum=0, n=0, ec={};
+    recent.forEach(function(e){
+      rs[g(e,'status','ok')] = (rs[g(e,'status','ok')]||0)+1;
+      var q=g(e,'quality',{}), or=g(q,'ones_ratio',null); if(typeof or==='number'){sum+=or;n++;}
+      (g(e,'errors',[])||[]).forEach(function(er){ var c=g(er,'code','unknown'); ec[c]=(ec[c]||0)+1; });
+    });
+    var st=(rs.error>0)?'error':((rs.warn>0)?'warn':'ok');
+    rx.textContent=st.toUpperCase()+' (ok:'+(rs.ok||0)+' warn:'+(rs.warn||0)+' err:'+(rs.error||0)+')';
+    rx.className=st==='ok'?'good':(st==='warn'?'warn':'bad');
+    ones.textContent=n? (sum/n).toFixed(3) : 'n/a';
+
+    var top='none', topn=0; Object.keys(ec).forEach(function(k){ if(ec[k]>topn){topn=ec[k]; top=k;} });
+    toperr.textContent=topn? (top+' ('+topn+')') : 'none';
+    errs.textContent=Object.keys(ec).sort(function(a,b){return ec[b]-ec[a];}).slice(0,10).map(function(k){return k+': '+ec[k];}).join('\\n') || 'none';
+
+    renderRfNow();
+
+    if(chart){
+      var tail=events.slice(-200), xs=[], ys=[];
+      tail.forEach(function(e){ var t=Date.parse(g(e,'ts','')); var q=g(e,'quality',{}), or=g(q,'ones_ratio',null); if(isFinite(t) && typeof or==='number'){ xs.push(new Date(t).toLocaleTimeString()); ys.push(or);} });
+      chart.setOption({animation:false,grid:{left:40,right:12,top:20,bottom:28},xAxis:{type:'category',data:xs},yAxis:{type:'value',min:0,max:1},tooltip:{trigger:'axis'},series:[{type:'line',data:ys,symbol:'none'}]});
+    }
+
+    if(symchart){
+      var sym=[];
+      if((wavesrc && wavesrc.value)==='bits'){
+        for(var i=events.length-1;i>=0;i--){
+          var frb=g(events[i],'frame',{}), pb=String(g(frb,'payload_bits',''));
+          if(pb){
+            for(var b=0;b<pb.length;b++) sym.push(pb[b]==='1'?1:-1);
+            break;
+          }
+        }
+      } else {
+        for(var i=events.length-1;i>=0;i--){
+          var fr=g(events[i],'frame',{}), s=g(fr,'symbol_samples',null);
+          if(s && s.length){ sym=s; break; }
+        }
+      }
+      var sx=[], sy=[];
+      for(var j=0;j<sym.length;j++){ sx.push(String(j)); sy.push(Number(sym[j])); }
+      symchart.setOption({
+        animation:false,
+        grid:{left:40,right:12,top:20,bottom:28},
+        xAxis:{type:'category',data:sx},
+        yAxis:{type:'value',min:-2,max:2,splitNumber:2,
+          splitArea:{show:true,areaStyle:{color:['rgba(44,123,182,0.14)','rgba(215,25,28,0.12)']}},
+          splitLine:{lineStyle:{color:'#2a3948'}}
+        },
+        tooltip:{trigger:'axis'},
+        series:[{type:'line',data:sy,symbol:'none',step:'middle',lineStyle:{color:'#8fd1ff'}}]
+      });
+    }
+
+    if(wfchart){
+      var rows=[];
+      for(var i=events.length-1;i>=0 && rows.length<40;i--){
+        var fr=g(events[i],'frame',{}), s=g(fr,'symbol_samples',null);
+        if(s && s.length) rows.push(s.map(function(v){return Number(v);}));
+      }
+      rows.reverse();
+      var maxLen=0;
+      for(var r=0;r<rows.length;r++) if(rows[r].length>maxLen) maxLen=rows[r].length;
+      var data=[], xlabels=[], ylabels=[];
+      for(var x=0;x<maxLen;x++) xlabels.push(String(x));
+      for(var y=0;y<rows.length;y++){
+        ylabels.push(String(y-rows.length+1));
+        for(var x=0;x<rows[y].length;x++) data.push([x,y,rows[y][x]]);
+      }
+      wfchart.setOption({
+        animation:false,
+        grid:{left:46,right:18,top:20,bottom:28},
+        xAxis:{type:'category',data:xlabels,name:'symbol'},
+        yAxis:{type:'category',data:ylabels,name:'frames'},
+        visualMap:{min:-1,max:1,orient:'horizontal',left:'center',bottom:0,inRange:{color:['#2c7bb6','#7fb8de','rgba(76,175,80,0.18)','#f4a06b','#d7191c']}},
+        tooltip:{position:'top'},
+        series:[{type:'heatmap',data:data,progressive:0,emphasis:{itemStyle:{borderColor:'#fff',borderWidth:1}}}]
+      });
+    }
+  }
+
+  function stopAudio(){
+    audioOn=false;
+    if(audioEl){ try{ audioEl.pause(); audioEl.src=''; }catch(e){} }
+    if(audioState) audioState.textContent='off';
+    if(audioBtn) audioBtn.textContent='Load Audio';
+  }
+
+  function startAudio(){
+    try{
+      if(!audioEl){
+        audioEl = audioPlayer || new Audio();
+        audioEl.autoplay = false;
+        audioEl.preload = 'none';
+        audioEl.controls = true;
+        audioEl.onplaying = function(){ audioOn=true; if(audioState) audioState.textContent='on'; if(audioBtn) audioBtn.textContent='Unload Audio'; };
+        audioEl.onpause = function(){ if(!audioOn) return; audioOn=false; if(audioState) audioState.textContent='paused'; if(audioBtn) audioBtn.textContent='Load Audio'; };
+        audioEl.onerror = function(){ audioOn=false; if(audioState) audioState.textContent='stream error'; if(audioBtn) audioBtn.textContent='Load Audio'; };
+        audioEl.onstalled = function(){ if(audioState) audioState.textContent='buffering'; };
+      }
+
+      var codec = (audioCodec && audioCodec.value) ? audioCodec.value : 'auto';
+      var gain = (audioGain && audioGain.value) ? Number(audioGain.value) : 1.6;
+      if(!isFinite(gain) || gain <= 0) gain = 1.6;
+      var primary = (codec==='aac') ? '/api/audio_aac' : '/api/audio_opus';
+      if(codec==='auto') primary = '/api/audio_aac';
+      var sep = primary.indexOf('?')>=0 ? '&' : '?';
+      audioEl.src = primary + sep + 'gain=' + encodeURIComponent(String(gain));
+      audioEl.load();
+      if(audioState) audioState.textContent='ready (press play on control)';
+      if(audioBtn) audioBtn.textContent='Unload Audio';
+    }catch(e){ if(audioState) audioState.textContent='error'; if(audioBtn) audioBtn.textContent='Load Audio'; }
+  }
+
+  if(audioBtn){ audioBtn.addEventListener('click', function(){ if(audioEl && audioEl.src){ stopAudio(); } else { startAudio(); } }); }
+  if(audioCodec){ audioCodec.addEventListener('change', function(){ if(audioEl && audioEl.src){ startAudio(); } }); }
+  if(audioGain){ audioGain.addEventListener('change', function(){ if(audioEl && audioEl.src){ startAudio(); } }); }
+
+  if(rfApply){
+    rfApply.addEventListener('click', function(){
+      var body={
+        center_freq_hz: rfFreqSet.value.trim()==='' ? null : Number(rfFreqSet.value),
+        rf_gain_db: rfGainSet.value.trim()==='' ? null : Number(rfGainSet.value),
+        rf_squelch_db: rfSqSet.value.trim()==='' ? null : Number(rfSqSet.value)
+      };
+      fetch('/api/admin/rf_control',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+        .then(function(r){return r.json();})
+        .then(function(d){ if(rfMsg) rfMsg.textContent = d.ok ? ' saved (restart receiver to apply)' : ' failed'; })
+        ['catch'](function(){ if(rfMsg) rfMsg.textContent=' failed'; });
+    });
+  }
+
+  function receiverAction(action){
+    fetch('/api/admin/receiver_action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:action})})
+      .then(function(r){return r.json();})
+      .then(function(d){ if(rfMsg) rfMsg.textContent = d.ok ? (' receiver '+action+' ok') : (' receiver '+action+' failed'); })
+      ['catch'](function(){ if(rfMsg) rfMsg.textContent=' receiver '+action+' failed'; });
+  }
+  if(rxStart) rxStart.addEventListener('click', function(){ receiverAction('start'); });
+  if(rxStop) rxStop.addEventListener('click', function(){ receiverAction('stop'); });
+  if(rxRestart) rxRestart.addEventListener('click', function(){ receiverAction('restart'); });
+
+  loadRfConfig();
+  fetch('/api/events?limit=800').then(function(r){return r.json();}).then(function(d){ events=d.events||[]; refresh(); })['catch'](function(){});
+  var es=new EventSource('/api/live');
+  es.onmessage=function(m){ try{ if(paused) return; events.push(JSON.parse(m.data)); if(events.length>max) events=events.slice(-max); refresh(); }catch(e){} };
+  if(wavesrc){ wavesrc.addEventListener('input', refresh); }
+  if(freezeBtn){ freezeBtn.addEventListener('click', function(){ paused=!paused; freezeBtn.textContent = paused ? 'Resume' : 'Freeze'; if(freezeState){ freezeState.textContent = paused ? 'frozen' : 'live'; } }); }
+  window.addEventListener('beforeunload', function(){ stopAudio(); });
+  window.addEventListener('resize', function(){ if(chart) chart.resize(); if(symchart) symchart.resize(); if(wfchart) wfchart.resize(); });
+})();
+</script></body></html>
