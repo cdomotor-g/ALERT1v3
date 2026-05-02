@@ -1,0 +1,189 @@
+<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Forensics</title>
+<style>
+body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;background:#0f141a;color:#e6edf3;margin:0}
+.wrap{max-width:1280px;margin:0 auto;padding:1rem}
+.card{background:#17212b;border:1px solid #243243;border-radius:10px;padding:.8rem;margin:.6rem 0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;border:1px solid #2a3948;padding:.6rem;border-radius:8px;max-height:52vh;overflow:auto}
+.muted{color:#9fb0c3}a{color:#7fc8ff}
+@media(max-width:980px){.grid{grid-template-columns:1fr}}
+</style></head><body><div class='wrap'>
+<h2 style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='6.5'/><path d='M20 20l-4.2-4.2'/><path d='M11 8.5v5M8.5 11h5'/></svg></span><span>Radio Diagnostics</span></h2>
+<div class='muted' style='margin:-.2rem 0 .55rem'>Deep diagnostics for decode quality, anomaly patterns, and error distributions across chosen windows. Use this page to validate demod changes and investigate packet integrity issues.</div>
+__NAV__
+<div class='card'>
+  <strong>Purpose</strong><br>
+  Non-daily deep diagnostics for SDR modulation/decode verification and SME review.
+  <ul>
+    <li>Flowgraph block inventory + connectivity extracted from <code>src/ALERT1v3.grc</code></li>
+    <li>Decoder/error telemetry references for troubleshooting</li>
+    <li>Hand-off material for external protocol/RF experts</li>
+  </ul>
+</div>
+<div class='grid'>
+  <div class='card'><strong>Flowgraph summary</strong><pre id='summary'>__FG_SUMMARY__</pre></div>
+  <div class='card'><strong>Pipeline narrative (for SME review)</strong><pre id='narrative'>1) RTL-SDR source (complex IQ)
+   - center frequency target and RF gain/squelch are the first-order sensitivity controls.
+
+2) Channel conditioning
+   - complex low-pass + decimation narrows to expected ALERT channel energy.
+
+3) Frequency demodulation
+   - quadrature demod converts FSK-like frequency swings into baseband amplitude swings.
+
+4) Symbol conditioning + timing
+   - AGC/LPF/symbol-sync stages shape and sample symbol decisions.
+   - failure modes here often show as all-ones/all-zeros bias, framing mismatch, hunt timeouts.
+
+5) Protocol framing / field extraction
+   - decoder assembles 10-bit words and 4-word frames, validates framing/pattern constraints,
+     then extracts sensor/address + data fields.
+
+6) Quality and operations outputs
+   - per-event quality/error taxonomy + logs/MQTT/web views for operator feedback and tuning.</pre></div>
+</div>
+<div class='card'><strong>Block inventory</strong><pre id='blocks'>__FG_BLOCKS__</pre></div>
+<div class='card'><strong>Connections (src -> dst)</strong><pre id='conns'>__FG_CONNS__</pre></div>
+<div class='card'><strong>Decode checklist</strong><pre id='check'>1) Confirm symbol timing and slicer behavior under real RF conditions.
+2) Validate 10-bit framing assumptions (start/stop polarity, bit order).
+3) Validate fixed pattern / CRC expectations against known-good captures.
+4) Compare pre/post filter and demod taps for bias (e.g. all-ones drift).
+5) Quantify quality metrics (ones_ratio, snr proxy, eye opening) over soak windows.</pre></div>
+<div class='card'><strong>Fixed-pair pattern stats (recent sample)</strong><pre id='pairStats'>loading...</pre></div>
+<div class='card'><strong>AFSK parity acceptance tracker (anomaly stats)</strong><pre id='anomStats'>loading...</pre></div>
+<div class='card'><strong>Demod/Decode error statistics</strong>
+  <div style='margin:.4rem 0'>
+    <label class='muted'>Counting mode
+      <select id='errMode' style='margin-left:.35rem'>
+        <option value='occurrence'>Error occurrences</option>
+        <option value='primary_packet'>Primary error per packet</option>
+      </select>
+    </label>
+    <span id='errModeNote' class='muted' style='margin-left:.6rem'></span>
+  </div>
+  <div id='errStats'>loading...</div><div id='errDesc' class='muted' style='margin-top:.6rem'>loading...</div></div>
+<div class='card'><button id='exportBundle'>Export SME bundle (.json)</button> <span id='exportMsg' class='muted'></span></div>
+<script>
+(function(){
+  function g(o,k,d){ return (o&&o[k]!==undefined&&o[k]!==null)?o[k]:d; }
+  var exportBtn=document.getElementById('exportBundle'), exportMsg=document.getElementById('exportMsg');
+  var pairStats=document.getElementById('pairStats');
+  var anomStats=document.getElementById('anomStats');
+  var errStats=document.getElementById('errStats');
+  var errDesc=document.getElementById('errDesc');
+
+  fetch('/api/pair_pattern_stats?limit=4000').then(function(r){return r.json();}).then(function(d){
+    function fmtRow(r){ return JSON.stringify(r.pattern)+'  -> '+r.count; }
+    var lines=[];
+    lines.push('strict-good top:');
+    (d.strict_top||[]).slice(0,6).forEach(function(r){ lines.push('  '+fmtRow(r)); });
+    lines.push('');
+    lines.push('good-ish top:');
+    (d.goodish_top||[]).slice(0,6).forEach(function(r){ lines.push('  '+fmtRow(r)); });
+    lines.push('');
+    lines.push('overall top:');
+    (d.overall_top||[]).slice(0,6).forEach(function(r){ lines.push('  '+fmtRow(r)); });
+    if(pairStats) pairStats.textContent = lines.join('\\n');
+  }).catch(function(){ if(pairStats) pairStats.textContent='failed to load pattern stats'; });
+
+  fetch('/api/anomaly_stats?limit=4000').then(function(r){return r.json();}).then(function(d){
+    var c=d.counts||{}, p=d.pct||{};
+    var out=[];
+    out.push('decoded frames: '+(d.decoded_frames||0));
+    out.push('');
+    out.push('sensor_id=0      : '+(c.sensor_id_0||0)+' ('+(p.sensor_id_0||0)+'%)');
+    out.push('data_val=0       : '+(c.data_val_0||0)+' ('+(p.data_val_0||0)+'%)');
+    out.push('sensor_id=8191   : '+(c.sensor_id_8191||0)+' ('+(p.sensor_id_8191||0)+'%)');
+    out.push('data_val=2047    : '+(c.data_val_2047||0)+' ('+(p.data_val_2047||0)+'%)  [display 002047]');
+    out.push('tuple 8191/2047  : '+(c.tuple_8191_2047||0)+' ('+(p.tuple_8191_2047||0)+'%)');
+    out.push('');
+    out.push('acceptance target: all above percentages should trend down in A/B trials');
+    if(anomStats) anomStats.textContent = out.join('\\n');
+  }).catch(function(){ if(anomStats) anomStats.textContent='failed to load anomaly stats'; });
+
+  function loadErrorStats(){
+    var mode=(document.getElementById('errMode')||{}).value||'occurrence';
+    fetch('/api/error_stats?limit=60000&mode='+encodeURIComponent(mode)).then(function(r){return r.json();}).then(function(d){
+      var rows=d.rows||[];
+      var totals=d.totals||{};
+      var pktTotals=d.packet_totals||{};
+      var pktErr=d.packet_with_errors||{};
+      var modeNote=document.getElementById('errModeNote');
+      if(modeNote) modeNote.textContent=d.counting_note||'';
+      function fmtPct(v){ return (Number(v||0).toFixed(2))+'%'; }
+      if(errStats){
+        if(!rows.length){ errStats.textContent='no errors in sampled window'; }
+        else {
+          var html='<table style="width:100%;border-collapse:collapse"><thead><tr>'
+            +'<th style="text-align:left;border-bottom:1px solid #2a3948;padding:.35rem">Error type</th>'
+            +'<th style="text-align:right;border-bottom:1px solid #2a3948;padding:.35rem">30m %</th>'
+            +'<th style="text-align:right;border-bottom:1px solid #2a3948;padding:.35rem">3h %</th>'
+            +'<th style="text-align:right;border-bottom:1px solid #2a3948;padding:.35rem">24h %</th>'
+            +'</tr></thead><tbody>';
+          html+='<tr style="background:#111925">'
+            +'<td style="padding:.35rem;border-bottom:1px solid #243243;font-weight:600">Total errors (100%)</td>'
+            +'<td style="padding:.35rem;text-align:right;border-bottom:1px solid #243243">'+(totals.count_30m||0)+'</td>'
+            +'<td style="padding:.35rem;text-align:right;border-bottom:1px solid #243243">'+(totals.count_3h||0)+'</td>'
+            +'<td style="padding:.35rem;text-align:right;border-bottom:1px solid #243243">'+(totals.count_24h||0)+'</td>'
+            +'</tr>';
+          html+='<tr style="background:#0f1722">'
+            +'<td style="padding:.35rem;border-bottom:1px solid #243243;font-weight:600">Packets in window</td>'
+            +'<td style="padding:.35rem;text-align:right;border-bottom:1px solid #243243">'+(pktTotals['30m']||0)+'</td>'
+            +'<td style="padding:.35rem;text-align:right;border-bottom:1px solid #243243">'+(pktTotals['3h']||0)+'</td>'
+            +'<td style="padding:.35rem;text-align:right;border-bottom:1px solid #243243">'+(pktTotals['24h']||0)+'</td>'
+            +'</tr>';
+          html+='<tr style="background:#0f1722">'
+            +'<td style="padding:.35rem;border-bottom:1px solid #243243;font-weight:600">Packets with any error</td>'
+            +'<td style="padding:.35rem;text-align:right;border-bottom:1px solid #243243">'+(pktErr['30m']||0)+'</td>'
+            +'<td style="padding:.35rem;text-align:right;border-bottom:1px solid #243243">'+(pktErr['3h']||0)+'</td>'
+            +'<td style="padding:.35rem;text-align:right;border-bottom:1px solid #243243">'+(pktErr['24h']||0)+'</td>'
+            +'</tr>';
+          rows.forEach(function(rw){
+            html+='<tr><td style="padding:.3rem;border-bottom:1px solid #243243">'+rw.code+'</td>'
+                +'<td style="padding:.3rem;text-align:right;border-bottom:1px solid #243243">'+fmtPct(rw.pct_30m)+'</td>'
+                +'<td style="padding:.3rem;text-align:right;border-bottom:1px solid #243243">'+fmtPct(rw.pct_3h)+'</td>'
+                +'<td style="padding:.3rem;text-align:right;border-bottom:1px solid #243243">'+fmtPct(rw.pct_24h)+'</td></tr>';
+          });
+          html+='</tbody></table>';
+          errStats.innerHTML=html;
+        }
+      }
+      if(errDesc){
+        if(!rows.length){
+          errDesc.textContent='no error descriptions to show';
+        } else {
+          var html='<div style="font-weight:600;margin-bottom:.35rem">Error descriptions</div>';
+          rows.forEach(function(rw, idx){
+            html+='<div style="border:1px solid #2b3c50;background:#111925;border-radius:6px;padding:.55rem .6rem">';
+            html+='<div style="font-family:monospace;color:#c6d4e3;background:#0d1622;border:1px solid #2a3a4e;padding:.32rem .45rem;border-radius:4px;display:inline-block">'+rw.code+'</div>';
+            html+='<div style="color:#d7e0ea;line-height:1.42;margin-top:.42rem">'+(rw.description||'')+'</div>';
+            html+='</div>';
+            if(idx < rows.length-1) html+='<div style="height:.85rem"></div>';
+          });
+          errDesc.innerHTML=html;
+        }
+      }
+    }).catch(function(){ if(errStats) errStats.textContent='failed to load error stats'; if(errDesc) errDesc.textContent='failed to load descriptions'; });
+  }
+  var em=document.getElementById('errMode');
+  if(em) em.addEventListener('change', loadErrorStats);
+  loadErrorStats();
+
+  if(exportBtn){
+    exportBtn.addEventListener('click', function(){
+      if(exportMsg) exportMsg.textContent=' building...';
+      fetch('/api/forensics_bundle?limit=300').then(function(r){return r.json();}).then(function(d){
+        var txt = JSON.stringify(d, null, 2);
+        var blob = new Blob([txt], {type:'application/json;charset=utf-8'});
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'fwlab_forensics_bundle.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        if(exportMsg) exportMsg.textContent=' exported';
+      }).catch(function(){ if(exportMsg) exportMsg.textContent=' export failed'; });
+    });
+  }
+})();
+</script></div></body></html>
