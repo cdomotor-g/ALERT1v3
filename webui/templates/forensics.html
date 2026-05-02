@@ -72,7 +72,17 @@ __NAV__
   var errStats=document.getElementById('errStats');
   var errDesc=document.getElementById('errDesc');
 
-  fetch('/api/pair_pattern_stats?limit=4000').then(function(r){return r.json();}).then(function(d){
+  function apiFetchJson(path){
+    var r=window.fwSelectedReceiver||null;
+    var rid=(r&&r.rxs_id)?String(r.rxs_id):'';
+    if(!r || !r.base_url || String(r.base_url)==='local' || !rid){
+      return fetch(path).then(function(x){return x.json();});
+    }
+    var qp='?rxs_id='+encodeURIComponent(rid)+'&path='+encodeURIComponent(path);
+    return fetch('/api/receiver_proxy'+qp).then(function(x){return x.json();}).then(function(o){ return (o&&o.ok&&o.data)?o.data:o; });
+  }
+
+  apiFetchJson('/api/pair_pattern_stats?limit=4000').then(function(r){return r.json();}).then(function(d){
     function fmtRow(r){ return JSON.stringify(r.pattern)+'  -> '+r.count; }
     var lines=[];
     lines.push('strict-good top:');
@@ -86,7 +96,7 @@ __NAV__
     if(pairStats) pairStats.textContent = lines.join('\\n');
   }).catch(function(){ if(pairStats) pairStats.textContent='failed to load pattern stats'; });
 
-  fetch('/api/anomaly_stats?limit=4000').then(function(r){return r.json();}).then(function(d){
+  apiFetchJson('/api/anomaly_stats?limit=4000').then(function(r){return r.json();}).then(function(d){
     var c=d.counts||{}, p=d.pct||{};
     var out=[];
     out.push('decoded frames: '+(d.decoded_frames||0));
@@ -103,7 +113,7 @@ __NAV__
 
   function loadErrorStats(){
     var mode=(document.getElementById('errMode')||{}).value||'occurrence';
-    fetch('/api/error_stats?limit=60000&mode='+encodeURIComponent(mode)).then(function(r){return r.json();}).then(function(d){
+    apiFetchJson('/api/error_stats?limit=60000&mode='+encodeURIComponent(mode)).then(function(r){return r.json();}).then(function(d){
       var rows=d.rows||[];
       var totals=d.totals||{};
       var pktTotals=d.packet_totals||{};
@@ -168,11 +178,21 @@ __NAV__
   var em=document.getElementById('errMode');
   if(em) em.addEventListener('change', loadErrorStats);
   loadErrorStats();
+  window.addEventListener('fw:receiver-selected', function(){
+    apiFetchJson('/api/pair_pattern_stats?limit=4000').then(function(d){
+      function fmtRow(r){ return JSON.stringify(r.pattern)+'  -> '+r.count; }
+      var lines=[]; lines.push('strict-good top:'); (d.strict_top||[]).slice(0,6).forEach(function(r){ lines.push('  '+fmtRow(r)); }); lines.push(''); lines.push('good-ish top:'); (d.goodish_top||[]).slice(0,6).forEach(function(r){ lines.push('  '+fmtRow(r)); }); lines.push(''); lines.push('overall top:'); (d.overall_top||[]).slice(0,6).forEach(function(r){ lines.push('  '+fmtRow(r)); }); if(pairStats) pairStats.textContent=lines.join('\n');
+    }).catch(function(){});
+    apiFetchJson('/api/anomaly_stats?limit=4000').then(function(d){
+      var c=d.counts||{}, p=d.pct||{}; var out=[]; out.push('decoded frames: '+(d.decoded_frames||0)); out.push(''); out.push('sensor_id=0      : '+(c.sensor_id_0||0)+' ('+(p.sensor_id_0||0)+'%)'); out.push('data_val=0       : '+(c.data_val_0||0)+' ('+(p.data_val_0||0)+'%)'); out.push('sensor_id=8191   : '+(c.sensor_id_8191||0)+' ('+(p.sensor_id_8191||0)+'%)'); out.push('data_val=2047    : '+(c.data_val_2047||0)+' ('+(p.data_val_2047||0)+'%)  [display 002047]'); out.push('tuple 8191/2047  : '+(c.tuple_8191_2047||0)+' ('+(p.tuple_8191_2047||0)+'%)'); out.push(''); out.push('acceptance target: all above percentages should trend down in A/B trials'); if(anomStats) anomStats.textContent=out.join('\n');
+    }).catch(function(){});
+    loadErrorStats();
+  });
 
   if(exportBtn){
     exportBtn.addEventListener('click', function(){
       if(exportMsg) exportMsg.textContent=' building...';
-      fetch('/api/forensics_bundle?limit=300').then(function(r){return r.json();}).then(function(d){
+      apiFetchJson('/api/forensics_bundle?limit=300').then(function(r){return r.json();}).then(function(d){
         var txt = JSON.stringify(d, null, 2);
         var blob = new Blob([txt], {type:'application/json;charset=utf-8'});
         var url = URL.createObjectURL(blob);
