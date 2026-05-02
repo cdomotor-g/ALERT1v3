@@ -1,0 +1,638 @@
+<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Dashboard</title>
+<style>
+body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}
+.page{padding:1rem}
+.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}
+.muted{color:#93a6b8}
+input,select,button{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:4px;padding:.3rem}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:.6rem;margin-bottom:.8rem}
+.good{color:#6dd17c}.warn{color:#f2c14e}.bad{color:#f36f6f}
+
+.sticky-wrap{position:sticky;top:0;z-index:50;background:#10151c;padding-top:.6rem}
+
+.table-wrap{max-height:58vh;overflow:auto;border:1px solid #243243;border-radius:8px;background:#121922}
+table{width:100%;border-collapse:collapse}
+th,td{border-bottom:1px solid #243243;padding:.4rem;text-align:left;vertical-align:top}
+thead th{position:sticky;top:0;background:#17212b;z-index:5}
+tr.ok{background:rgba(75,160,98,.10)}
+tr.warn{background:rgba(220,170,80,.12)}
+tr.error{background:rgba(200,80,80,.14)}
+tr.inline-detail td{background:#0f141a}
+#rows tr{cursor:pointer}
+#rows tr:hover td{background:rgba(127,200,255,.08)}
+#rows tr:active td{background:rgba(127,200,255,.16)}
+tr.selected td{box-shadow: inset 0 0 0 2px #4fa8ff;background:rgba(79,168,255,.18) !important}
+pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;border-radius:6px;border:1px solid #2a3948;max-height:240px;overflow:auto}
+.detail-bits{display:flex;flex-wrap:wrap;gap:2px;background:#0f141a;border:1px solid #2a3948;border-radius:6px;padding:.35rem;margin-top:.4rem}
+.detail-bits .b{width:10px;height:14px;border-radius:2px;display:inline-block}
+.detail-bits .one{background:#68b8ff}
+.detail-bits .zero{background:#2b3642}
+.small{font-size:.9em}
+</style>
+<script src='https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js'></script>
+</head>
+<body>
+<div class='page'>
+  <h2 id='pageTitle' style='margin-top:0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 10.5 12 3l9 7.5'/><path d='M5 9.5V21h14V9.5'/></svg></span><span>Dashboard</span></h2>
+  <div class='muted' style='margin:-.2rem 0 .55rem'>Live operating view for receiver health and packet flow. Use this page for quick situational awareness before drilling into analysis pages.</div>
+  __NAV__
+
+  <div class='sticky-wrap'>
+    <div class='card'>
+      Status: <span id='status'>starting</span> · Receiver: <span id='rx-state' class='muted'>unknown</span> · Events loaded: <span id='count'>0</span> · Source: <span id='source' class='muted'>n/a</span>
+    </div>
+
+    <div class='grid'>
+      <div class='card'><div class='muted small'>Decoder health</div><div id='sum-health'>n/a</div></div>
+      <div class='card'><div class='muted small'>Confidence (5m avg)</div><div id='sum-conf'>-</div></div>
+      <div class='card'><div class='muted small'>Errors (5m)</div><div id='sum-errs'>-</div></div>
+      <div class='card'><div class='muted small'>Decode rate (/min)</div><div id='sum-rate'>-</div></div>
+    </div>
+
+    <div id='rx-section' class='card'>
+      <div class='muted small'>Rx charts source: <span id='rx-source'>fallback</span></div>
+      <div class='muted small'>Rx packets per 2 min (last 30 min)</div>
+      <div id='rx-chart' style='height:150px'></div>
+      <div class='muted small' style='margin-top:.55rem'>Rx packets per 30 min (last 24 h)</div>
+      <div id='rx-chart-24h' style='height:150px'></div>
+      <div class='muted small'>Note: 30-min bins are phase-shifted by +15 min (…:15 to …:45 boundaries).</div>
+    </div>
+
+    <div class='card'>
+      Host metrics: <span id='hm-status' class='muted'>n/a</span> · Clock <span id='hm-clock'>-</span> · CPU <span id='hm-cpu'>-</span>% · RAM <span id='hm-mem'>-</span>% · Disk <span id='hm-disk'>-</span>% · Temp <span id='hm-temp'>-</span>°C · Load/core <span id='hm-load'>-</span> · Breaches <span id='hm-breach'>0</span>
+    </div>
+
+
+    <div class='card'>
+      Storage: <span id='st-mode' class='muted'>n/a</span> · Used <span id='st-used'>-</span>% · Free <span id='st-free'>-</span> GB · Retention <span id='st-days'>-</span> days
+    </div>
+
+    <div id='detailTop' class='card' style='display:none'>
+      <div id='detailTopHeader' class='muted' style='cursor:pointer;display:flex;align-items:center;gap:.4rem;justify-content:space-between'>
+        <span>Drill-down (click this header to close)</span>
+        <span>
+          <button id='detailTail'>Tail: ON</button>
+          <button id='detailPrev'>◀ Prev</button>
+          <button id='detailNext'>Next ▶</button>
+        </span>
+      </div>
+      <div class='muted small' style='margin-top:.35rem'>Frame bits (graphical)</div>
+      <div id='detailBits' class='detail-bits'></div>
+      <pre id='detailText'>No event selected.</pre>
+    </div>
+  </div>
+
+  <div id='data-section'>
+  <div id='table-controls-card' class='card'>
+    <span class='muted'>Table controls:</span>
+    <button id='filtersToggle' style='margin-left:.4rem'>Hide filters</button><br>
+    <div id='filtersInner' style='margin-top:.35rem'>
+    Sensor: <input id='sensor' placeholder='sensor id' style='width:90px'>
+    · Min score: <input id='minScore' type='number' min='0' max='1' step='0.05' placeholder='0.0' style='width:72px'>
+    · Status: <select id='statusFilter'><option value=''>all</option><option value='ok'>ok</option><option value='warn'>warn</option><option value='error'>error</option></select>
+    · <label><input type='checkbox' id='warnOnly'> warn/error only</label>
+    · <label><input type='checkbox' id='okOnly'> ok only (hide warn/error)</label>
+    · Time: <select id='timeMode'><option value='local' selected>local</option><option value='zulu'>zulu</option></select>
+    · Detail: <select id='detailMode'><option value='top' selected>top</option><option value='inline'>inline</option></select>
+    · <button id='resetBtn'>Reset filters</button>
+    · <button id='exportBtn'>Export filtered CSV</button>
+    </div>
+  </div>
+  <div class='table-wrap'>
+    <table><thead><tr><th>Time</th><th>Status</th><th>Score</th><th>Ones Ratio</th><th>SNR (dB)</th><th>Conf</th><th>Errs</th><th>Sensor</th><th>Format</th><th>Pair</th><th>Data</th><th>Summary</th></tr></thead><tbody id='rows'></tbody></table>
+  </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  function g(o,k,d){ return (o && o[k]!==undefined && o[k]!==null) ? o[k] : d; }
+  function escCSV(v){ return ('"'+String(v).replace(/"/g,'""')+'"'); }
+
+  var rows=document.getElementById('rows');
+  var dataSection=document.getElementById('data-section');
+  var tableControlsCard=document.getElementById('table-controls-card');
+  var rxSection=document.getElementById('rx-section');
+  var rfControlsSection=document.getElementById('rf-controls-section');
+  var isEventsPage = (window.location.pathname === '/events' || window.location.pathname === '/packets');
+  if(dataSection && !isEventsPage){ dataSection.style.display='none'; }
+  if(tableControlsCard && !isEventsPage){ tableControlsCard.style.display='none'; }
+  if(rxSection && isEventsPage){ rxSection.style.display='none'; }
+  if(rfControlsSection && isEventsPage){ rfControlsSection.style.display='none'; }
+  var status=document.getElementById('status');
+  var filtersToggle=document.getElementById('filtersToggle');
+  var filtersInner=document.getElementById('filtersInner');
+  var rxState=document.getElementById('rx-state');
+  function selectedReceiverText(){
+    var r=window.fwSelectedReceiver||null;
+    if(!r) return 'unknown';
+    var t=(r.rxs_id||'')+' · '+(r.name||'Receiver')+' @ '+(r.location||'unknown');
+    if(String(r.base_url||'')!=='local') t += ' (remote scaffold)';
+    return t;
+  }
+  window.addEventListener('fw:receiver-selected', function(){
+    if(rxState) rxState.textContent = selectedReceiverText();
+  });
+  var count=document.getElementById('count');
+  var source=document.getElementById('source');
+  var sensor=document.getElementById('sensor');
+  var minScore=document.getElementById('minScore');
+  var statusFilter=document.getElementById('statusFilter');
+  var warnOnly=document.getElementById('warnOnly');
+  var okOnly=document.getElementById('okOnly');
+  var timeMode=document.getElementById('timeMode');
+  var detailMode=document.getElementById('detailMode');
+  var resetBtn=document.getElementById('resetBtn');
+  var exportBtn=document.getElementById('exportBtn');
+  var detailText=document.getElementById('detailText');
+  var detailBits=document.getElementById('detailBits');
+  var detailTop=document.getElementById('detailTop');
+  var detailTopHeader=document.getElementById('detailTopHeader');
+  var detailPrev=document.getElementById('detailPrev');
+  var detailNext=document.getElementById('detailNext');
+  var detailTail=document.getElementById('detailTail');
+  if(detailTop && !isEventsPage){ detailTop.style.display='none'; }
+  function eventKey(evt){ return String(g(evt,'ts','')) + '|' + String(g(g(evt,'decode',{}),'sensor_id','')) + '|' + String(g(g(evt,'decode',{}),'data_val','')); }
+
+  if(detailTopHeader){
+    detailTopHeader.addEventListener('click', function(ev){
+      if(ev && ev.target && (ev.target.id==='detailPrev' || ev.target.id==='detailNext')) return;
+      setTailMode(false);
+      selectedDetailKey='';
+      if(detailTop){ detailTop.style.display='none'; }
+      if(detailBits){ detailBits.innerHTML=''; }
+      clearInlineDetail();
+      render();
+    });
+  }
+
+  function filteredEventsDesc(){
+    var out=[];
+    for(var i=events.length-1;i>=0;i--){ var ev=events[i]; if(passFilter(ev)) out.push(ev); }
+    return out;
+  }
+
+  function setTailMode(on){
+    tailMode = !!on;
+    if(detailTail){ detailTail.textContent = tailMode ? 'Tail: ON' : 'Tail: OFF'; }
+  }
+
+  function refreshTailDetail(){
+    if(!tailMode) return;
+    if(!events.length) return;
+    var latest = events[events.length-1];
+    selectedDetailKey = eventKey(latest);
+    if(detailTop){ detailTop.style.display='block'; detailText.textContent=detailPayload(latest); }
+    renderDetailBits(latest);
+  }
+
+  function navDetail(step){
+    setTailMode(false);
+    var list=filteredEventsDesc();
+    if(!list.length) return;
+    var idx=0;
+    if(selectedDetailKey){
+      for(var i=0;i<list.length;i++){ if(eventKey(list[i])===selectedDetailKey){ idx=i; break; } }
+    }
+    var ni=idx+step;
+    if(ni<0) ni=0;
+    if(ni>=list.length) ni=list.length-1;
+    var ev=list[ni];
+    selectedDetailKey=eventKey(ev);
+    if(detailTop){ detailTop.style.display='block'; detailText.textContent=detailPayload(ev); }
+    renderDetailBits(ev);
+    render();
+  }
+  if(detailPrev){ detailPrev.addEventListener('click', function(e){ e.stopPropagation(); navDetail(1); }); }
+  if(detailNext){ detailNext.addEventListener('click', function(e){ e.stopPropagation(); navDetail(-1); }); }
+  if(detailTail){ detailTail.addEventListener('click', function(e){ e.stopPropagation(); setTailMode(!tailMode); if(tailMode){ refreshTailDetail(); render(); } }); }
+  if(isEventsPage && window.innerWidth<=860 && filtersInner){ filtersInner.style.display='none'; if(filtersToggle) filtersToggle.textContent='Show filters'; }
+  if(isEventsPage){
+    var t=document.getElementById('pageTitle');
+    if(t){
+      t.innerHTML = "<span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='4' width='16' height='16' rx='2'/><path d='M8 9h8M8 13h8M8 17h5'/></svg></span><span>Packets</span>";
+    }
+  }
+  if(filtersToggle){ filtersToggle.addEventListener('click', function(){
+    if(!filtersInner) return;
+    var hidden = (filtersInner.style.display==='none');
+    filtersInner.style.display = hidden ? '' : 'none';
+    filtersToggle.textContent = hidden ? 'Hide filters' : 'Show filters';
+  }); }
+  var rxChartEl=document.getElementById('rx-chart');
+  var rxChart=(window.echarts && rxChartEl) ? echarts.init(rxChartEl) : null;
+  var rxSourceEl=document.getElementById('rx-source');
+  var rxChart24El=document.getElementById('rx-chart-24h');
+  var rxChart24=(window.echarts && rxChart24El) ? echarts.init(rxChart24El) : null;
+  var rfFreqNow=document.getElementById('rf-freq-now'), rfGainNow=document.getElementById('rf-gain-now'), rfSqNow=document.getElementById('rf-sq-now');
+  var rfFreqSet=document.getElementById('rf-freq-set'), rfGainSet=document.getElementById('rf-gain-set'), rfSqSet=document.getElementById('rf-sq-set');
+  var rfApply=document.getElementById('rf-apply'), rfMsg=document.getElementById('rf-msg');
+  var rxStart=document.getElementById('rx-start'), rxStop=document.getElementById('rx-stop'), rxRestart=document.getElementById('rx-restart');
+  var events=[];
+  var rxAgg=null;
+  var inlineRow=null;
+  var selectedDetailKey='';
+  var tailMode=true;
+
+  function fmtTs(ts){
+    if(!ts) return '';
+    var d=new Date(ts);
+    if(!isFinite(d.getTime())) return ts;
+    if(timeMode.value==='zulu') return d.toISOString();
+    return d.toLocaleString();
+  }
+
+  function classForStatus(s){ if(s==='ok') return 'good'; if(s==='warn') return 'warn'; return 'bad'; }
+
+  function drawRxBars(){
+    if(!rxChart) return;
+    var bins = 15; // 15 x 2min = 30min window
+    var counts = new Array(bins).fill(0);
+    var labels = new Array(bins);
+    var now = Date.now();
+    var windowMs = 30*60*1000;
+    var binMs = windowMs / bins;
+
+    if(rxAgg && rxAgg.rx_2m_30m && rxAgg.rx_2m_30m.counts && rxAgg.rx_2m_30m.labels){
+      counts = rxAgg.rx_2m_30m.counts.slice(0, bins);
+      labels = rxAgg.rx_2m_30m.labels.slice(0, bins);
+      if(rxSourceEl){ rxSourceEl.textContent='sidecar'; rxSourceEl.className='good'; }
+    } else {
+      if(rxSourceEl){ rxSourceEl.textContent='fallback'; rxSourceEl.className='warn'; }
+      for(var b=0;b<bins;b++){
+        var ageStartMin = Math.round(((bins-b)*binMs)/60000);
+        labels[b] = '-' + ageStartMin + 'm';
+        if (b === bins-1) labels[b] = 'now';
+      }
+
+      for(var i=0;i<events.length;i++){
+        var t = Date.parse(g(events[i],'ts',''));
+        if(!isFinite(t)) continue;
+        var age = now - t;
+        if(age < 0 || age > windowMs) continue;
+        var idx = bins - 1 - Math.floor(age / binMs);
+        if(idx>=0 && idx<bins) counts[idx]++;
+      }
+    }
+
+    rxChart.setOption({
+      animation:false,
+      grid:{left:36,right:12,top:18,bottom:24},
+      xAxis:{type:'category',data:labels,axisLabel:{color:'#b6c2cf',fontSize:10},axisLine:{lineStyle:{color:'#2a3948'}}},
+      yAxis:{type:'value',minInterval:1,axisLabel:{color:'#b6c2cf',fontSize:10},splitLine:{lineStyle:{color:'#2a3948'}}},
+      tooltip:{trigger:'axis'},
+      series:[{type:'bar',data:counts,itemStyle:{color:'#7fc8ff'},barMaxWidth:14}]
+    }, true);
+
+    if(rxChart24){
+      var bins24=48; // 48 x 30min = 24h
+      var counts24=new Array(bins24).fill(0);
+      var labels24=new Array(bins24);
+
+      if(rxAgg && rxAgg.rx_30m_24h && rxAgg.rx_30m_24h.counts && rxAgg.rx_30m_24h.labels){
+        counts24 = rxAgg.rx_30m_24h.counts.slice(0, bins24);
+        labels24 = rxAgg.rx_30m_24h.labels.slice(0, bins24);
+      } else {
+        var windowMs24=24*60*60*1000;
+        var binMs24=30*60*1000;
+        var phaseMs=15*60*1000; // shift bins to :15/:45 boundaries
+        for(var b2=0;b2<bins24;b2++){
+          var ageH=((bins24-b2)*binMs24)/3600000;
+          labels24[b2]='-'+Math.round(ageH)+'h';
+          if(b2===bins24-1) labels24[b2]='now';
+        }
+        for(var ii=0;ii<events.length;ii++){
+          var t2=Date.parse(g(events[ii],'ts',''));
+          if(!isFinite(t2)) continue;
+          var age2=now-t2;
+          if(age2<0 || age2>windowMs24) continue;
+          var idx2=bins24-1-Math.floor((age2+phaseMs)/binMs24);
+          if(idx2>=0 && idx2<bins24) counts24[idx2]++;
+        }
+      }
+      rxChart24.setOption({
+        animation:false,
+        grid:{left:36,right:12,top:18,bottom:24},
+        xAxis:{type:'category',data:labels24,axisLabel:{color:'#b6c2cf',fontSize:10,interval:3},axisLine:{lineStyle:{color:'#2a3948'}}},
+        yAxis:{type:'value',minInterval:1,axisLabel:{color:'#b6c2cf',fontSize:10},splitLine:{lineStyle:{color:'#2a3948'}}},
+        tooltip:{trigger:'axis'},
+        series:[{type:'bar',data:counts24,itemStyle:{color:'#5fa8ff'},barMaxWidth:10}]
+      }, true);
+    }
+  }
+
+  function computeSummary(){
+    var now = Date.now(), recent=[];
+    for(var i=0;i<events.length;i++){
+      var t=Date.parse(g(events[i],'ts',''));
+      if(isFinite(t) && (now-t)<=300000) recent.push(events[i]);
+    }
+    if(!recent.length){
+      document.getElementById('sum-health').textContent='n/a';
+      document.getElementById('sum-conf').textContent='-';
+      document.getElementById('sum-errs').textContent='-';
+      document.getElementById('sum-rate').textContent='0.0';
+      return;
+    }
+    var st={ok:0,warn:0,error:0}, scoreN=0, scoreSum=0, errCnt=0, codeCount={};
+    for(var j=0;j<recent.length;j++){
+      var e=recent[j]; var s=g(e,'status','ok'); st[s]=(st[s]||0)+1;
+      var q=g(g(e,'quality',{}),'score',null); if(typeof q==='number'){ scoreN++; scoreSum+=q; }
+      var errs=g(e,'errors',[]); if(!errs || !errs.length) errs=[];
+      errCnt += errs.length;
+      for(var k=0;k<errs.length;k++){ var c=g(errs[k],'code','unknown'); codeCount[c]=(codeCount[c]||0)+1; }
+    }
+    var health = st.error>0 ? 'ERROR' : (st.warn>0 ? 'WARN' : 'OK');
+    var healthEl=document.getElementById('sum-health');
+    healthEl.textContent=health+' (ok:'+st.ok+' warn:'+st.warn+' err:'+st.error+')';
+    healthEl.className=classForStatus(health.toLowerCase());
+    document.getElementById('sum-conf').textContent = scoreN ? (scoreSum/scoreN).toFixed(3) : 'n/a';
+    var top='none',topN=0; for(var key in codeCount){ if(codeCount[key]>topN){topN=codeCount[key]; top=key;} }
+    document.getElementById('sum-errs').textContent = errCnt+' total'+(topN?(' · top '+top+' ('+topN+')'):'');
+    document.getElementById('sum-rate').textContent = (recent.length/5.0).toFixed(2);
+  }
+
+  function passFilter(ev){
+    var f=sensor.value.trim(), de=g(ev,'decode',{});
+    if(f && String(g(de,'sensor_id',''))!==f) return false;
+    var st=g(ev,'status','');
+    var sf=statusFilter.value; if(sf && st!==sf) return false;
+    if(warnOnly.checked && st==='ok') return false;
+    if(okOnly.checked && st!=='ok') return false;
+    var ms=minScore.value.trim();
+    if(ms){ var v=Number(ms), q=g(g(ev,'quality',{}),'score',null); if(typeof q==='number' && q < v) return false; }
+    return true;
+  }
+
+  function detailPayload(evt){
+    var fr=g(evt,'frame',{});
+    return JSON.stringify({
+      ts:g(evt,'ts',''),
+      status:g(evt,'status',''),
+      summary:g(evt,'summary',''),
+      frame:{
+        payload_hex:g(fr,'payload_hex',''),
+        bits_preview:String(g(fr,'payload_bits','')).slice(0,128),
+        start_bit:g(fr,'start_bit',null),
+        stop_bit:g(fr,'stop_bit',null)
+      },
+      errors:g(evt,'errors',[]),
+      decode:g(evt,'decode',{}),
+      quality:g(evt,'quality',{}),
+      rx:g(evt,'rx',{}),
+      display:g(evt,'display',''),
+      schema:g(evt,'schema','')
+    }, null, 2);
+  }
+
+  function renderDetailBits(evt){
+    if(!detailBits) return;
+    var fr=g(evt,'frame',{}), bits=String(g(fr,'payload_bits',''));
+    if(!bits){ detailBits.innerHTML=''; return; }
+    var h='';
+    for(var i=0;i<bits.length;i++){
+      var b=bits[i]==='1'?'one':'zero';
+      h += '<span class="b '+b+'" title="bit '+i+': '+bits[i]+'"></span>';
+    }
+    detailBits.innerHTML=h;
+  }
+
+  function clearInlineDetail(){
+    if(inlineRow && inlineRow.parentNode){ inlineRow.parentNode.removeChild(inlineRow); }
+    inlineRow=null;
+  }
+
+  function showDetail(tr, evt){
+    setTailMode(false);
+    var key = eventKey(evt);
+    if(selectedDetailKey === key){
+      selectedDetailKey = '';
+      clearInlineDetail();
+      if(detailTop){ detailTop.style.display='none'; }
+      if(detailBits){ detailBits.innerHTML=''; }
+      return;
+    }
+    selectedDetailKey = key;
+
+    var text=detailPayload(evt);
+    if(detailMode.value==='top'){
+      clearInlineDetail();
+      if(detailTop){ detailTop.style.display='block'; detailText.textContent=text; renderDetailBits(evt); }
+      render();
+      return;
+    }
+    if(detailTop){ detailTop.style.display='none'; }
+    clearInlineDetail();
+    inlineRow=document.createElement('tr'); inlineRow.className='inline-detail';
+    var td=document.createElement('td'); td.colSpan=12;
+    var pre=document.createElement('pre'); pre.textContent=text;
+    td.appendChild(pre); inlineRow.appendChild(td);
+    tr.parentNode.insertBefore(inlineRow, tr.nextSibling);
+  }
+
+  function renderRfNow(){
+    if(!rfFreqNow || !rfGainNow || !rfSqNow) return;
+    if(!events.length) return;
+    var ev = events[events.length-1] || {};
+    var rx = g(ev,'rx',{});
+    rfFreqNow.textContent = (rx.center_freq_hz!=null?rx.center_freq_hz:'-');
+    rfGainNow.textContent = (rx.rf_gain_db!=null?rx.rf_gain_db:'-');
+    rfSqNow.textContent = (rx.rf_squelch_db!=null?rx.rf_squelch_db:'-');
+  }
+
+  function loadRfConfig(){
+    if(!rfFreqSet || !rfGainSet || !rfSqSet) return;
+    fetch('/api/admin/rf_control').then(function(r){return r.json();}).then(function(c){
+      rfFreqSet.value = (c.center_freq_hz!=null?c.center_freq_hz:'');
+      rfGainSet.value = (c.rf_gain_db!=null?c.rf_gain_db:'');
+      rfSqSet.value = (c.rf_squelch_db!=null?c.rf_squelch_db:'');
+    })['catch'](function(){});
+  }
+
+  function render(){
+    clearInlineDetail();
+    rows.innerHTML='';
+    var shown=0;
+    for(var i=events.length-1;i>=0;i--){
+      var ev=events[i]; if(!passFilter(ev)) continue; shown++;
+      var tr=document.createElement('tr'); tr.className=g(ev,'status','');
+      if(selectedDetailKey && eventKey(ev)===selectedDetailKey){ tr.classList.add('selected'); }
+      var q=g(g(ev,'quality',{}),'score',null); q=(typeof q==='number')?q.toFixed(3):'';
+      var qy=g(ev,'quality',{});
+      var c=g(qy,'confidence','');
+      var or=g(qy,'ones_ratio',null); or=(typeof or==='number')?or.toFixed(3):'';
+      var snr=g(qy,'snr_db_proxy',null); snr=(typeof snr==='number')?snr.toFixed(2):'';
+      var errs=g(ev,'errors',[]); var errN=(errs&&errs.length)?errs.length:0;
+      var errCodes=(errs||[]).map(function(e){return g(e,'code','');});
+      function hasErr(prefix){ for(var ei=0;ei<errCodes.length;ei++){ if(String(errCodes[ei]).indexOf(prefix)===0) return true; } return false; }
+      var de=g(ev,'decode',{});
+      var sid=g(de,'sensor_id','');
+      var sm=g(ev,'sensor_map',null);
+      var sensorLabel = sm ? ((g(sm,'site','') && g(sm,'sensor','')) ? (g(sm,'site','')+' - '+g(sm,'sensor','')) : (g(sm,'sensor','') || g(sm,'site','') || sid)) : sid;
+      var sidLink = (sid!=='' && sid!==null && sid!==undefined) ? ('<a style="color:#7fc8ff" href="/data?sensor_id='+encodeURIComponent(String(sid))+'&window=24h">'+sensorLabel+'</a>') : '';
+
+      var orHtml = hasErr('signal.bit_balance_extreme') ? ('<span class="bad">'+or+'</span>') : or;
+      var snrHtml = hasErr('signal.low_snr_proxy') ? ('<span class="bad">'+snr+'</span>') : snr;
+      var fmtHtml = hasErr('decode.invalid_format_id') ? ('<span class="bad">'+g(de,'format_id','')+'</span>') : g(de,'format_id','');
+      var sidHtml = hasErr('decode.zero_sensor_id') ? ('<span class="bad">'+sidLink+'</span>') : sidLink;
+      var pairId = g(de,'fixed_pair_pattern_id',null);
+      var pairHtml = (pairId===null || pairId===undefined || pairId==='') ? '<span class="muted">-</span>' : String(pairId);
+      if(hasErr('decode.fixed_pair_mismatch_w1')||hasErr('decode.fixed_pair_mismatch_w2')||hasErr('decode.fixed_pair_mismatch_w3')||hasErr('decode.fixed_pair_mismatch_w4')){
+        pairHtml = '<span class="bad">mismatch</span>';
+      }
+      var summaryHtml = (errN>0) ? ('<span class="warn">'+g(ev,'summary','')+'</span>') : g(ev,'summary','');
+
+      tr.innerHTML='<td>'+fmtTs(g(ev,'ts',''))+'</td><td>'+g(ev,'status','')+'</td><td>'+q+'</td><td>'+orHtml+'</td><td>'+snrHtml+'</td><td>'+c+'</td><td>'+errN+'</td><td>'+sidHtml+'</td><td>'+fmtHtml+'</td><td>'+pairHtml+'</td><td>'+g(de,'data_val','')+'</td><td>'+summaryHtml+'</td>';
+      (function(t,e){ t.addEventListener('click', function(){ showDetail(t,e); }); })(tr,ev);
+      rows.appendChild(tr);
+      if(shown>=300) break;
+    }
+    count.textContent=String(events.length);
+    computeSummary();
+    drawRxBars();
+    renderRfNow();
+  }
+
+  function exportCSV(){
+    var filtered=[]; for(var i=0;i<events.length;i++) if(passFilter(events[i])) filtered.push(events[i]);
+    var lines=['"ts","status","quality_score","quality_confidence","errors_count","sensor_id","format_id","data_val","summary","error_codes"'];
+    for(var j=0;j<filtered.length;j++){
+      var ev=filtered[j], de=g(ev,'decode',{}), q=g(ev,'quality',{}), errs=g(ev,'errors',[]);
+      var errCodes=[]; for(var k=0;k<errs.length;k++) errCodes.push(g(errs[k],'code',''));
+      var row=[g(ev,'ts',''),g(ev,'status',''),g(q,'score',''),g(q,'confidence',''),errs.length||0,g(de,'sensor_id',''),g(de,'format_id',''),g(de,'data_val',''),g(ev,'summary',''),errCodes.join('|')];
+      for(var r=0;r<row.length;r++) row[r]=escCSV(row[r]);
+      lines.push(row.join(','));
+    }
+    var blob = new Blob([lines.join('\\n')], {type:'text/csv;charset=utf-8;'});
+    var url = URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download='fwlab_filtered_events.csv'; a.click(); URL.revokeObjectURL(url);
+  }
+
+  function resetFilters(){ sensor.value=''; minScore.value=''; statusFilter.value=''; warnOnly.checked=false; okOnly.checked=false; render(); }
+
+  [sensor,minScore,statusFilter,warnOnly,okOnly,timeMode,detailMode].forEach(function(el){ el.addEventListener('input',render); });
+  exportBtn.addEventListener('click',exportCSV);
+  resetBtn.addEventListener('click',resetFilters);
+  if(rfApply){
+    rfApply.addEventListener('click', function(){
+      var body={
+        center_freq_hz: rfFreqSet.value.trim()==='' ? null : Number(rfFreqSet.value),
+        rf_gain_db: rfGainSet.value.trim()==='' ? null : Number(rfGainSet.value),
+        rf_squelch_db: rfSqSet.value.trim()==='' ? null : Number(rfSqSet.value)
+      };
+      fetch('/api/admin/rf_control',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+        .then(function(r){return r.json();})
+        .then(function(d){ if(rfMsg) rfMsg.textContent = d.ok ? ' saved (restart receiver to apply)' : ' failed'; })
+        ['catch'](function(){ if(rfMsg) rfMsg.textContent=' failed'; });
+    });
+  }
+
+  function receiverAction(action){
+    fetch('/api/admin/receiver_action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:action})})
+      .then(function(r){return r.json();})
+      .then(function(d){ if(rfMsg) rfMsg.textContent = d.ok ? (' receiver '+action+' ok') : (' receiver '+action+' failed'); })
+      ['catch'](function(){ if(rfMsg) rfMsg.textContent=' receiver '+action+' failed'; });
+  }
+  if(rxStart) rxStart.addEventListener('click', function(){ receiverAction('start'); });
+  if(rxStop) rxStop.addEventListener('click', function(){ receiverAction('stop'); });
+  if(rxRestart) rxRestart.addEventListener('click', function(){ receiverAction('restart'); });
+
+  function apiBase(){
+    var r=window.fwSelectedReceiver||null;
+    if(!r || !r.base_url || String(r.base_url)==='local') return '';
+    return String(r.base_url).replace(/\/$/, '');
+  }
+  function apiFetchJson(path){
+    var base=apiBase();
+    if(!base) return fetch(path).then(function(r){return r.json();});
+    return fetch(base+path,{mode:'cors'}).then(function(r){return r.json();});
+  }
+
+  function loadEventsSnapshot(){
+    apiFetchJson('/api/events?limit=400').then(function(d){
+      events=d.events||[];
+      source.textContent=g(d,'source','n/a');
+      if(isEventsPage){ refreshTailDetail(); }
+      render();
+      status.textContent='snapshot';
+    })['catch'](function(){ status.textContent='offline'; });
+  }
+
+  var es=null;
+  var remotePollTimer=null;
+  function startEventsTransport(){
+    if(es){ try{ es.close(); }catch(e){} es=null; }
+    if(remotePollTimer){ clearInterval(remotePollTimer); remotePollTimer=null; }
+    var base=apiBase();
+    if(!base){
+      es=new EventSource('/api/live');
+      es.onmessage=function(m){
+        try{
+          events.push(JSON.parse(m.data));
+          if(events.length>4000) events=events.slice(-4000);
+          fetch('/api/events?limit=1').then(function(r){return r.json();}).then(function(d){ source.textContent=g(d,'source','n/a'); })['catch'](function(){});
+          if(isEventsPage){ refreshTailDetail(); }
+          render();
+          status.textContent='live';
+        }catch(e){}
+      };
+      es.onerror=function(){ status.textContent='reconnecting'; };
+    } else {
+      status.textContent='remote-poll';
+      remotePollTimer=setInterval(loadEventsSnapshot, 5000);
+    }
+  }
+
+  if(isEventsPage){ setTailMode(true); }
+  loadEventsSnapshot();
+  loadRfConfig();
+
+  function renderHost(m){
+    document.getElementById('hm-status').textContent = g(m,'status','n/a');
+    var mm=g(m,'metrics',{});
+    var t=g(m,'ts','');
+    document.getElementById('hm-clock').textContent = t ? fmtTs(t) : '-';
+    document.getElementById('hm-cpu').textContent = g(mm,'cpu_percent','-');
+    document.getElementById('hm-mem').textContent = g(mm,'mem_percent','-');
+    document.getElementById('hm-disk').textContent = g(mm,'disk_percent','-');
+    document.getElementById('hm-temp').textContent = g(mm,'temp_c','-');
+    document.getElementById('hm-load').textContent = g(mm,'load_1m_per_core','-');
+    document.getElementById('hm-breach').textContent = String((g(m,'breaches',[])||[]).length);
+  }
+  function pollHost(){ fetch('/api/host_metrics').then(function(r){return r.json();}).then(function(d){ renderHost(g(d,'event',null)); })['catch'](function(){}); }
+  function pollReceiver(){
+    fetch('/api/receiver_status').then(function(r){return r.json();}).then(function(d){
+      var st=(d.state || 'unknown');
+      rxState.textContent = selectedReceiverText()+' · '+st;
+      rxState.className = (st==='online') ? 'good' : ((st==='stale') ? 'warn' : 'bad');
+    })['catch'](function(){});
+  }
+
+  function pollStorage(){
+    fetch('/api/storage_status').then(function(r){return r.json();}).then(function(d){
+      var mode=(d.mode||'n/a');
+      document.getElementById('st-mode').textContent=mode;
+      document.getElementById('st-used').textContent=(d.disk_used_percent!=null?d.disk_used_percent:'-');
+      document.getElementById('st-free').textContent=(d.disk_free_gb!=null?d.disk_free_gb:'-');
+      document.getElementById('st-days').textContent=(d.effective_days!=null?d.effective_days:'-');
+      var el=document.getElementById('st-mode');
+      el.className = (mode==='emergency'||mode==='critical') ? 'bad' : (mode==='warn' ? 'warn' : 'good');
+    })['catch'](function(){});
+  }
+  function pollRxAgg(){
+    fetch('/api/rx_agg').then(function(r){ if(!r.ok) return null; return r.json(); }).then(function(d){ if(d){ rxAgg=d; drawRxBars(); } else { rxAgg=null; drawRxBars(); } })['catch'](function(){ rxAgg=null; drawRxBars(); });
+  }
+  pollHost(); setInterval(pollHost,3000);
+  pollReceiver(); setInterval(pollReceiver,5000);
+  pollStorage(); setInterval(pollStorage,10000);
+  pollRxAgg(); setInterval(pollRxAgg,10000);
+
+  window.addEventListener('fw:receiver-selected', function(){
+    loadEventsSnapshot();
+    startEventsTransport();
+    pollReceiver();
+  });
+  startEventsTransport();
+
+  window.addEventListener('resize', function(){ if(rxChart) rxChart.resize(); if(rxChart24) rxChart24.resize(); });
+})();
+</script></body></html>
