@@ -542,15 +542,18 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     return String(r.base_url).replace(/\/$/, '');
   }
   function apiFetchJson(path){
+    var r=window.fwSelectedReceiver||null;
+    var rid=(r&&r.rxs_id)?String(r.rxs_id):'';
     var base=apiBase();
-    if(!base) return fetch(path).then(function(r){return r.json();});
-    return fetch(base+path,{mode:'cors'}).then(function(r){return r.json();});
+    if(!base || !rid) return fetch(path).then(function(r){return r.json();});
+    var qp='?rxs_id='+encodeURIComponent(rid)+'&path='+encodeURIComponent(path);
+    return fetch('/api/receiver_proxy'+qp).then(function(r){return r.json();}).then(function(o){ return (o&&o.ok&&o.data)?o.data:o; });
   }
 
   function loadEventsSnapshot(){
     apiFetchJson('/api/events?limit=400').then(function(d){
       events=d.events||[];
-      source.textContent=g(d,'source','n/a');
+      source.textContent=g(d,'source','n/a') + (apiBase() ? ' · proxied' : '');
       if(isEventsPage){ refreshTailDetail(); }
       render();
       status.textContent='snapshot';
@@ -569,7 +572,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
         try{
           events.push(JSON.parse(m.data));
           if(events.length>4000) events=events.slice(-4000);
-          fetch('/api/events?limit=1').then(function(r){return r.json();}).then(function(d){ source.textContent=g(d,'source','n/a'); })['catch'](function(){});
+          fetch('/api/events?limit=1').then(function(r){return r.json();}).then(function(d){ source.textContent=g(d,'source','n/a') + (apiBase() ? ' · proxied' : ''); })['catch'](function(){});
           if(isEventsPage){ refreshTailDetail(); }
           render();
           status.textContent='live';
