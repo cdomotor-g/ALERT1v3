@@ -1,5 +1,12 @@
 (function(){
   function g(o,k,d){ return (o && o[k]!==undefined && o[k]!==null)?o[k]:d; }
+  window._regEditing = window._regEditing || false;
+  function regEditing(){
+    if(window._regEditing) return true;
+    var ids=['regNewId','regNewName','regNewLoc','regNewBase'];
+    for(var i=0;i<ids.length;i++){ var el=document.getElementById(ids[i]); if(el && String(el.value||'').trim()) return true; }
+    return false;
+  }
   function ageClass(ts){
     if(!ts) return 'bad';
     var t=Date.parse(ts); if(!isFinite(t)) return 'bad';
@@ -50,6 +57,7 @@
           +'</tr>';
       }).join('');
       if(rows.length){ document.getElementById('rx').innerHTML='<table class="tbl"><thead><tr><th>Receiver</th><th>Age</th><th>Last seen (UTC)</th><th>Events</th><th>Heartbeat</th></tr></thead><tbody>'+tr+'</tbody></table>'; }
+      if(regEditing()){ document.getElementById('regMsg').textContent='editing… auto-refresh paused'; return; }
       fetch('/api/receivers_registry').then(function(r){return r.json();}).then(function(reg){
         var rr=(reg&&reg.receivers)||[];
         document.getElementById('regMsg').textContent='registry entries: '+rr.length;
@@ -83,6 +91,7 @@
             .then(function(d){ document.getElementById('regMsg').textContent = d.ok ? ('deleted '+rid) : ('delete failed: '+(d.error||'unknown')); load(); })
             .catch(function(){ document.getElementById('regMsg').textContent='delete failed'; });
         }); });
+        document.querySelectorAll('#regTable input').forEach(function(inp){ inp.addEventListener('focus', function(){ window._regEditing=true; }); inp.addEventListener('blur', function(){ setTimeout(function(){ window._regEditing=false; }, 120); }); });
         var addBtn=document.getElementById('regAdd');
         if(addBtn){ addBtn.addEventListener('click', function(){
           var rid=((document.getElementById('regNewId')||{}).value||'').trim().toUpperCase();
