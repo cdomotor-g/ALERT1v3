@@ -60,10 +60,10 @@
             +'<td><input data-k="name" value="'+String(x.name||'').replace(/"/g,'&quot;')+'"></td>'
             +'<td><input data-k="location" value="'+String(x.location||'').replace(/"/g,'&quot;')+'"></td>'
             +'<td><input data-k="base_url" value="'+String(x.base_url||'').replace(/"/g,'&quot;')+'"></td>'
-            +'<td><button class="regSave">Save</button></td>'
+            +'<td><button class="regSave">Save</button> <button class="regDel">Delete</button></td>'
             +'</tr>';
         }).join('');
-        document.getElementById('regTable').innerHTML='<table class="tbl"><thead><tr><th>rxs_id</th><th>Name</th><th>Location</th><th>Base URL</th><th>Action</th></tr></thead><tbody>'+t+'</tbody></table>';
+        document.getElementById('regTable').innerHTML='<table class=\"tbl\"><thead><tr><th>rxs_id</th><th>Name</th><th>Location</th><th>Base URL</th><th>Action</th></tr></thead><tbody>'+t+'</tbody></table>' + '<div style=\"margin-top:.5rem\">' + '<input id=\"regNewId\" placeholder=\"rxs_id (0002)\" style=\"width:9rem\"> ' + '<input id=\"regNewName\" placeholder=\"Name\" style=\"width:10rem\"> ' + '<input id=\"regNewLoc\" placeholder=\"Location\" style=\"width:10rem\"> ' + '<input id=\"regNewBase\" placeholder=\"Base URL\" style=\"width:16rem\"> ' + '<button id=\"regAdd\">Add</button>' + '</div>';
         document.querySelectorAll('#regTable .regSave').forEach(function(b){ b.addEventListener('click', function(){
           var tr=b.closest('tr'); if(!tr) return;
           var rid=tr.getAttribute('data-rxid')||'';
@@ -73,6 +73,30 @@
             .then(function(d){ document.getElementById('regMsg').textContent = d.ok ? ('saved '+rid) : ('save failed: '+(d.error||'unknown')); })
             .catch(function(){ document.getElementById('regMsg').textContent='save failed'; });
         }); });
+
+        document.querySelectorAll('#regTable .regDel').forEach(function(b){ b.addEventListener('click', function(){
+          var tr=b.closest('tr'); if(!tr) return;
+          var rid=tr.getAttribute('data-rxid')||'';
+          if(!rid) return;
+          fetch('/api/receivers_registry_update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({op:'delete',rxs_id:rid})})
+            .then(function(r){return r.json();})
+            .then(function(d){ document.getElementById('regMsg').textContent = d.ok ? ('deleted '+rid) : ('delete failed: '+(d.error||'unknown')); load(); })
+            .catch(function(){ document.getElementById('regMsg').textContent='delete failed'; });
+        }); });
+        var addBtn=document.getElementById('regAdd');
+        if(addBtn){ addBtn.addEventListener('click', function(){
+          var rid=((document.getElementById('regNewId')||{}).value||'').trim().toUpperCase();
+          var body={op:'upsert',item:{
+            rxs_id:rid,
+            name:((document.getElementById('regNewName')||{}).value||'').trim(),
+            location:((document.getElementById('regNewLoc')||{}).value||'').trim(),
+            base_url:((document.getElementById('regNewBase')||{}).value||'').trim()||'local'
+          }};
+          fetch('/api/receivers_registry_update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+            .then(function(r){return r.json();})
+            .then(function(d){ document.getElementById('regMsg').textContent = d.ok ? ('added '+rid) : ('add failed: '+(d.error||'unknown')); load(); })
+            .catch(function(){ document.getElementById('regMsg').textContent='add failed'; });
+        }); }
       }).catch(function(){ document.getElementById('regMsg').textContent='registry load failed'; });
       document.getElementById('msg').textContent='updated '+new Date().toLocaleTimeString();
     }).catch(function(){ document.getElementById('msg').textContent='refresh failed'; });
