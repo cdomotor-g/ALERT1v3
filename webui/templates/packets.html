@@ -572,7 +572,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
         try{
           events.push(JSON.parse(m.data));
           if(events.length>4000) events=events.slice(-4000);
-          fetch('/api/events?limit=1').then(function(r){return r.json();}).then(function(d){ source.textContent=g(d,'source','n/a') + (apiBase() ? ' · proxied' : ''); })['catch'](function(){});
+          apiFetchJson('/api/events?limit=1').then(function(d){ source.textContent=g(d,'source','n/a') + (apiBase() ? ' · proxied' : ''); })['catch'](function(){});
           if(isEventsPage){ refreshTailDetail(); }
           render();
           status.textContent='live';
@@ -601,9 +601,9 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     document.getElementById('hm-load').textContent = g(mm,'load_1m_per_core','-');
     document.getElementById('hm-breach').textContent = String((g(m,'breaches',[])||[]).length);
   }
-  function pollHost(){ fetch('/api/host_metrics').then(function(r){return r.json();}).then(function(d){ renderHost(g(d,'event',null)); })['catch'](function(){}); }
+  function pollHost(){ apiFetchJson('/api/host_metrics').then(function(d){ renderHost(g(d,'event',null)); })['catch'](function(){}); }
   function pollReceiver(){
-    fetch('/api/receiver_status').then(function(r){return r.json();}).then(function(d){
+    apiFetchJson('/api/receiver_status').then(function(d){
       var st=(d.state || 'unknown');
       rxState.textContent = selectedReceiverText()+' · '+st;
       rxState.className = (st==='online') ? 'good' : ((st==='stale') ? 'warn' : 'bad');
@@ -611,7 +611,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
   }
 
   function pollStorage(){
-    fetch('/api/storage_status').then(function(r){return r.json();}).then(function(d){
+    apiFetchJson('/api/storage_status').then(function(d){
       var mode=(d.mode||'n/a');
       document.getElementById('st-mode').textContent=mode;
       document.getElementById('st-used').textContent=(d.disk_used_percent!=null?d.disk_used_percent:'-');
@@ -622,7 +622,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0f141a;padding:.6rem;
     })['catch'](function(){});
   }
   function pollRxAgg(){
-    fetch('/api/rx_agg').then(function(r){ if(!r.ok) return null; return r.json(); }).then(function(d){ if(d){ rxAgg=d; drawRxBars(); } else { rxAgg=null; drawRxBars(); } })['catch'](function(){ rxAgg=null; drawRxBars(); });
+    apiFetchJson('/api/rx_agg').then(function(d){ if(d){ rxAgg=d; drawRxBars(); } else { rxAgg=null; drawRxBars(); } })['catch'](function(){ rxAgg=null; drawRxBars(); });
   }
   pollHost(); setInterval(pollHost,3000);
   pollReceiver(); setInterval(pollReceiver,5000);
