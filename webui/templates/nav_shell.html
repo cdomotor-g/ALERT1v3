@@ -103,6 +103,20 @@ h2{{font-weight:650;letter-spacing:.2px;}}
   if(collapseBtn) collapseBtn.onclick=function(){{ sb.classList.toggle('collapsed'); localStorage.setItem('fw_sidebar_collapsed', sb.classList.contains('collapsed')?'1':'0'); applyMain(); }};
   if(mBtn) mBtn.onclick=function(){{ sb.classList.toggle('open'); }};
 
+
+  function isRxContextPage(){
+    var p=(window.location.pathname||'').toLowerCase();
+    return (p==='/' || p==='/packets' || p==='/events' || p==='/radio' || p==='/forensics');
+  }
+  function updateSelectorVisibility(){
+    var show=isRxContextPage();
+    var m=document.getElementById('fwRxSelect');
+    var d=document.getElementById('fwRxSelectDesk');
+    var wrap=d ? d.parentElement : null;
+    if(m) m.style.display = show ? '' : 'none';
+    if(wrap) wrap.style.display = show ? '' : 'none';
+  }
+
   function bindReceiverSelector(reg, info){{
     window.fwReceiversRegistry = reg || {{receivers:[]}};
     window.fwReceiverInfo = info || {{}};
