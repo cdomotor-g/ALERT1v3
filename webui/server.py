@@ -2135,7 +2135,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_HEAD(self):
         parsed = urlparse(self.path)
         html_paths = {
-            '/', '/events', '/packets', '/overview', '/help', '/control', '/trends', '/data', '/path', '/stations', '/stations-map', '/map',
+            '/', '/dashboard', '/events', '/packets', '/overview', '/help', '/control', '/trends', '/data', '/path', '/stations', '/stations-map', '/map',
             '/trip', '/file_drop', '/bitflipper', '/radio', '/forensics', '/about', '/admin'
         }
         if parsed.path in html_paths:
@@ -2174,6 +2174,15 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(HTTPStatus.FOUND)
             self.send_header('Location', '/stations-map')
             self.end_headers()
+            return
+
+        if parsed.path == '/dashboard':
+            payload = HTML.replace('__NAV__', NAV_HTML).encode('utf-8')
+            self.send_response(HTTPStatus.OK)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Content-Length', str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
             return
 
         if parsed.path in ['/events', '/packets']:
