@@ -51,11 +51,11 @@ h2{{font-weight:650;letter-spacing:.2px;}}
   pre{{max-height:42vh !important;}}
 }}
 </style>
-<div class='fw-mobilebar'><button class='fw-toggle' id='fwMobileToggle'>☰</button><strong>FW-LAB</strong><select id='fwRxSelect' style='max-width:170px'></select><span class='fw-build'>build {BUILD_STAMP}</span></div>
+<div class='fw-mobilebar'><button class='fw-toggle' id='fwMobileToggle'>☰</button><strong>FW-LAB</strong><select id='fwRxSelect' style='max-width:170px'></select><span id='fwRxBadge' class='fw-build' style='display:none'></span><span class='fw-build'>build {BUILD_STAMP}</span></div>
 <div class='fw-shell'>
   <aside class='fw-sidebar' id='fwSidebar'>
     <div class='fw-brand'><span>FW-LAB</span><button class='fw-toggle' id='fwCollapseBtn'>≡</button></div>
-    <div class='fw-build' style='padding:0 .45rem .2rem'>build {BUILD_STAMP}</div>
+    <div class='fw-build' id='fwRxBadgeDesk' style='padding:0 .45rem .2rem;display:none'></div><div class='fw-build' style='padding:0 .45rem .2rem'>build {BUILD_STAMP}</div>
     <div style='padding:0 .45rem .5rem'><select id='fwRxSelectDesk' style='width:100%'></select></div>
     <nav class='fw-nav'>
       <div class='fw-nav-group'><span class='g-full'>1) Stations</span><span class='g-short'>STN</span></div>
@@ -108,6 +108,18 @@ h2{{font-weight:650;letter-spacing:.2px;}}
     var p=(window.location.pathname||'').toLowerCase();
     return (p==='/' || p==='/packets' || p==='/events' || p==='/radio' || p==='/forensics');
   }
+
+  function updateRxBadge(){
+    var show=isRxContextPage();
+    var r=window.fwSelectedReceiver||null;
+    var txt='Viewing: local';
+    if(r && String(r.base_url||'local')!=='local') txt='Viewing: '+(r.name||r.rxs_id||'remote')+' (remote)';
+    var b=document.getElementById('fwRxBadge');
+    var d=document.getElementById('fwRxBadgeDesk');
+    if(b){ b.style.display=show?'':'none'; b.textContent=txt; }
+    if(d){ d.style.display=show?'':'none'; d.textContent=txt; }
+  }
+
   function updateSelectorVisibility(){
     var show=isRxContextPage();
     var m=document.getElementById('fwRxSelect');
