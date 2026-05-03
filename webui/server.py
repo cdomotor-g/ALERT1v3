@@ -32,6 +32,7 @@ from webui.routes_views import handle_views_get, handle_views_post
 from webui.routes_stats import handle_stats_get
 from webui.routes_forensics import handle_forensics_get
 from webui.routes_docs_api import handle_docs_api_get
+from webui.routes_status import handle_status_get
 
 def _build_stamp():
     sha = os.environ.get('FWLAB_BUILD', '').strip()
@@ -1892,6 +1893,12 @@ class Handler(BaseHTTPRequestHandler):
     def _flowgraph_doc(self):
         return _flowgraph_doc()
 
+    def storage_status(self):
+        return storage_status()
+
+    def receiver_status(self):
+        return receiver_status(self.store)
+
     def parse_qs(self, query):
         return parse_qs(query)
 
@@ -2112,6 +2119,10 @@ class Handler(BaseHTTPRequestHandler):
 
         _docs_get = handle_docs_api_get(self, parsed)
         if _docs_get is not None:
+            return
+
+        _status_get = handle_status_get(self, parsed)
+        if _status_get is not None:
             return
 
         _rx = handle_receivers_get(self, parsed)
@@ -2453,20 +2464,6 @@ class Handler(BaseHTTPRequestHandler):
                 'stats': stats,
                 'source': {'local': str(self.store.path), 'archive': archive_res.get('source', 'archive:none')}
             })
-
-        if parsed.path == '/api/storage_status':
-            return self._json(storage_status())
-
-        if parsed.path == '/api/receiver_status':
-            self.store.poll_new()
-            return self._json(receiver_status(self.store))
-
-        if parsed.path == '/api/host_metrics':
-            if not self.host_metrics_store:
-                return self._json({'event': None, 'enabled': False})
-            self.host_metrics_store.poll_new()
-            ev = list(self.host_metrics_store.events)[-1] if self.host_metrics_store.events else None
-            return self._json({'event': ev, 'enabled': True})
 
         if parsed.path == '/api/live':
             self.send_response(HTTPStatus.OK)
