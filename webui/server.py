@@ -26,6 +26,7 @@ from webui.routes_filedrop import handle_filedrop_get, handle_filedrop_post
 from webui.routes_sensor_map import handle_sensor_map_get
 from webui.routes_path_defaults import handle_path_defaults_get, handle_path_defaults_post
 from webui.routes_meta import handle_meta_get
+from webui.routes_rx import handle_rx_get
 
 def _build_stamp():
     sha = os.environ.get('FWLAB_BUILD', '').strip()
@@ -1805,6 +1806,7 @@ class Handler(BaseHTTPRequestHandler):
     FILE_DROP_DIR = FILE_DROP_DIR
     SENSOR_MAP_CSV_PATH = SENSOR_MAP_CSV_PATH
     PATH_DEFAULTS_PATH = PATH_DEFAULTS_PATH
+    RX_AGG_JSON_PATH = RX_AGG_JSON_PATH
 
     # thin wrappers used by extracted route helpers
     def load_control_plane_policy(self):
@@ -2073,6 +2075,10 @@ class Handler(BaseHTTPRequestHandler):
 
         _meta_get = handle_meta_get(self, parsed)
         if _meta_get is not None:
+            return
+
+        _rx_api = handle_rx_get(self, parsed)
+        if _rx_api is not None:
             return
 
         _rx = handle_receivers_get(self, parsed)
@@ -2367,16 +2373,6 @@ class Handler(BaseHTTPRequestHandler):
             q = parse_qs(parsed.query)
             limit = int(q.get('limit', ['4000'])[0])
             return self._json(_anomaly_stats(self.store, limit=limit))
-
-        if parsed.path == '/api/rx_agg':
-            if RX_AGG_JSON_PATH.exists():
-                try:
-                    d = json.loads(RX_AGG_JSON_PATH.read_text(encoding='utf-8', errors='replace'))
-                    d['source'] = str(RX_AGG_JSON_PATH)
-                    return self._json(d)
-                except Exception as e:
-                    return self._json({'error': f'parse_failed: {e}', 'source': str(RX_AGG_JSON_PATH)}, code=500)
-            return self._json({'error': 'not_ready', 'source': str(RX_AGG_JSON_PATH)}, code=404)
 
         if parsed.path == '/api/events':
             q = parse_qs(parsed.query)
