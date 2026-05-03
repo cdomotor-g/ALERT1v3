@@ -34,6 +34,7 @@ from webui.routes_forensics import handle_forensics_get
 from webui.routes_docs_api import handle_docs_api_get
 from webui.routes_status import handle_status_get
 from webui.routes_trends import handle_trends_get
+from webui.routes_admin import handle_admin_get
 
 def _build_stamp():
     sha = os.environ.get('FWLAB_BUILD', '').strip()
@@ -1915,6 +1916,18 @@ class Handler(BaseHTTPRequestHandler):
     def apply_metric(self, points, metric, threshold):
         return apply_metric(points, metric, threshold)
 
+    def admin_authorized(self, headers, remote_addr):
+        return admin_authorized(headers, remote_addr)
+
+    def audit_admin_action(self, path, remote_addr, allowed, details):
+        return audit_admin_action(path, remote_addr, allowed, details)
+
+    def load_storage_policy(self):
+        return load_storage_policy()
+
+    def load_rf_control(self):
+        return load_rf_control()
+
     def parse_qs(self, query):
         return parse_qs(query)
 
@@ -2145,6 +2158,10 @@ class Handler(BaseHTTPRequestHandler):
         if _trends_get is not None:
             return
 
+        _admin_get = handle_admin_get(self, parsed)
+        if _admin_get is not None:
+            return
+
         _rx = handle_receivers_get(self, parsed)
         if _rx is not None:
             return
@@ -2315,60 +2332,6 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(payload)
             return
-
-        if parsed.path == '/api/admin/storage_policy':
-            if not admin_authorized(self.headers, self.client_address[0] if self.client_address else ''):
-                audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', False, {'error': 'unauthorized'})
-                return self._json({'ok': False, 'error': 'unauthorized'}, code=403)
-            audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', True, {})
-            return self._json(load_storage_policy())
-
-        if parsed.path == '/api/admin/rf_control':
-            if not admin_authorized(self.headers, self.client_address[0] if self.client_address else ''):
-                audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', False, {'error': 'unauthorized'})
-                return self._json({'ok': False, 'error': 'unauthorized'}, code=403)
-            audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', True, {})
-            return self._json(load_rf_control())
-
-        if parsed.path == '/api/admin/audit_recent':
-            if not admin_authorized(self.headers, self.client_address[0] if self.client_address else ''):
-                audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', False, {'error': 'unauthorized'})
-                return self._json({'ok': False, 'error': 'unauthorized'}, code=403)
-            q = parse_qs(parsed.query)
-            limit = int(q.get('limit', ['100'])[0])
-            limit = max(1, min(limit, 500))
-            p = Path('rf_log/audit/admin_actions.jsonl')
-            rows = []
-            if p.exists():
-                for line in p.read_text(encoding='utf-8', errors='replace').splitlines()[-limit:]:
-                    if not line.strip():
-                        continue
-                    try:
-                        rows.append(json.loads(line))
-                    except Exception:
-                        pass
-            audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', True, {'limit': limit})
-            return self._json({'events': rows, 'count': len(rows)})
-
-        if parsed.path == '/api/admin/meta/history':
-            if not admin_authorized(self.headers, self.client_address[0] if self.client_address else ''):
-                audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', False, {'error': 'unauthorized'})
-                return self._json({'ok': False, 'error': 'unauthorized'}, code=403)
-            q = parse_qs(parsed.query)
-            limit = int(q.get('limit', ['100'])[0])
-            limit = max(1, min(limit, 500))
-            p = Path('rf_log/audit/meta_catalog_history.jsonl')
-            rows = []
-            if p.exists():
-                for line in p.read_text(encoding='utf-8', errors='replace').splitlines()[-limit:]:
-                    if not line.strip():
-                        continue
-                    try:
-                        rows.append(json.loads(line))
-                    except Exception:
-                        pass
-            audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', True, {'limit': limit})
-            return self._json({'events': rows, 'count': len(rows)})
 
         if parsed.path in ['/api/audio_opus', '/api/audio_aac']:
             is_aac = (parsed.path == '/api/audio_aac')
