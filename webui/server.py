@@ -31,6 +31,7 @@ from webui.routes_events import handle_events_get
 from webui.routes_views import handle_views_get, handle_views_post
 from webui.routes_stats import handle_stats_get
 from webui.routes_forensics import handle_forensics_get
+from webui.routes_docs_api import handle_docs_api_get
 
 def _build_stamp():
     sha = os.environ.get('FWLAB_BUILD', '').strip()
@@ -1888,6 +1889,9 @@ class Handler(BaseHTTPRequestHandler):
     def _pair_pattern_stats(self, limit=2000):
         return _pair_pattern_stats(self.store, limit=limit)
 
+    def _flowgraph_doc(self):
+        return _flowgraph_doc()
+
     def parse_qs(self, query):
         return parse_qs(query)
 
@@ -2104,6 +2108,10 @@ class Handler(BaseHTTPRequestHandler):
 
         _for_get = handle_forensics_get(self, parsed)
         if _for_get is not None:
+            return
+
+        _docs_get = handle_docs_api_get(self, parsed)
+        if _docs_get is not None:
             return
 
         _rx = handle_receivers_get(self, parsed)
@@ -2374,9 +2382,6 @@ class Handler(BaseHTTPRequestHandler):
                     except Exception:
                         pass
             return
-
-        if parsed.path == '/api/flowgraph_doc':
-            return self._json(_flowgraph_doc())
 
         if parsed.path == '/api/trends':
             q = parse_qs(parsed.query)
