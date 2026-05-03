@@ -1866,45 +1866,17 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 return self._json({'ok': False, 'error': str(e)}, code=400)
 
-        if parsed.path == '/api/receivers_registry_update':
-            try:
-                length = int(self.headers.get('Content-Length', '0'))
-                raw = self.rfile.read(length) if length > 0 else b'{}'
-                body = json.loads(raw.decode('utf-8', errors='replace'))
-                op = str(body.get('op', 'upsert')).strip().lower()  # upsert|delete
-                item = body.get('item', {}) or {}
-                rxs_id = str(item.get('rxs_id', body.get('rxs_id', ''))).strip().upper()
-                if not _is_valid_rxs_id(rxs_id):
-                    return self._json({'ok': False, 'error': 'invalid_rxs_id'}, code=400)
-                reg = _load_receivers_registry()
-                rows = reg.get('receivers', []) or []
-                idx = next((i for i, r in enumerate(rows) if str(r.get('rxs_id', '')).strip().upper() == rxs_id), -1)
-                if op == 'delete':
-                    if idx >= 0:
-                        rows.pop(idx)
-                    reg['receivers'] = rows
-                    RECEIVERS_REGISTRY_PATH.parent.mkdir(parents=True, exist_ok=True)
-                    RECEIVERS_REGISTRY_PATH.write_text(json.dumps(reg, indent=2) + '\n', encoding='utf-8')
-                    return self._json({'ok': True, 'op': 'delete', 'rxs_id': rxs_id})
+        _rx_post = handle_receivers_post(self, parsed)
+        if _rx_post is not None:
+            return
 
-                # upsert
-                rec = {
-                    'rxs_id': rxs_id,
-                    'name': str(item.get('name', '')).strip() or f'RX {rxs_id}',
-                    'location': str(item.get('location', '')).strip(),
-                    'base_url': str(item.get('base_url', 'local')).strip() or 'local',
-                    'status': str(item.get('status', '')).strip(),
-                }
-                if idx >= 0:
-                    rows[idx].update(rec)
-                else:
-                    rows.append(rec)
-                reg['receivers'] = rows
-                RECEIVERS_REGISTRY_PATH.parent.mkdir(parents=True, exist_ok=True)
-                RECEIVERS_REGISTRY_PATH.write_text(json.dumps(reg, indent=2) + '\n', encoding='utf-8')
-                return self._json({'ok': True, 'op': 'upsert', 'rxs_id': rxs_id})
-            except Exception as e:
-                return self._json({'ok': False, 'error': str(e)}, code=400)
+        _st_post = handle_stations_post(self, parsed)
+        if _st_post is not None:
+            return
+
+        _ctl_post = handle_control_post(self, parsed)
+        if _ctl_post is not None:
+            return
 
         if parsed.path == '/api/stations/upload':
             try:
@@ -1970,10 +1942,6 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({'ok': True, 'view': view})
             except Exception as e:
                 return self._json({'ok': False, 'error': str(e)}, code=400)
-
-        _ctl_post = handle_control_post(self, parsed)
-        if _ctl_post is not None:
-            return
 
         if parsed.path in ['/api/admin/storage_policy', '/api/admin/rf_control', '/api/admin/receiver_action', '/api/admin/meta/catalog']:
             if not admin_authorized(self.headers, self.client_address[0] if self.client_address else ''):
