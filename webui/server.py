@@ -21,6 +21,7 @@ import csv
 import io
 from webui.routes_control import handle_control_get, handle_control_post
 from webui.routes_receivers import handle_receivers_get, handle_receivers_post
+from webui.routes_stations import handle_stations_get
 
 def _build_stamp():
     sha = os.environ.get('FWLAB_BUILD', '').strip()
@@ -1819,6 +1820,9 @@ class Handler(BaseHTTPRequestHandler):
     def _load_receiver_identity(self):
         return _load_receiver_identity()
 
+    def _load_stations(self, limit=5000):
+        return _load_stations(limit=limit)
+
     def _json(self, obj, code=200):
         payload = json.dumps(obj, default=str).encode('utf-8')
         self.send_response(code)
@@ -2166,6 +2170,10 @@ class Handler(BaseHTTPRequestHandler):
 
         _rx = handle_receivers_get(self, parsed)
         if _rx is not None:
+            return
+
+        _st = handle_stations_get(self, parsed)
+        if _st is not None:
             return
 
         if parsed.path == '/':
