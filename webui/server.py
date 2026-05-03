@@ -25,6 +25,7 @@ from webui.routes_stations import handle_stations_get, handle_stations_post
 from webui.routes_filedrop import handle_filedrop_get, handle_filedrop_post
 from webui.routes_sensor_map import handle_sensor_map_get
 from webui.routes_path_defaults import handle_path_defaults_get, handle_path_defaults_post
+from webui.routes_meta import handle_meta_get
 
 def _build_stamp():
     sha = os.environ.get('FWLAB_BUILD', '').strip()
@@ -1833,6 +1834,9 @@ class Handler(BaseHTTPRequestHandler):
     def load_meta_catalog(self, path='config/meta_catalog.json'):
         return load_meta_catalog(path)
 
+    def load_deployment_role(self):
+        return load_deployment_role()
+
     def save_meta_catalog(self, cat, path='config/meta_catalog.json'):
         return save_meta_catalog(cat, path)
 
@@ -2065,6 +2069,10 @@ class Handler(BaseHTTPRequestHandler):
 
         _pd_get = handle_path_defaults_get(self, parsed)
         if _pd_get is not None:
+            return
+
+        _meta_get = handle_meta_get(self, parsed)
+        if _meta_get is not None:
             return
 
         _rx = handle_receivers_get(self, parsed)
@@ -2369,16 +2377,6 @@ class Handler(BaseHTTPRequestHandler):
                 except Exception as e:
                     return self._json({'error': f'parse_failed: {e}', 'source': str(RX_AGG_JSON_PATH)}, code=500)
             return self._json({'error': 'not_ready', 'source': str(RX_AGG_JSON_PATH)}, code=404)
-
-        if parsed.path in ['/api/meta/catalog', '/api/meta/export']:
-            cat = load_meta_catalog()
-            cat['source'] = 'config/meta_catalog.json'
-            return self._json(cat)
-
-        if parsed.path == '/api/deployment_role':
-            d = load_deployment_role()
-            d['source'] = 'config/deployment_role.json'
-            return self._json(d)
 
         if parsed.path == '/api/events':
             q = parse_qs(parsed.query)
