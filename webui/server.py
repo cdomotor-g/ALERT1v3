@@ -20,7 +20,7 @@ import urllib.request
 import csv
 import io
 from webui.routes_control import handle_control_get, handle_control_post
-from webui.routes_receivers import handle_receivers_post
+from webui.routes_receivers import handle_receivers_get, handle_receivers_post
 
 def _build_stamp():
     sha = os.environ.get('FWLAB_BUILD', '').strip()
@@ -1795,6 +1795,7 @@ class Handler(BaseHTTPRequestHandler):
     store: EventStore = None
     host_metrics_store: EventStore = None
     RECEIVERS_REGISTRY_PATH = RECEIVERS_REGISTRY_PATH
+    RECEIVER_IDENTITY_PATH = RECEIVER_IDENTITY_PATH
 
     # thin wrappers used by extracted route helpers
     def load_control_plane_policy(self):
@@ -1814,6 +1815,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def _load_receivers_registry(self):
         return _load_receivers_registry()
+
+    def _load_receiver_identity(self):
+        return _load_receiver_identity()
 
     def _json(self, obj, code=200):
         payload = json.dumps(obj, default=str).encode('utf-8')
@@ -2160,6 +2164,10 @@ class Handler(BaseHTTPRequestHandler):
         if _ctl is not None:
             return
 
+        _rx = handle_receivers_get(self, parsed)
+        if _rx is not None:
+            return
+
         if parsed.path == '/':
             self.send_response(HTTPStatus.FOUND)
             self.send_header('Location', '/stations-map')
@@ -2454,16 +2462,6 @@ class Handler(BaseHTTPRequestHandler):
                 except Exception as e:
                     return self._json({'error': f'parse_failed: {e}', 'source': str(RX_AGG_JSON_PATH)}, code=500)
             return self._json({'error': 'not_ready', 'source': str(RX_AGG_JSON_PATH)}, code=404)
-
-        if parsed.path == '/api/receiver_info':
-            info = _load_receiver_identity()
-            info['source'] = str(RECEIVER_IDENTITY_PATH)
-            return self._json(info)
-
-        if parsed.path == '/api/receivers_registry':
-            reg = _load_receivers_registry()
-            reg['source'] = str(RECEIVERS_REGISTRY_PATH)
-            return self._json(reg)
 
         if parsed.path in ['/api/meta/catalog', '/api/meta/export']:
             cat = load_meta_catalog()

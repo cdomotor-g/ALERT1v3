@@ -1,6 +1,20 @@
 import json
 
 
+def handle_receivers_get(handler, parsed):
+    if parsed.path == '/api/receiver_info':
+        info = handler._load_receiver_identity()
+        info['source'] = str(handler.RECEIVER_IDENTITY_PATH)
+        return handler._json(info)
+
+    if parsed.path == '/api/receivers_registry':
+        reg = handler._load_receivers_registry()
+        reg['source'] = str(handler.RECEIVERS_REGISTRY_PATH)
+        return handler._json(reg)
+
+    return None
+
+
 def handle_receivers_post(handler, parsed):
     if parsed.path != '/api/receivers_registry_update':
         return None
