@@ -56,10 +56,34 @@ Purpose: single-source endpoint ownership map to reduce rediscovery overhead.
   - `GET /api/error_stats`
   - `GET /api/anomaly_stats`
 
+- `webui/routes_forensics.py`
+  - `GET /api/forensics_bundle`
+  - `GET /api/pair_pattern_stats`
+
+- `webui/routes_docs_api.py`
+  - `GET /api/flowgraph_doc`
+
+- `webui/routes_status.py`
+  - `GET /api/storage_status`
+  - `GET /api/receiver_status`
+  - `GET /api/host_metrics`
+
+- `webui/routes_trends.py`
+  - `GET /api/trends`
+
+- `webui/routes_admin.py`
+  - `GET /api/admin/storage_policy`
+  - `GET /api/admin/rf_control`
+  - `GET /api/admin/audit_recent`
+  - `GET /api/admin/meta/history`
+  - `POST /api/admin/storage_policy`
+  - `POST /api/admin/rf_control`
+  - `POST /api/admin/receiver_action`
+  - `POST /api/admin/meta/catalog`
+
 ## Remaining in `webui/server.py` (high-level)
-- Complex analytics/trends/forensics routes
-- Admin endpoints and auth/audit guarded paths
+- SSE/audio streaming endpoints (e.g. `/api/live`, audio routes)
 - HTML/template serving and static/resource handling
-- Stream/audio and miscellaneous operational endpoints
+- Misc operational endpoints not yet grouped
 
 Update this map with each extraction commit.

@@ -38,6 +38,21 @@ Purpose: compact, durable progress log for route modularization and related clea
 - b5ee9b1
 
 ### Next
-- Continue extracting remaining read-only analytics endpoints (`forensics_bundle`, `pair_pattern_stats`, etc.).
-- Build a final route ownership pass and remove any lingering dead/duplicate inline route blocks.
+- Keep Phase 3 optional: decide whether to isolate SSE/audio routes or intentionally keep them in `server.py`.
 - Run endpoint parity sweep (status codes/shape) for all moved routes.
+
+### Additional completed (post-log)
+- Added `webui/routes_forensics.py` for `GET /api/forensics_bundle` and `GET /api/pair_pattern_stats`.
+- Added `webui/routes_docs_api.py` for `GET /api/flowgraph_doc`.
+- Added `webui/routes_status.py` for `GET /api/storage_status`, `GET /api/receiver_status`, `GET /api/host_metrics`.
+- Added `webui/routes_trends.py` for `GET /api/trends`.
+- Added `webui/routes_admin.py` for admin GET+POST routes with centralized auth/audit gate.
+- Confirmed no duplicate inline handlers remain in `server.py` for moved route families.
+
+### Additional commit trail
+- 74b9846
+- f87de09
+- d61e905
+- 19eaade
+- 3266ea4
+- c34cf6f
