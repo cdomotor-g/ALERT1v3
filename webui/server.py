@@ -23,6 +23,7 @@ from webui.routes_control import handle_control_get, handle_control_post
 from webui.routes_receivers import handle_receivers_get, handle_receivers_post
 from webui.routes_stations import handle_stations_get, handle_stations_post
 from webui.routes_filedrop import handle_filedrop_get, handle_filedrop_post
+from webui.routes_sensor_map import handle_sensor_map_get
 
 def _build_stamp():
     sha = os.environ.get('FWLAB_BUILD', '').strip()
@@ -2058,6 +2059,10 @@ class Handler(BaseHTTPRequestHandler):
         if _fd_get is not None:
             return
 
+        _sm_get = handle_sensor_map_get(self, parsed)
+        if _sm_get is not None:
+            return
+
         _rx = handle_receivers_get(self, parsed)
         if _rx is not None:
             return
@@ -2374,10 +2379,6 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == '/api/path/defaults':
             d = _load_path_defaults()
             return self._json({'ok': True, 'defaults': d, 'source': str(PATH_DEFAULTS_PATH)})
-
-        if parsed.path == '/api/sensor_map/status':
-            sm = _load_sensor_map(limit=100000)
-            return self._json({'ok': True, 'path': str(SENSOR_MAP_CSV_PATH), 'exists': SENSOR_MAP_CSV_PATH.exists(), 'mapped_alert1_ids': len(sm)})
 
         if parsed.path == '/api/events':
             q = parse_qs(parsed.query)
