@@ -33,6 +33,7 @@ from webui.routes_stats import handle_stats_get
 from webui.routes_forensics import handle_forensics_get
 from webui.routes_docs_api import handle_docs_api_get
 from webui.routes_status import handle_status_get
+from webui.routes_trends import handle_trends_get
 
 def _build_stamp():
     sha = os.environ.get('FWLAB_BUILD', '').strip()
@@ -1899,6 +1900,21 @@ class Handler(BaseHTTPRequestHandler):
     def receiver_status(self):
         return receiver_status(self.store)
 
+    def window_seconds(self, win):
+        return window_seconds(win)
+
+    def parse_ts(self, ts):
+        return parse_ts(ts)
+
+    def trends_from_archive(self, sensor_id, win, limit):
+        return trends_from_archive(sensor_id, win, limit)
+
+    def merge_points(self, local_points, archive_points, limit):
+        return merge_points(local_points, archive_points, limit)
+
+    def apply_metric(self, points, metric, threshold):
+        return apply_metric(points, metric, threshold)
+
     def parse_qs(self, query):
         return parse_qs(query)
 
@@ -2123,6 +2139,10 @@ class Handler(BaseHTTPRequestHandler):
 
         _status_get = handle_status_get(self, parsed)
         if _status_get is not None:
+            return
+
+        _trends_get = handle_trends_get(self, parsed)
+        if _trends_get is not None:
             return
 
         _rx = handle_receivers_get(self, parsed)
@@ -2393,77 +2413,6 @@ class Handler(BaseHTTPRequestHandler):
                     except Exception:
                         pass
             return
-
-        if parsed.path == '/api/trends':
-            q = parse_qs(parsed.query)
-            sensor_id = (q.get('sensor_id', [''])[0] or '').strip()
-            win = q.get('window', ['24h'])[0]
-            source_mode = (q.get('source', ['auto'])[0] or 'auto').strip().lower()
-            metric = (q.get('metric', ['raw'])[0] or 'raw').strip().lower()
-            threshold = q.get('threshold', [None])[0]
-            limit = int(q.get('limit', ['2000'])[0])
-            limit = max(100, min(limit, 10000))
-
-            # local points
-            self.store.poll_new()
-            cutoff = time.time() - window_seconds(win)
-            local_points = []
-            for ev in list(self.store.events):
-                de = ev.get('decode') or {}
-                if str(de.get('sensor_id', '')) != sensor_id:
-                    continue
-                ts = ev.get('ts', '')
-                dt = parse_ts(ts)
-                if not dt or dt.timestamp() < cutoff:
-                    continue
-                v = de.get('data_val')
-                if isinstance(v, (int, float)):
-                    local_points.append({'ts': ts, 'value': float(v)})
-            local_points = local_points[-limit:]
-
-            # archive points
-            archive_res = {'points': [], 'source': 'archive:none'}
-            if source_mode in ('archive', 'combined', 'auto'):
-                archive_res = trends_from_archive(sensor_id, win, limit)
-            archive_points = archive_res['points']
-
-            if source_mode == 'archive':
-                base_points = archive_points
-                resolved_source = 'archive'
-            elif source_mode == 'local':
-                base_points = local_points
-                resolved_source = 'local'
-            elif source_mode == 'combined':
-                base_points = merge_points(local_points, archive_points, limit)
-                resolved_source = 'combined'
-            else:  # auto
-                # prefer local for freshness, backfill from archive when local sparse
-                if len(local_points) >= max(20, limit // 10):
-                    base_points = local_points
-                    resolved_source = 'local'
-                else:
-                    base_points = merge_points(local_points, archive_points, limit)
-                    resolved_source = 'auto'
-
-            points = apply_metric(base_points, metric, threshold)
-            vals = [p['value'] for p in points]
-            stats = {
-                'latest': vals[-1] if vals else None,
-                'min': min(vals) if vals else None,
-                'max': max(vals) if vals else None,
-                'avg': round(sum(vals)/len(vals), 3) if vals else None,
-                'local_count': len(local_points),
-                'archive_count': len(archive_points),
-            }
-            return self._json({
-                'sensor_id': sensor_id,
-                'window': win,
-                'source_mode': resolved_source,
-                'metric': metric,
-                'points': points,
-                'stats': stats,
-                'source': {'local': str(self.store.path), 'archive': archive_res.get('source', 'archive:none')}
-            })
 
         if parsed.path == '/api/live':
             self.send_response(HTTPStatus.OK)
