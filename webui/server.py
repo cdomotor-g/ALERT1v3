@@ -29,6 +29,7 @@ from webui.routes_meta import handle_meta_get
 from webui.routes_rx import handle_rx_get
 from webui.routes_events import handle_events_get
 from webui.routes_views import handle_views_get, handle_views_post
+from webui.routes_stats import handle_stats_get
 
 def _build_stamp():
     sha = os.environ.get('FWLAB_BUILD', '').strip()
@@ -1874,6 +1875,12 @@ class Handler(BaseHTTPRequestHandler):
     def save_saved_views(self, views):
         return save_saved_views(views)
 
+    def _error_stats(self, limit=4000, mode='recent'):
+        return _error_stats(self.store, limit=limit, mode=mode)
+
+    def _anomaly_stats(self, limit=4000):
+        return _anomaly_stats(self.store, limit=limit)
+
     def parse_qs(self, query):
         return parse_qs(query)
 
@@ -2082,6 +2089,10 @@ class Handler(BaseHTTPRequestHandler):
 
         _views_get = handle_views_get(self, parsed)
         if _views_get is not None:
+            return
+
+        _stats_get = handle_stats_get(self, parsed)
+        if _stats_get is not None:
             return
 
         _rx = handle_receivers_get(self, parsed)
@@ -2365,17 +2376,6 @@ class Handler(BaseHTTPRequestHandler):
             q = parse_qs(parsed.query)
             limit = int(q.get('limit', ['2000'])[0])
             return self._json(_pair_pattern_stats(self.store, limit=limit))
-
-        if parsed.path == '/api/error_stats':
-            q = parse_qs(parsed.query)
-            limit = int(q.get('limit', ['50000'])[0])
-            mode = str(q.get('mode', ['occurrence'])[0])
-            return self._json(_error_stats(self.store, limit=limit, mode=mode))
-
-        if parsed.path == '/api/anomaly_stats':
-            q = parse_qs(parsed.query)
-            limit = int(q.get('limit', ['4000'])[0])
-            return self._json(_anomaly_stats(self.store, limit=limit))
 
         if parsed.path == '/api/trends':
             q = parse_qs(parsed.query)
