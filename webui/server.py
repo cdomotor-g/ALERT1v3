@@ -923,23 +923,33 @@ def render_bitflipper_html():
     return BITFLIPPER_HTML.replace('__NAV__', NAV_HTML).replace('__BITFLIPPER_ART__', art)
 
 
-def render_about_html():
-    readme = Path('README.md')
-    body = "README not found."
-    if readme.exists():
+def render_about_html(selected_doc: str = 'README.md'):
+    docs_allow = [
+        'README.md',
+        'docs/CONTROL_PLANE.md',
+        'docs/AGENTIC_REFACTOR_PLAN.md',
+        'docs/PACKAGING.md',
+        'docs/REFACTOR_LOG.md',
+        'docs/ROUTING_MAP.md',
+    ]
+    doc = selected_doc if selected_doc in docs_allow else 'README.md'
+    p = Path(doc)
+    body = f"{doc} not found."
+    if p.exists():
         try:
-            body = readme.read_text(encoding='utf-8', errors='replace')
+            body = p.read_text(encoding='utf-8', errors='replace')
         except Exception as e:
-            body = f"Failed to read README.md: {e}"
+            body = f"Failed to read {doc}: {e}"
 
     rendered = markdown_to_html(body)
     nav = NAV_HTML
+    links = ' · '.join([f"<a href='/about?doc={urllib.parse.quote(d)}'>{d}</a>" for d in docs_allow])
     return f"""<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB About</title>
 <style>
 body{{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;background:#0f141a;color:#e6edf3;margin:0}}
 .wrap{{max-width:1200px;margin:0 auto;padding:1rem}}
 .card{{background:#17212b;border:1px solid #243243;border-radius:10px;padding:.8rem;margin:.6rem 0}}
-.md{{line-height:1.5}}
+.md{{line-height:1.5;max-height:72vh;overflow:auto}}
 .md h1,.md h2,.md h3{{margin:.35rem 0 .5rem}}
 .md p{{margin:.35rem 0}}
 .md ul{{margin:.35rem 0 .6rem 1.2rem}}
@@ -950,9 +960,9 @@ a{{color:#7fc8ff}}
 {nav}
 <div class='card'><h2 style='margin:.2rem 0 0;display:flex;align-items:center;gap:.45rem'><span class='fw-ico'><svg viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M12 11v5'/><circle cx='12' cy='8' r='1'/></svg></span><span>About</span></h2>
 <div>Project repo: <a href='https://github.com/cdomotor-g/ALERT1v3' target='_blank' rel='noopener'>github.com/cdomotor-g/ALERT1v3</a></div>
-<div class='muted'>This page mirrors README.md from the running repo so operators can verify behavior against current docs. Use it for release notes, setup references, and implementation context.</div>
+<div class='muted'>Open docs directly from here:</div><div>{links}</div>
 </div>
-<div class='card'><div class='md'>{rendered}</div></div>
+<div class='card'><div class='muted' style='margin-bottom:.4rem'>Viewing: <code>{html.escape(doc)}</code></div><div class='md'>{rendered}</div></div>
 </div></body></html>"""
 
 
@@ -2236,7 +2246,9 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if parsed.path == '/about':
-            payload = render_about_html().encode('utf-8')
+            q = parse_qs(parsed.query)
+            doc = str((q.get('doc', ['README.md'])[0] or 'README.md')).strip()
+            payload = render_about_html(doc).encode('utf-8')
             self.send_response(HTTPStatus.OK)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
             self.send_header('Content-Length', str(len(payload)))
