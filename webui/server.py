@@ -28,6 +28,7 @@ from webui.routes_path_defaults import handle_path_defaults_get, handle_path_def
 from webui.routes_meta import handle_meta_get
 from webui.routes_rx import handle_rx_get
 from webui.routes_events import handle_events_get
+from webui.routes_views import handle_views_get, handle_views_post
 
 def _build_stamp():
     sha = os.environ.get('FWLAB_BUILD', '').strip()
@@ -1867,6 +1868,12 @@ class Handler(BaseHTTPRequestHandler):
     def sensor_ids_from_archive(self):
         return sensor_ids_from_archive()
 
+    def load_saved_views(self):
+        return load_saved_views()
+
+    def save_saved_views(self, views):
+        return save_saved_views(views)
+
     def parse_qs(self, query):
         return parse_qs(query)
 
@@ -1899,6 +1906,10 @@ class Handler(BaseHTTPRequestHandler):
         if _pd_post is not None:
             return
 
+        _views_post = handle_views_post(self, parsed)
+        if _views_post is not None:
+            return
+
         _rx_post = handle_receivers_post(self, parsed)
         if _rx_post is not None:
             return
@@ -1914,29 +1925,6 @@ class Handler(BaseHTTPRequestHandler):
         _ctl_post = handle_control_post(self, parsed)
         if _ctl_post is not None:
             return
-
-        if parsed.path == '/api/views':
-            try:
-                length = int(self.headers.get('Content-Length', '0'))
-                raw = self.rfile.read(length) if length > 0 else b'{}'
-                body = json.loads(raw.decode('utf-8'))
-                if not isinstance(body, dict):
-                    raise ValueError('body must be object')
-                views = load_saved_views()
-                view = {
-                    'id': int(time.time() * 1000),
-                    'name': str(body.get('name', 'view')).strip() or 'view',
-                    'sensor_id': str(body.get('sensor_id', '')).strip(),
-                    'window': str(body.get('window', '24h')),
-                    'source': str(body.get('source', 'local')),
-                    'metric': str(body.get('metric', 'raw')),
-                    'threshold': body.get('threshold', None),
-                }
-                views.append(view)
-                save_saved_views(views)
-                return self._json({'ok': True, 'view': view})
-            except Exception as e:
-                return self._json({'ok': False, 'error': str(e)}, code=400)
 
         if parsed.path in ['/api/admin/storage_policy', '/api/admin/rf_control', '/api/admin/receiver_action', '/api/admin/meta/catalog']:
             if not admin_authorized(self.headers, self.client_address[0] if self.client_address else ''):
@@ -2090,6 +2078,10 @@ class Handler(BaseHTTPRequestHandler):
 
         _events_api = handle_events_get(self, parsed)
         if _events_api is not None:
+            return
+
+        _views_get = handle_views_get(self, parsed)
+        if _views_get is not None:
             return
 
         _rx = handle_receivers_get(self, parsed)
@@ -2384,9 +2376,6 @@ class Handler(BaseHTTPRequestHandler):
             q = parse_qs(parsed.query)
             limit = int(q.get('limit', ['4000'])[0])
             return self._json(_anomaly_stats(self.store, limit=limit))
-
-        if parsed.path == '/api/views':
-            return self._json({'views': load_saved_views()})
 
         if parsed.path == '/api/trends':
             q = parse_qs(parsed.query)
