@@ -34,7 +34,7 @@ from webui.routes_forensics import handle_forensics_get
 from webui.routes_docs_api import handle_docs_api_get
 from webui.routes_status import handle_status_get
 from webui.routes_trends import handle_trends_get
-from webui.routes_admin import handle_admin_get
+from webui.routes_admin import handle_admin_get, handle_admin_post
 
 def _build_stamp():
     sha = os.environ.get('FWLAB_BUILD', '').strip()
@@ -1928,6 +1928,21 @@ class Handler(BaseHTTPRequestHandler):
     def load_rf_control(self):
         return load_rf_control()
 
+    def save_storage_policy(self, p):
+        return save_storage_policy(p)
+
+    def save_rf_control(self, c):
+        return save_rf_control(c)
+
+    def snapshot_meta_catalog(self, cat, reason):
+        return snapshot_meta_catalog(cat, reason)
+
+    def meta_history_append(self, action, details):
+        return meta_history_append(action, details)
+
+    def subprocess_run(self, cmd):
+        return subprocess.run(cmd, capture_output=True, text=True)
+
     def parse_qs(self, query):
         return parse_qs(query)
 
@@ -1980,91 +1995,9 @@ class Handler(BaseHTTPRequestHandler):
         if _ctl_post is not None:
             return
 
-        if parsed.path in ['/api/admin/storage_policy', '/api/admin/rf_control', '/api/admin/receiver_action', '/api/admin/meta/catalog']:
-            if not admin_authorized(self.headers, self.client_address[0] if self.client_address else ''):
-                audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', False, {'error': 'unauthorized'})
-                return self._json({'ok': False, 'error': 'unauthorized'}, code=403)
-            try:
-                length = int(self.headers.get('Content-Length', '0'))
-                raw = self.rfile.read(length) if length > 0 else b'{}'
-                body = json.loads(raw.decode('utf-8'))
-                if not isinstance(body, dict):
-                    raise ValueError('body must be object')
-
-                if parsed.path == '/api/admin/storage_policy':
-                    current = load_storage_policy()
-                    merged = {
-                        'localRetentionDays': body.get('localRetentionDays', current.get('localRetentionDays', 2)),
-                        'maxLocalMb': body.get('maxLocalMb', current.get('maxLocalMb', 1024)),
-                        'thresholds': {
-                            'warnDiskPercent': (body.get('thresholds') or {}).get('warnDiskPercent', (current.get('thresholds') or {}).get('warnDiskPercent', 85)),
-                            'criticalDiskPercent': (body.get('thresholds') or {}).get('criticalDiskPercent', (current.get('thresholds') or {}).get('criticalDiskPercent', 92)),
-                            'emergencyDiskPercent': (body.get('thresholds') or {}).get('emergencyDiskPercent', (current.get('thresholds') or {}).get('emergencyDiskPercent', 96)),
-                        },
-                        'criticalPolicy': {
-                            'criticalRetentionDays': (body.get('criticalPolicy') or {}).get('criticalRetentionDays', (current.get('criticalPolicy') or {}).get('criticalRetentionDays', 1)),
-                            'emergencyRetentionHours': (body.get('criticalPolicy') or {}).get('emergencyRetentionHours', (current.get('criticalPolicy') or {}).get('emergencyRetentionHours', 12)),
-                        },
-                    }
-                    save_storage_policy(merged)
-                    audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', True, {'keys': ['storage_policy']})
-                    return self._json({'ok': True, 'policy': merged})
-
-                if parsed.path == '/api/admin/rf_control':
-                    current = load_rf_control()
-                    merged = {
-                        'center_freq_hz': body.get('center_freq_hz', current.get('center_freq_hz', 173900000.0)),
-                        'rf_gain_db': body.get('rf_gain_db', current.get('rf_gain_db', 40.0)),
-                        'rf_squelch_db': body.get('rf_squelch_db', current.get('rf_squelch_db', -33.0)),
-                    }
-                    save_rf_control(merged)
-                    audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', True, {'keys': ['rf_control']})
-                    return self._json({'ok': True, 'rf_control': merged})
-
-                if parsed.path == '/api/admin/meta/catalog':
-                    cat = load_meta_catalog()
-                    entity = str(body.get('entity', '')).strip().lower()  # station|sensor
-                    op = str(body.get('op', '')).strip().lower()  # upsert|delete
-                    item = body.get('item', {}) or {}
-                    if entity not in ('station', 'sensor') or op not in ('upsert', 'delete'):
-                        return self._json({'ok': False, 'error': 'invalid entity/op'}, code=400)
-                    key_field = 'station_key' if entity == 'station' else 'sensor_key'
-                    key = str(item.get(key_field, body.get(key_field, ''))).strip()
-                    arr = cat['stations'] if entity == 'station' else cat['sensors']
-                    idx = next((i for i, r in enumerate(arr) if str(r.get(key_field, '')).strip() == key), -1)
-                    if op == 'delete':
-                        if idx >= 0:
-                            arr.pop(idx)
-                        snap = snapshot_meta_catalog(cat, f'{entity}_delete')
-                        save_meta_catalog(cat)
-                        meta_history_append('delete', {'entity': entity, key_field: key, 'snapshot': snap})
-                        audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', True, {'entity': entity, 'op': op, key_field: key})
-                        return self._json({'ok': True, 'entity': entity, 'op': op, key_field: key, 'snapshot': snap})
-                    # upsert
-                    if not key:
-                        return self._json({'ok': False, 'error': f'missing {key_field}'}, code=400)
-                    if idx >= 0:
-                        arr[idx].update(item)
-                    else:
-                        arr.append(item)
-                    snap = snapshot_meta_catalog(cat, f'{entity}_upsert')
-                    save_meta_catalog(cat)
-                    meta_history_append('upsert', {'entity': entity, key_field: key, 'snapshot': snap})
-                    audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', True, {'entity': entity, 'op': op, key_field: key})
-                    return self._json({'ok': True, 'entity': entity, 'op': op, key_field: key, 'snapshot': snap})
-
-                action = str(body.get('action', '')).strip().lower()
-                if action not in ('start', 'stop', 'restart'):
-                    return self._json({'ok': False, 'error': 'invalid action'}, code=400)
-                cp = subprocess.run(['sudo', 'systemctl', action, 'fwlab-receiver.service'], capture_output=True, text=True)
-                if cp.returncode != 0:
-                    audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', False, {'action': action, 'error': cp.stderr.strip() or cp.stdout.strip()})
-                    return self._json({'ok': False, 'error': cp.stderr.strip() or cp.stdout.strip()}, code=500)
-                audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', True, {'action': action})
-                return self._json({'ok': True, 'action': action})
-            except Exception as e:
-                audit_admin_action(parsed.path, self.client_address[0] if self.client_address else '', False, {'error': str(e)})
-                return self._json({'ok': False, 'error': str(e)}, code=400)
+        _admin_post = handle_admin_post(self, parsed)
+        if _admin_post is not None:
+            return
 
         self.send_error(HTTPStatus.NOT_FOUND)
 
