@@ -2386,47 +2386,9 @@ class Handler(BaseHTTPRequestHandler):
             d['source'] = 'config/deployment_role.json'
             return self._json(d)
 
-        if parsed.path == '/api/stations':
-            rows = _load_stations()
-            pairs = _pairs_within_km(rows, max_km=100.0, limit=5000)
-            return self._json({'count': len(rows), 'pairs_100km': pairs, 'source': str(STATIONS_CSV_PATH)})
-
         if parsed.path == '/api/path/defaults':
             d = _load_path_defaults()
             return self._json({'ok': True, 'defaults': d, 'source': str(PATH_DEFAULTS_PATH)})
-
-        if parsed.path == '/api/stations/catalog':
-            q = urllib.parse.parse_qs(parsed.query)
-            try:
-                limit = int((q.get('limit', ['5000'])[0] or '5000'))
-            except Exception:
-                limit = 5000
-            rows = _load_stations(limit=max(1, min(limit, 50000)))
-            out = []
-            for i, r in enumerate(rows):
-                lat, lon = _station_lat_lon(r)
-                if lat is None or lon is None:
-                    continue
-                out.append({'index': i, 'name': _station_name(r, i), 'lat': lat, 'lon': lon})
-            return self._json({'count': len(out), 'stations': out, 'source': str(STATIONS_CSV_PATH)})
-
-        if parsed.path == '/api/stations/rows':
-            q = urllib.parse.parse_qs(parsed.query)
-            try:
-                limit = int((q.get('limit', ['5000'])[0] or '5000'))
-            except Exception:
-                limit = 5000
-            rows = _load_stations(limit=max(1, min(limit, 50000)))
-            out = []
-            for i, r in enumerate(rows):
-                rec = dict(r)
-                rec['index'] = i
-                rec['name'] = _station_name(r, i)
-                lat, lon = _station_lat_lon(r)
-                rec['latitude'] = '' if lat is None else lat
-                rec['longitude'] = '' if lon is None else lon
-                out.append(rec)
-            return self._json({'count': len(out), 'rows': out, 'source': str(STATIONS_CSV_PATH)})
 
         if parsed.path == '/api/file_drop/list':
             q = urllib.parse.parse_qs(parsed.query)
