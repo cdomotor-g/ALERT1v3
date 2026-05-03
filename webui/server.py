@@ -30,6 +30,7 @@ from webui.routes_rx import handle_rx_get
 from webui.routes_events import handle_events_get
 from webui.routes_views import handle_views_get, handle_views_post
 from webui.routes_stats import handle_stats_get
+from webui.routes_forensics import handle_forensics_get
 
 def _build_stamp():
     sha = os.environ.get('FWLAB_BUILD', '').strip()
@@ -1881,6 +1882,12 @@ class Handler(BaseHTTPRequestHandler):
     def _anomaly_stats(self, limit=4000):
         return _anomaly_stats(self.store, limit=limit)
 
+    def _forensics_bundle(self, limit=300):
+        return _forensics_bundle(self.store, limit=limit)
+
+    def _pair_pattern_stats(self, limit=2000):
+        return _pair_pattern_stats(self.store, limit=limit)
+
     def parse_qs(self, query):
         return parse_qs(query)
 
@@ -2093,6 +2100,10 @@ class Handler(BaseHTTPRequestHandler):
 
         _stats_get = handle_stats_get(self, parsed)
         if _stats_get is not None:
+            return
+
+        _for_get = handle_forensics_get(self, parsed)
+        if _for_get is not None:
             return
 
         _rx = handle_receivers_get(self, parsed)
@@ -2366,16 +2377,6 @@ class Handler(BaseHTTPRequestHandler):
 
         if parsed.path == '/api/flowgraph_doc':
             return self._json(_flowgraph_doc())
-
-        if parsed.path == '/api/forensics_bundle':
-            q = parse_qs(parsed.query)
-            limit = int(q.get('limit', ['300'])[0])
-            return self._json(_forensics_bundle(self.store, limit=limit))
-
-        if parsed.path == '/api/pair_pattern_stats':
-            q = parse_qs(parsed.query)
-            limit = int(q.get('limit', ['2000'])[0])
-            return self._json(_pair_pattern_stats(self.store, limit=limit))
 
         if parsed.path == '/api/trends':
             q = parse_qs(parsed.query)
