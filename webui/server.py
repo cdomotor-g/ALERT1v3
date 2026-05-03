@@ -27,6 +27,7 @@ from webui.routes_sensor_map import handle_sensor_map_get
 from webui.routes_path_defaults import handle_path_defaults_get, handle_path_defaults_post
 from webui.routes_meta import handle_meta_get
 from webui.routes_rx import handle_rx_get
+from webui.routes_events import handle_events_get
 
 def _build_stamp():
     sha = os.environ.get('FWLAB_BUILD', '').strip()
@@ -1860,6 +1861,12 @@ class Handler(BaseHTTPRequestHandler):
     def _save_path_defaults(self, body):
         return _save_path_defaults(body)
 
+    def _with_sensor_mapping(self, events):
+        return _with_sensor_mapping(events)
+
+    def sensor_ids_from_archive(self):
+        return sensor_ids_from_archive()
+
     def parse_qs(self, query):
         return parse_qs(query)
 
@@ -2079,6 +2086,10 @@ class Handler(BaseHTTPRequestHandler):
 
         _rx_api = handle_rx_get(self, parsed)
         if _rx_api is not None:
+            return
+
+        _events_api = handle_events_get(self, parsed)
+        if _events_api is not None:
             return
 
         _rx = handle_receivers_get(self, parsed)
@@ -2373,41 +2384,6 @@ class Handler(BaseHTTPRequestHandler):
             q = parse_qs(parsed.query)
             limit = int(q.get('limit', ['4000'])[0])
             return self._json(_anomaly_stats(self.store, limit=limit))
-
-        if parsed.path == '/api/events':
-            q = parse_qs(parsed.query)
-            limit = int(q.get('limit', ['100'])[0])
-            limit = max(1, min(limit, 4000))
-            self.store.poll_new()
-            events = list(self.store.events)[-limit:]
-            events = _with_sensor_mapping(events)
-            return self._json({'events': events, 'count': len(self.store.events), 'source': str(self.store.path)})
-
-        if parsed.path == '/api/sensors':
-            q = parse_qs(parsed.query)
-            source_mode = (q.get('source', ['auto'])[0] or 'auto').strip().lower()
-            archive_ids = set(sensor_ids_from_archive()) if source_mode in ('archive', 'combined', 'auto') else set()
-
-            local_ids = set()
-            if source_mode in ('local', 'combined', 'auto'):
-                self.store.poll_new()
-                for ev in list(self.store.events):
-                    de = ev.get('decode') or {}
-                    sid = de.get('sensor_id')
-                    if sid is not None:
-                        local_ids.add(str(sid))
-
-            if source_mode == 'archive':
-                ids = archive_ids
-            elif source_mode == 'local':
-                ids = local_ids
-            elif source_mode == 'combined':
-                ids = local_ids | archive_ids
-            else:  # auto
-                ids = local_ids | archive_ids
-                source_mode = 'auto'
-
-            return self._json({'source_mode': source_mode, 'sensor_ids': sorted(ids)})
 
         if parsed.path == '/api/views':
             return self._json({'views': load_saved_views()})
