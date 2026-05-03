@@ -20,6 +20,7 @@ import urllib.request
 import csv
 import io
 from webui.routes_control import handle_control_get, handle_control_post
+from webui.routes_receivers import handle_receivers_post
 
 def _build_stamp():
     sha = os.environ.get('FWLAB_BUILD', '').strip()
@@ -1793,6 +1794,7 @@ class EventStore:
 class Handler(BaseHTTPRequestHandler):
     store: EventStore = None
     host_metrics_store: EventStore = None
+    RECEIVERS_REGISTRY_PATH = RECEIVERS_REGISTRY_PATH
 
     # thin wrappers used by extracted route helpers
     def load_control_plane_policy(self):
