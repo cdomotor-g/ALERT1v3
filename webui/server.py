@@ -24,6 +24,7 @@ from webui.routes_receivers import handle_receivers_get, handle_receivers_post
 from webui.routes_stations import handle_stations_get, handle_stations_post
 from webui.routes_filedrop import handle_filedrop_get, handle_filedrop_post
 from webui.routes_sensor_map import handle_sensor_map_get
+from webui.routes_path_defaults import handle_path_defaults_get, handle_path_defaults_post
 
 def _build_stamp():
     sha = os.environ.get('FWLAB_BUILD', '').strip()
@@ -1802,6 +1803,7 @@ class Handler(BaseHTTPRequestHandler):
     STATIONS_CSV_PATH = STATIONS_CSV_PATH
     FILE_DROP_DIR = FILE_DROP_DIR
     SENSOR_MAP_CSV_PATH = SENSOR_MAP_CSV_PATH
+    PATH_DEFAULTS_PATH = PATH_DEFAULTS_PATH
 
     # thin wrappers used by extracted route helpers
     def load_control_plane_policy(self):
@@ -1846,6 +1848,12 @@ class Handler(BaseHTTPRequestHandler):
     def _load_sensor_map(self, limit=50000):
         return _load_sensor_map(limit=limit)
 
+    def _load_path_defaults(self):
+        return _load_path_defaults()
+
+    def _save_path_defaults(self, body):
+        return _save_path_defaults(body)
+
     def parse_qs(self, query):
         return parse_qs(query)
 
@@ -1874,17 +1882,9 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 return self._json({'ok': False, 'error': str(e)}, code=400)
 
-        if parsed.path == '/api/path/defaults':
-            try:
-                length = int(self.headers.get('Content-Length', '0'))
-                raw = self.rfile.read(length) if length > 0 else b'{}'
-                body = json.loads(raw.decode('utf-8', errors='replace'))
-                if not isinstance(body, dict):
-                    return self._json({'ok': False, 'error': 'body must be object'}, code=400)
-                _save_path_defaults(body)
-                return self._json({'ok': True, 'source': str(PATH_DEFAULTS_PATH)})
-            except Exception as e:
-                return self._json({'ok': False, 'error': str(e)}, code=400)
+        _pd_post = handle_path_defaults_post(self, parsed)
+        if _pd_post is not None:
+            return
 
         _rx_post = handle_receivers_post(self, parsed)
         if _rx_post is not None:
@@ -2061,6 +2061,10 @@ class Handler(BaseHTTPRequestHandler):
 
         _sm_get = handle_sensor_map_get(self, parsed)
         if _sm_get is not None:
+            return
+
+        _pd_get = handle_path_defaults_get(self, parsed)
+        if _pd_get is not None:
             return
 
         _rx = handle_receivers_get(self, parsed)
@@ -2375,10 +2379,6 @@ class Handler(BaseHTTPRequestHandler):
             d = load_deployment_role()
             d['source'] = 'config/deployment_role.json'
             return self._json(d)
-
-        if parsed.path == '/api/path/defaults':
-            d = _load_path_defaults()
-            return self._json({'ok': True, 'defaults': d, 'source': str(PATH_DEFAULTS_PATH)})
 
         if parsed.path == '/api/events':
             q = parse_qs(parsed.query)
