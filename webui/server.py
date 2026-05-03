@@ -21,7 +21,7 @@ import csv
 import io
 from webui.routes_control import handle_control_get, handle_control_post
 from webui.routes_receivers import handle_receivers_get, handle_receivers_post
-from webui.routes_stations import handle_stations_get
+from webui.routes_stations import handle_stations_get, handle_stations_post
 
 def _build_stamp():
     sha = os.environ.get('FWLAB_BUILD', '').strip()
@@ -1823,6 +1823,15 @@ class Handler(BaseHTTPRequestHandler):
     def _load_stations(self, limit=5000):
         return _load_stations(limit=limit)
 
+    def load_meta_catalog(self, path='config/meta_catalog.json'):
+        return load_meta_catalog(path)
+
+    def save_meta_catalog(self, cat, path='config/meta_catalog.json'):
+        return save_meta_catalog(cat, path)
+
+    def _write_stations_master(self, rows):
+        return _write_stations_master(rows)
+
     def _json(self, obj, code=200):
         payload = json.dumps(obj, default=str).encode('utf-8')
         self.send_response(code)
@@ -1894,78 +1903,6 @@ class Handler(BaseHTTPRequestHandler):
                 RECEIVERS_REGISTRY_PATH.parent.mkdir(parents=True, exist_ok=True)
                 RECEIVERS_REGISTRY_PATH.write_text(json.dumps(reg, indent=2) + '\n', encoding='utf-8')
                 return self._json({'ok': True, 'op': 'upsert', 'rxs_id': rxs_id})
-            except Exception as e:
-                return self._json({'ok': False, 'error': str(e)}, code=400)
-
-        if parsed.path == '/api/stations/update':
-            try:
-                length = int(self.headers.get('Content-Length', '0'))
-                raw = self.rfile.read(length) if length > 0 else b'{}'
-                body = json.loads(raw.decode('utf-8', errors='replace'))
-                idx = int(body.get('index'))
-                rows = _load_stations(limit=100000)
-                if idx < 0 or idx >= len(rows):
-                    return self._json({'ok': False, 'error': 'index_out_of_range'}, code=400)
-                r = rows[idx]
-                key = str(r.get('station_key', '') or r.get('unitid', '') or r.get('name', '')).strip()
-                nm = str(body.get('name', '')).strip()
-                lat = str(body.get('lat', '')).strip()
-                lon = str(body.get('lon', '')).strip()
-                elev = str(body.get('elevation', '')).strip()
-                enabled = str(body.get('enabled', '')).strip()
-
-                cat = load_meta_catalog('config/meta_catalog.json')
-                arr = cat.get('stations', [])
-                pos = next((i for i, s in enumerate(arr) if str(s.get('station_key', '')).strip() == key), -1)
-                item = arr[pos] if pos >= 0 else {
-                    'station_key': key,
-                    'bom_stn': str(r.get('unitid', '')).strip(),
-                    'name': str(r.get('name', '') or r.get('unitname', '')).strip(),
-                    'location': str(r.get('location', '') or r.get('name', '') or r.get('unitname', '')).strip(),
-                    'enabled': True,
-                    'active': True,
-                }
-                if nm:
-                    item['name'] = nm
-                    item['location'] = nm
-                if lat != '':
-                    item['lat'] = lat
-                if lon != '':
-                    item['lon'] = lon
-                if elev != '':
-                    item['elevation_m'] = elev
-                if enabled != '':
-                    item['enabled'] = (str(enabled).strip() not in ('0', 'false', 'False', 'no'))
-                if pos >= 0:
-                    arr[pos] = item
-                else:
-                    arr.append(item)
-                cat['stations'] = arr
-                save_meta_catalog(cat, 'config/meta_catalog.json')
-                _write_stations_master(_load_stations(limit=100000))
-                return self._json({'ok': True, 'index': idx, 'station_key': key})
-            except Exception as e:
-                return self._json({'ok': False, 'error': str(e)}, code=400)
-
-        if parsed.path == '/api/stations/delete':
-            try:
-                length = int(self.headers.get('Content-Length', '0'))
-                raw = self.rfile.read(length) if length > 0 else b'{}'
-                body = json.loads(raw.decode('utf-8', errors='replace'))
-                idx = int(body.get('index'))
-                rows = _load_stations(limit=100000)
-                if idx < 0 or idx >= len(rows):
-                    return self._json({'ok': False, 'error': 'index_out_of_range'}, code=400)
-                r = rows[idx]
-                key = str(r.get('station_key', '') or r.get('unitid', '') or r.get('name', '')).strip()
-                cat = load_meta_catalog('config/meta_catalog.json')
-                arr = cat.get('stations', [])
-                n = len(arr)
-                arr = [s for s in arr if str(s.get('station_key', '')).strip() != key]
-                cat['stations'] = arr
-                save_meta_catalog(cat, 'config/meta_catalog.json')
-                _write_stations_master(_load_stations(limit=100000))
-                return self._json({'ok': True, 'deleted': n-len(arr), 'station_key': key})
             except Exception as e:
                 return self._json({'ok': False, 'error': str(e)}, code=400)
 
