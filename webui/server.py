@@ -22,6 +22,7 @@ import io
 from webui.routes_control import handle_control_get, handle_control_post
 from webui.routes_receivers import handle_receivers_get, handle_receivers_post
 from webui.routes_stations import handle_stations_get, handle_stations_post
+from webui.routes_filedrop import handle_filedrop_get, handle_filedrop_post
 
 def _build_stamp():
     sha = os.environ.get('FWLAB_BUILD', '').strip()
@@ -1798,6 +1799,8 @@ class Handler(BaseHTTPRequestHandler):
     RECEIVERS_REGISTRY_PATH = RECEIVERS_REGISTRY_PATH
     RECEIVER_IDENTITY_PATH = RECEIVER_IDENTITY_PATH
     STATIONS_CSV_PATH = STATIONS_CSV_PATH
+    FILE_DROP_DIR = FILE_DROP_DIR
+    SENSOR_MAP_CSV_PATH = SENSOR_MAP_CSV_PATH
 
     # thin wrappers used by extracted route helpers
     def load_control_plane_policy(self):
@@ -1835,6 +1838,18 @@ class Handler(BaseHTTPRequestHandler):
 
     def _parse_stations_csv_text(self, txt, limit=50000):
         return _parse_stations_csv_text(txt, limit=limit)
+
+    def _looks_like_sensor_map_csv(self, txt):
+        return _looks_like_sensor_map_csv(txt)
+
+    def _load_sensor_map(self, limit=50000):
+        return _load_sensor_map(limit=limit)
+
+    def parse_qs(self, query):
+        return parse_qs(query)
+
+    def os_path_basename(self, p):
+        return os.path.basename(p)
 
     def _json(self, obj, code=200):
         payload = json.dumps(obj, default=str).encode('utf-8')
@@ -1878,33 +1893,13 @@ class Handler(BaseHTTPRequestHandler):
         if _st_post is not None:
             return
 
+        _fd_post = handle_filedrop_post(self, parsed)
+        if _fd_post is not None:
+            return
+
         _ctl_post = handle_control_post(self, parsed)
         if _ctl_post is not None:
             return
-
-        if parsed.path == '/api/file_drop/upload':
-            try:
-                length = int(self.headers.get('Content-Length', '0'))
-                raw = self.rfile.read(length) if length > 0 else b'{}'
-                body = json.loads(raw.decode('utf-8', errors='replace'))
-                fn = os.path.basename(str(body.get('filename', 'upload.txt')).strip() or 'upload.txt')
-                content = str(body.get('content', ''))
-                FILE_DROP_DIR.mkdir(parents=True, exist_ok=True)
-                outp = FILE_DROP_DIR / fn
-                outp.write_text(content, encoding='utf-8', errors='replace')
-                ftype = 'generic'
-                mapped = 0
-                # auto-capture station/sensor mapping file shape
-                low = fn.lower()
-                if low.endswith('.csv') and _looks_like_sensor_map_csv(content):
-                    SENSOR_MAP_CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
-                    SENSOR_MAP_CSV_PATH.write_text(content, encoding='utf-8', errors='replace')
-                    ftype = 'sensor_map'
-                    mapped = len(_load_sensor_map())
-                    _write_stations_master(_load_stations(limit=100000))
-                return self._json({'ok': True, 'path': str(outp), 'type': ftype, 'mapped_alert1_ids': mapped})
-            except Exception as e:
-                return self._json({'ok': False, 'error': str(e)}, code=400)
 
         if parsed.path == '/api/views':
             try:
@@ -2057,6 +2052,10 @@ class Handler(BaseHTTPRequestHandler):
 
         _ctl = handle_control_get(self, parsed)
         if _ctl is not None:
+            return
+
+        _fd_get = handle_filedrop_get(self, parsed)
+        if _fd_get is not None:
             return
 
         _rx = handle_receivers_get(self, parsed)
@@ -2375,30 +2374,6 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == '/api/path/defaults':
             d = _load_path_defaults()
             return self._json({'ok': True, 'defaults': d, 'source': str(PATH_DEFAULTS_PATH)})
-
-        if parsed.path == '/api/file_drop/list':
-            q = urllib.parse.parse_qs(parsed.query)
-            try:
-                limit = int((q.get('limit', ['20'])[0] or '20'))
-            except Exception:
-                limit = 20
-            limit = max(1, min(limit, 200))
-            FILE_DROP_DIR.mkdir(parents=True, exist_ok=True)
-            files = []
-            for p in sorted(FILE_DROP_DIR.glob('*'), key=lambda x: x.stat().st_mtime, reverse=True)[:limit]:
-                try:
-                    st = p.stat()
-                    ftype = 'generic'
-                    try:
-                        txt = p.read_text(encoding='utf-8', errors='replace')[:8000].lower()
-                        if p.suffix.lower() == '.csv' and ('sensor id' in txt and 'site id' in txt and 'device_id' in txt):
-                            ftype = 'sensor_map_candidate'
-                    except Exception:
-                        pass
-                    files.append({'name': p.name, 'size': st.st_size, 'mtime': datetime.utcfromtimestamp(st.st_mtime).isoformat()+'Z', 'type': ftype})
-                except Exception:
-                    continue
-            return self._json({'count': len(files), 'files': files, 'dir': str(FILE_DROP_DIR), 'sensor_map_path': str(SENSOR_MAP_CSV_PATH), 'sensor_map_exists': SENSOR_MAP_CSV_PATH.exists()})
 
         if parsed.path == '/api/sensor_map/status':
             sm = _load_sensor_map(limit=100000)
