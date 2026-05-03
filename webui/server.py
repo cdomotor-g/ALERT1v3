@@ -1797,6 +1797,7 @@ class Handler(BaseHTTPRequestHandler):
     host_metrics_store: EventStore = None
     RECEIVERS_REGISTRY_PATH = RECEIVERS_REGISTRY_PATH
     RECEIVER_IDENTITY_PATH = RECEIVER_IDENTITY_PATH
+    STATIONS_CSV_PATH = STATIONS_CSV_PATH
 
     # thin wrappers used by extracted route helpers
     def load_control_plane_policy(self):
@@ -1831,6 +1832,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def _write_stations_master(self, rows):
         return _write_stations_master(rows)
+
+    def _parse_stations_csv_text(self, txt, limit=50000):
+        return _parse_stations_csv_text(txt, limit=limit)
 
     def _json(self, obj, code=200):
         payload = json.dumps(obj, default=str).encode('utf-8')
@@ -1877,24 +1881,6 @@ class Handler(BaseHTTPRequestHandler):
         _ctl_post = handle_control_post(self, parsed)
         if _ctl_post is not None:
             return
-
-        if parsed.path == '/api/stations/upload':
-            try:
-                length = int(self.headers.get('Content-Length', '0'))
-                raw = self.rfile.read(length) if length > 0 else b'{}'
-                body = json.loads(raw.decode('utf-8', errors='replace'))
-                txt = str(body.get('csv_text', ''))
-                if not txt.strip():
-                    return self._json({'ok': False, 'error': 'empty_csv'}, code=400)
-                parsed_rows = _parse_stations_csv_text(txt, limit=50000)
-                if not parsed_rows:
-                    return self._json({'ok': False, 'error': 'parse_failed_no_rows', 'hint': 'check delimiter/header includes Latitude/Longitude'}, code=400)
-                STATIONS_CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
-                STATIONS_CSV_PATH.write_text(txt, encoding='utf-8')
-                _write_stations_master(_load_stations(limit=100000))
-                return self._json({'ok': True, 'count': len(parsed_rows), 'source': str(STATIONS_CSV_PATH)})
-            except Exception as e:
-                return self._json({'ok': False, 'error': str(e)}, code=400)
 
         if parsed.path == '/api/file_drop/upload':
             try:

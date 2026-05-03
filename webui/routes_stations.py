@@ -75,6 +75,24 @@ def handle_stations_post(handler, parsed):
         except Exception as e:
             return handler._json({'ok': False, 'error': str(e)}, code=400)
 
+    if parsed.path == '/api/stations/upload':
+        try:
+            length = int(handler.headers.get('Content-Length', '0'))
+            raw = handler.rfile.read(length) if length > 0 else b'{}'
+            body = json.loads(raw.decode('utf-8', errors='replace'))
+            txt = str(body.get('csv_text', ''))
+            if not txt.strip():
+                return handler._json({'ok': False, 'error': 'empty_csv'}, code=400)
+            parsed_rows = handler._parse_stations_csv_text(txt, limit=50000)
+            if not parsed_rows:
+                return handler._json({'ok': False, 'error': 'parse_failed_no_rows', 'hint': 'check delimiter/header includes Latitude/Longitude'}, code=400)
+            handler.STATIONS_CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
+            handler.STATIONS_CSV_PATH.write_text(txt, encoding='utf-8')
+            handler._write_stations_master(handler._load_stations(limit=100000))
+            return handler._json({'ok': True, 'count': len(parsed_rows), 'source': str(handler.STATIONS_CSV_PATH)})
+        except Exception as e:
+            return handler._json({'ok': False, 'error': str(e)}, code=400)
+
     return None
 
 
