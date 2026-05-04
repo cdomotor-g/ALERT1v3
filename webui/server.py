@@ -1966,6 +1966,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Content-Length', str(len(payload)))
         self.end_headers()
         self.wfile.write(payload)
+        return True
 
     def do_POST(self):
         parsed = urlparse(self.path)
