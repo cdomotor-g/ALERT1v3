@@ -17,4 +17,6 @@ if [[ -n "${HOST_JSONL}" ]]; then
   ARGS+=(--host-metrics-jsonl "$HOST_JSONL")
 fi
 
-exec python3 "$ROOT/webui/server.py" "${ARGS[@]}"
+cd "$ROOT"
+export PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}"
+exec python3 -m webui.server "${ARGS[@]}"
