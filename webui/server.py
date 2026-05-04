@@ -2338,7 +2338,11 @@ class Handler(BaseHTTPRequestHandler):
             except (BrokenPipeError, ConnectionResetError):
                 return
 
-        self.send_error(HTTPStatus.NOT_FOUND)
+        print(f"404 path: {self.command} {self.path}")
+        try:
+            self.send_error(HTTPStatus.NOT_FOUND)
+        except (BrokenPipeError, ConnectionResetError):
+            return
 
 
 def main():
