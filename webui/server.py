@@ -164,7 +164,7 @@ FILE_DROP_DIR = Path('uploads/file_drop')
 PATH_DEFAULTS_PATH = Path('config/path_defaults.json')
 RECEIVER_IDENTITY_PATH = Path('config/receiver_identity.json')
 RECEIVERS_REGISTRY_PATH = Path('config/receivers_registry.json')
-NAV_HTML = Path('webui/templates/nav_shell.html').read_text(encoding='utf-8', errors='replace').format(BUILD_STAMP=BUILD_STAMP)
+NAV_HTML = Path('webui/templates/nav_shell.html').read_text(encoding='utf-8', errors='replace').replace('__BUILD_STAMP__', BUILD_STAMP)
 
 
 
