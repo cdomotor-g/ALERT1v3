@@ -108,6 +108,10 @@ class ALERT1v3(gr.top_block, Qt.QWidget):
         self.demod_mode = demod_mode = 'legacy_fsk'
         self.afsk_mark_hz = afsk_mark_hz = 2100.0
         self.afsk_space_hz = afsk_space_hz = 1300.0
+        self.decoder_invert_bits = decoder_invert_bits = True
+        self.decoder_word_lsb_first = decoder_word_lsb_first = True
+        self.decoder_enforce_fixed_pairs = decoder_enforce_fixed_pairs = True
+        self.decoder_fixed_pair_hard_reject = decoder_fixed_pair_hard_reject = False
 
         # Optional runtime RF control override (saved by web admin)
         try:
@@ -136,6 +140,23 @@ class ALERT1v3(gr.top_block, Qt.QWidget):
                 self.demod_mode = demod_mode
                 self.afsk_mark_hz = afsk_mark_hz
                 self.afsk_space_hz = afsk_space_hz
+        except Exception:
+            pass
+
+        # Optional decoder behavior override
+        try:
+            dec_cfg_path = '/home/cdomotor/.openclaw/workspace/projects/ALERT1v3/config/decoder_control.json'
+            if os.path.exists(dec_cfg_path):
+                with open(dec_cfg_path, 'r', encoding='utf-8') as f:
+                    _dc = json.load(f)
+                decoder_invert_bits = bool(_dc.get('invert_bits', decoder_invert_bits))
+                decoder_word_lsb_first = bool(_dc.get('word_lsb_first', decoder_word_lsb_first))
+                decoder_enforce_fixed_pairs = bool(_dc.get('enforce_fixed_pairs', decoder_enforce_fixed_pairs))
+                decoder_fixed_pair_hard_reject = bool(_dc.get('fixed_pair_hard_reject', decoder_fixed_pair_hard_reject))
+                self.decoder_invert_bits = decoder_invert_bits
+                self.decoder_word_lsb_first = decoder_word_lsb_first
+                self.decoder_enforce_fixed_pairs = decoder_enforce_fixed_pairs
+                self.decoder_fixed_pair_hard_reject = decoder_fixed_pair_hard_reject
         except Exception:
             pass
 
@@ -531,6 +552,10 @@ class ALERT1v3(gr.top_block, Qt.QWidget):
             demod_mode=demod_mode,
             afsk_mark_hz=afsk_mark_hz,
             afsk_space_hz=afsk_space_hz,
+            invert_bits=decoder_invert_bits,
+            word_lsb_first=decoder_word_lsb_first,
+            enforce_fixed_pairs=decoder_enforce_fixed_pairs,
+            fixed_pair_hard_reject=decoder_fixed_pair_hard_reject,
         )
         self.epy_block_0 = epy_block_0.blk(base_path=log_base_path)
         self.digital_symbol_sync_xx_0 = digital.symbol_sync_ff(

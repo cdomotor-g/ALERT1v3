@@ -1,0 +1,6 @@
+{
+  "invert_bits": true,
+  "word_lsb_first": true,
+  "enforce_fixed_pairs": true,
+  "fixed_pair_hard_reject": false
+}
