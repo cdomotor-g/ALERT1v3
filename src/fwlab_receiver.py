@@ -108,6 +108,7 @@ class ALERT1v3(gr.top_block, Qt.QWidget):
         self.demod_mode = demod_mode = 'legacy_fsk'
         self.afsk_mark_hz = afsk_mark_hz = 2100.0
         self.afsk_space_hz = afsk_space_hz = 1300.0
+        self.symbol_sync_bw = symbol_sync_bw = (2*math.pi*0.04)
         self.decoder_invert_bits = decoder_invert_bits = True
         self.decoder_word_lsb_first = decoder_word_lsb_first = True
         self.decoder_enforce_fixed_pairs = decoder_enforce_fixed_pairs = True
@@ -137,9 +138,11 @@ class ALERT1v3(gr.top_block, Qt.QWidget):
                 demod_mode = str(_dm.get('demod_mode', demod_mode))
                 afsk_mark_hz = float(_dm.get('afsk_mark_hz', afsk_mark_hz))
                 afsk_space_hz = float(_dm.get('afsk_space_hz', afsk_space_hz))
+                symbol_sync_bw = float(_dm.get('symbol_sync_bw', symbol_sync_bw))
                 self.demod_mode = demod_mode
                 self.afsk_mark_hz = afsk_mark_hz
                 self.afsk_space_hz = afsk_space_hz
+                self.symbol_sync_bw = symbol_sync_bw
         except Exception:
             pass
 
@@ -561,7 +564,7 @@ class ALERT1v3(gr.top_block, Qt.QWidget):
         self.digital_symbol_sync_xx_0 = digital.symbol_sync_ff(
             digital.TED_EARLY_LATE,
             (demod_rate/300),
-            (2*math.pi*0.04),
+            symbol_sync_bw,
             1.0,
             1.0,
             1,

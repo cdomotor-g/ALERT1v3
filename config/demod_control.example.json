@@ -1,0 +1,6 @@
+{
+  "demod_mode": "afsk",
+  "afsk_mark_hz": 2100.0,
+  "afsk_space_hz": 1300.0,
+  "symbol_sync_bw": 0.25132741228718347
+}
