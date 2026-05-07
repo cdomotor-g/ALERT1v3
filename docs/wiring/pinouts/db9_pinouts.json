@@ -1,0 +1,39 @@
+{
+  "schema": "fwlab.wiring.pinouts.v1",
+  "connectors": [
+    {
+      "id": "db9-de9-male-front",
+      "name": "DE-9 (DB9) Male, front view",
+      "orientation_notes": "Front view = looking into pins on male connector",
+      "pins": [
+        {"pin": 1, "signal": "DCD", "desc": "Data Carrier Detect"},
+        {"pin": 2, "signal": "RXD", "desc": "Receive Data"},
+        {"pin": 3, "signal": "TXD", "desc": "Transmit Data"},
+        {"pin": 4, "signal": "DTR", "desc": "Data Terminal Ready"},
+        {"pin": 5, "signal": "GND", "desc": "Signal Ground"},
+        {"pin": 6, "signal": "DSR", "desc": "Data Set Ready"},
+        {"pin": 7, "signal": "RTS", "desc": "Request To Send"},
+        {"pin": 8, "signal": "CTS", "desc": "Clear To Send"},
+        {"pin": 9, "signal": "RI", "desc": "Ring Indicator"}
+      ],
+      "source": "EIA/TIA-574 common PC serial assignment"
+    },
+    {
+      "id": "db9-de9-female-front",
+      "name": "DE-9 (DB9) Female, front view",
+      "orientation_notes": "Front view = looking into socket holes on female connector",
+      "pins": [
+        {"pin": 1, "signal": "DCD", "desc": "Data Carrier Detect"},
+        {"pin": 2, "signal": "RXD", "desc": "Receive Data"},
+        {"pin": 3, "signal": "TXD", "desc": "Transmit Data"},
+        {"pin": 4, "signal": "DTR", "desc": "Data Terminal Ready"},
+        {"pin": 5, "signal": "GND", "desc": "Signal Ground"},
+        {"pin": 6, "signal": "DSR", "desc": "Data Set Ready"},
+        {"pin": 7, "signal": "RTS", "desc": "Request To Send"},
+        {"pin": 8, "signal": "CTS", "desc": "Clear To Send"},
+        {"pin": 9, "signal": "RI", "desc": "Ring Indicator"}
+      ],
+      "source": "EIA/TIA-574 common PC serial assignment"
+    }
+  ]
+}
