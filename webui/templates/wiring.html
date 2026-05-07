@@ -1,0 +1,22 @@
+<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Wiring KB</title>
+<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}.muted{color:#9fb0c3}pre{background:#0f141a;border:1px solid #2a3948;padding:.7rem;border-radius:8px;overflow:auto}</style></head><body><div class='page'>
+<h2 style='margin-top:0'>Knowledge Base · Wiring</h2>
+<div class='muted' style='margin:-.2rem 0 .55rem'>DB9 pinouts and cable references (starter set). Expandable into full field wiring library.</div>
+__NAV__
+<div class='card'>
+  <h3 style='margin:.1rem 0 .5rem'>DB9 Pinouts (JSON)</h3>
+  <pre id='pinout'>loading…</pre>
+</div>
+<div class='card'>
+  <h3 style='margin:.1rem 0 .5rem'>Cable References</h3>
+  <ul>
+    <li><a href='/api/kb/doc?path=docs/wiring/cables/db9_null_modem_reference.md'>DB9 Null Modem Reference</a></li>
+    <li><a href='/api/kb/doc?path=docs/wiring/cables/db9_straight_through_reference.md'>DB9 Straight-Through Reference</a></li>
+  </ul>
+</div>
+<script>
+fetch('/api/kb/pinouts/db9').then(r=>r.json()).then(d=>{
+  document.getElementById('pinout').textContent=JSON.stringify(d,null,2);
+}).catch(e=>{document.getElementById('pinout').textContent='error: '+e;});
+</script>
+</div></body></html>
