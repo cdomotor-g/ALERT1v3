@@ -9,14 +9,23 @@ __NAV__
 </div>
 <div class='card'>
   <h3 style='margin:.1rem 0 .5rem'>Cable References</h3>
-  <ul>
-    <li><a href='/api/kb/doc?path=docs/wiring/cables/db9_null_modem_reference.md'>DB9 Null Modem Reference</a></li>
-    <li><a href='/api/kb/doc?path=docs/wiring/cables/db9_straight_through_reference.md'>DB9 Straight-Through Reference</a></li>
-  </ul>
+  <div style='display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.5rem'>
+    <button id='btnNull'>Load DB9 Null Modem</button>
+    <button id='btnStraight'>Load DB9 Straight-Through</button>
+  </div>
+  <pre id='cableDoc'>select a reference…</pre>
 </div>
 <script>
+function loadDoc(path){
+  fetch('/api/kb/doc?path='+encodeURIComponent(path)).then(r=>r.json()).then(d=>{
+    document.getElementById('cableDoc').textContent = d && d.ok ? d.text : ('error: '+JSON.stringify(d));
+  }).catch(e=>{document.getElementById('cableDoc').textContent='error: '+e;});
+}
 fetch('/api/kb/pinouts/db9').then(r=>r.json()).then(d=>{
   document.getElementById('pinout').textContent=JSON.stringify(d,null,2);
 }).catch(e=>{document.getElementById('pinout').textContent='error: '+e;});
+document.getElementById('btnNull').onclick=function(){ loadDoc('docs/wiring/cables/db9_null_modem_reference.md'); };
+document.getElementById('btnStraight').onclick=function(){ loadDoc('docs/wiring/cables/db9_straight_through_reference.md'); };
+loadDoc('docs/wiring/cables/db9_null_modem_reference.md');
 </script>
 </div></body></html>
