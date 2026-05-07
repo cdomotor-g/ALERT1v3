@@ -117,6 +117,28 @@ This roadmap captures medium/long-horizon product capabilities beyond current re
 
 ---
 
+## EPIC 8 — Industry Procedures, Methods, and QA Workflows
+
+**Goal:** Encode field and engineering procedures into repeatable, auditable workflows.
+
+### Scope
+- Procedure library and checklists for:
+  - fade margin testing
+  - radio path testing
+  - level sensor calibration
+  - river line purging
+  - height surveys and datum workflows (aligned with Epic 6)
+  - TBRG calibration checks (tip count + FCD type for standard TBRGs)
+- Procedure run logs with operator, date/time, station, equipment used, and pass/fail outcomes.
+- Attach evidence (photos, screenshots, logs, calibration sheets).
+
+### Milestones
+1. Procedure template schema + versioning.
+2. Guided run/checklist UI with required fields and sign-off.
+3. QA report exports and compliance audit trail.
+
+---
+
 ## Implementation Notes
 - Keep single-repo strategy with shared domain logic and API-first contracts.
 - Prefer additive modules over app-specific forks.
