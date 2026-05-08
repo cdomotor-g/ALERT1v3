@@ -139,6 +139,28 @@ This roadmap captures medium/long-horizon product capabilities beyond current re
 
 ---
 
+## EPIC 9 — RS232 Serial Data Ingest + Side-by-Side Decoder Validation
+
+**Goal:** Support RS232 serial ingest from legacy decoder hardware (e.g., Elpro Legacy Decoders, ERT-A2, Campbell Data Loggers) to enable side-by-side comparison against FW-LAB SDR decode outputs.
+
+### Scope
+- Serial ingest service for configurable ports/baud/parity/stop-bit profiles.
+- Parser adapters for common legacy ALERT output formats.
+- Timestamped ingest logs and normalized event model.
+- Side-by-side comparison workflows (legacy serial vs SDR decode):
+  - packet match/mismatch
+  - timing deltas
+  - sensor/value divergence
+  - confidence/error class differences
+
+### Milestones
+1. Serial device profile schema + ingest daemon/service.
+2. Baseline parsers for Elpro/ERT-A2/Campbell output variants.
+3. Comparison report endpoint + UI view for dual-stream validation.
+4. Operator tooling for calibration/acceptance run sign-off.
+
+---
+
 ## Implementation Notes
 - Keep single-repo strategy with shared domain logic and API-first contracts.
 - Prefer additive modules over app-specific forks.
