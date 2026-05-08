@@ -26,8 +26,9 @@ __NAV__
 </div>
 
 <div class='card'>
-  <h3 style='margin:.1rem 0 .5rem'>Structured Pinout Data</h3>
-  <pre id='pinout'>loading…</pre>
+  <h3 style='margin:.1rem 0 .5rem'>Pinout Table</h3>
+  <div id='pinoutMeta' class='muted' style='margin-bottom:.4rem'></div>
+  <div id='pinoutTableWrap' class='muted'>No pinout selected.</div>
 </div>
 
 <script>
@@ -68,7 +69,8 @@ const lvl1 = document.getElementById('lvl1');
 const lvl2 = document.getElementById('lvl2');
 const lvl3 = document.getElementById('lvl3');
 const docEl = document.getElementById('doc');
-const pinEl = document.getElementById('pinout');
+const pinMetaEl = document.getElementById('pinoutMeta');
+const pinWrapEl = document.getElementById('pinoutTableWrap');
 const metaEl = document.getElementById('selMeta');
 
 let db9PinoutCache = null;
@@ -81,11 +83,39 @@ function loadDoc(path){
     docEl.textContent = (d && d.ok) ? d.text : ('error: '+JSON.stringify(d));
   }).catch(e=>{ docEl.textContent='error: '+e; });
 }
-function loadPinout(){
-  if(db9PinoutCache){ pinEl.textContent=JSON.stringify(db9PinoutCache,null,2); return; }
-  fetch('/api/kb/pinouts/db9').then(r=>r.json()).then(d=>{ db9PinoutCache=d; pinEl.textContent=JSON.stringify(d,null,2); }).catch(e=>{ pinEl.textContent='error: '+e; });
+function renderPinoutTable(data){
+  const rows=[];
+  (data.connectors||[]).forEach(c=>{
+    (c.pins||[]).forEach(p=>rows.push({connector:c.name,pin:p.pin,signal:p.signal,desc:p.desc||''}));
+  });
+  if(!rows.length){
+    pinWrapEl.textContent='No pinout rows available.';
+    pinMetaEl.textContent='';
+    return;
+  }
+  pinMetaEl.textContent = 'Showing connector pin maps for selected variant.';
+  let html = "<table style='width:100%;border-collapse:collapse'><thead><tr>"
+    +"<th style='text-align:left;border-bottom:1px solid #2a3948;padding:.35rem'>Connector</th>"
+    +"<th style='text-align:left;border-bottom:1px solid #2a3948;padding:.35rem'>Pin</th>"
+    +"<th style='text-align:left;border-bottom:1px solid #2a3948;padding:.35rem'>Signal</th>"
+    +"<th style='text-align:left;border-bottom:1px solid #2a3948;padding:.35rem'>Description</th>"
+    +"</tr></thead><tbody>";
+  rows.forEach(r=>{
+    html += "<tr>"
+      +"<td style='border-bottom:1px solid #243243;padding:.35rem'>"+r.connector+"</td>"
+      +"<td style='border-bottom:1px solid #243243;padding:.35rem'>"+r.pin+"</td>"
+      +"<td style='border-bottom:1px solid #243243;padding:.35rem'>"+r.signal+"</td>"
+      +"<td style='border-bottom:1px solid #243243;padding:.35rem'>"+r.desc+"</td>"
+      +"</tr>";
+  });
+  html += "</tbody></table>";
+  pinWrapEl.innerHTML = html;
 }
-function clearPinout(){ pinEl.textContent='(no structured pinout data for this selection)'; }
+function loadPinout(){
+  if(db9PinoutCache){ renderPinoutTable(db9PinoutCache); return; }
+  fetch('/api/kb/pinouts/db9').then(r=>r.json()).then(d=>{ db9PinoutCache=d; renderPinoutTable(d); }).catch(e=>{ pinWrapEl.textContent='error: '+e; });
+}
+function clearPinout(){ pinMetaEl.textContent=''; pinWrapEl.textContent='(no structured pinout data for this selection)'; }
 
 function refreshLevel2(){
   const c = KB[lvl1.value];
