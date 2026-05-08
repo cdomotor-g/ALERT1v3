@@ -51,6 +51,11 @@ __NAV__
   <div class='toolbar' style='margin-bottom:.5rem'>
     <button id='addRow'>Add Row</button>
     <button class='secondary' id='removeRow'>Remove Last Row</button>
+    <button class='secondary' id='saveRun'>Save Run</button>
+    <button class='secondary' id='loadRun'>Load Run</button>
+    <button class='secondary' id='deleteRun'>Delete Run</button>
+    <button class='secondary' id='exportCsv'>Export CSV</button>
+    <button class='secondary' id='printSheet'>Print</button>
   </div>
   <div class='muted' id='calcStatus' style='margin-bottom:.5rem'>Misclose: n/a</div>
   <table id='tbl'>
@@ -169,8 +174,66 @@ function calc(){
 rowsEl.addEventListener('input', (e)=>{ enforceNumeric(e); calc(); });
 document.getElementById('gaugeZero').addEventListener('input', calc);
 
+function collect(){
+  const metaIds=['date','crew','stationNo','sectionNo','stream','location','conditions','datum','model','serial','calDate','twoPegDate','gaugeZero','misclose','works','notes','surveyOk'];
+  const meta={}; metaIds.forEach(id=>meta[id]=(document.getElementById(id)?.value ?? ''));
+  const rows=[...rowsEl.querySelectorAll('tr')].map(tr=>{
+    const obj={}; tr.querySelectorAll('input').forEach(inp=>obj[inp.dataset.col]=inp.value||''); return obj;
+  });
+  return {meta,rows,ts:new Date().toISOString()};
+}
+function applyData(d){
+  Object.entries(d.meta||{}).forEach(([k,v])=>{ const el=document.getElementById(k); if(el) el.value=v; });
+  rowsEl.innerHTML='';
+  (d.rows||[]).forEach(()=>addRow());
+  [...rowsEl.querySelectorAll('tr')].forEach((tr,i)=>{
+    const row=(d.rows||[])[i]||{};
+    tr.querySelectorAll('input').forEach(inp=>{ inp.value=row[inp.dataset.col]||''; });
+  });
+  calc();
+}
+function runsKey(){ return 'fwlab_survey_runs_v1'; }
+function getRuns(){ try{return JSON.parse(localStorage.getItem(runsKey())||'{}')}catch{return {}} }
+function setRuns(obj){ localStorage.setItem(runsKey(), JSON.stringify(obj)); }
+
+function saveRun(){
+  const name=prompt('Run name?'); if(!name) return;
+  const runs=getRuns(); runs[name]=collect(); setRuns(runs); alert('Saved run: '+name);
+}
+function loadRun(){
+  const runs=getRuns(); const names=Object.keys(runs);
+  if(!names.length){ alert('No saved runs'); return; }
+  const name=prompt('Load which run?\n'+names.join('\n'), names[names.length-1]);
+  if(!name || !runs[name]) return;
+  applyData(runs[name]);
+}
+function deleteRun(){
+  const runs=getRuns(); const names=Object.keys(runs);
+  if(!names.length){ alert('No saved runs'); return; }
+  const name=prompt('Delete which run?\n'+names.join('\n'), names[names.length-1]);
+  if(!name || !runs[name]) return;
+  delete runs[name]; setRuns(runs); alert('Deleted run: '+name);
+}
+function exportCsv(){
+  const d=collect();
+  const headers=['back','inter','fore','risefall','rl','rgd','dist','remarks'];
+  let csv='';
+  Object.entries(d.meta).forEach(([k,v])=>{ csv += `${k},"${String(v).replace(/"/g,'""')}"\n`; });
+  csv += '\n'+headers.join(',')+'\n';
+  d.rows.forEach(r=>{ csv += headers.map(h=>`"${String(r[h]||'').replace(/"/g,'""')}"`).join(',')+'\n'; });
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='survey_run.csv'; a.click(); URL.revokeObjectURL(a.href);
+}
+
+function printSheet(){ window.print(); }
+
 document.getElementById('addRow').onclick=()=>{ addRow(); calc(); };
 document.getElementById('removeRow').onclick=()=>{ removeRow(); calc(); };
+document.getElementById('saveRun').onclick=saveRun;
+document.getElementById('loadRun').onclick=loadRun;
+document.getElementById('deleteRun').onclick=deleteRun;
+document.getElementById('exportCsv').onclick=exportCsv;
+document.getElementById('printSheet').onclick=printSheet;
 for(let i=0;i<10;i++) addRow();
 calc();
 </script>
