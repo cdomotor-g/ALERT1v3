@@ -31,6 +31,11 @@ __NAV__
   <div id='pinoutTableWrap' class='muted'>No pinout selected.</div>
 </div>
 
+<div class='card'>
+  <h3 style='margin:.1rem 0 .5rem'>Visual (ASCII)</h3>
+  <pre id='pinoutAscii'>No visual selected.</pre>
+</div>
+
 <script>
 const KB = {
   'plugs': {
@@ -71,6 +76,7 @@ const lvl3 = document.getElementById('lvl3');
 const docEl = document.getElementById('doc');
 const pinMetaEl = document.getElementById('pinoutMeta');
 const pinWrapEl = document.getElementById('pinoutTableWrap');
+const pinAsciiEl = document.getElementById('pinoutAscii');
 const metaEl = document.getElementById('selMeta');
 
 let db9PinoutCache = null;
@@ -83,6 +89,50 @@ function loadDoc(path){
     docEl.textContent = (d && d.ok) ? d.text : ('error: '+JSON.stringify(d));
   }).catch(e=>{ docEl.textContent='error: '+e; });
 }
+function renderAscii(variant){
+  const maleFemale = `DB9 Front View (Mating Face)
+
+Male (pins):                    Female (sockets):
+  .-----------.                   .-----------.
+  | 1 2 3 4 5 |                   | 1 2 3 4 5 |
+  |  6 7 8 9  |                   |  6 7 8 9  |
+  '-----------'                   '-----------'
+
+Note: Rear/solder view is mirrored.`;
+
+  const straight = `Straight-through Cable (1:1)
+A1-1 B
+A2-2 B
+A3-3 B
+A4-4 B
+A5-5 B
+A6-6 B
+A7-7 B
+A8-8 B
+A9-9 B`;
+
+  const nullmodem = `Null-modem (basic + handshake common)
+TX/RX crossover:
+A2 <-> B3
+A3 <-> B2
+Ground:
+A5 <-> B5
+Flow control crossover:
+A7 <-> B8
+A8 <-> B7
+DTR/DSR crossover:
+A4 <-> B6
+A6 <-> B4`;
+
+  if((variant||'').toLowerCase().includes('straight')){
+    pinAsciiEl.textContent = maleFemale + "\n\n" + straight;
+  } else if((variant||'').toLowerCase().includes('null')){
+    pinAsciiEl.textContent = maleFemale + "\n\n" + nullmodem;
+  } else {
+    pinAsciiEl.textContent = maleFemale;
+  }
+}
+
 function renderPinoutTable(data){
   const rows=[];
   (data.connectors||[]).forEach(c=>{
@@ -115,7 +165,7 @@ function loadPinout(){
   if(db9PinoutCache){ renderPinoutTable(db9PinoutCache); return; }
   fetch('/api/kb/pinouts/db9').then(r=>r.json()).then(d=>{ db9PinoutCache=d; renderPinoutTable(d); }).catch(e=>{ pinWrapEl.textContent='error: '+e; });
 }
-function clearPinout(){ pinMetaEl.textContent=''; pinWrapEl.textContent='(no structured pinout data for this selection)'; }
+function clearPinout(){ pinMetaEl.textContent=''; pinWrapEl.textContent='(no structured pinout data for this selection)'; pinAsciiEl.textContent='No visual selected.'; }
 
 function refreshLevel2(){
   const c = KB[lvl1.value];
@@ -136,6 +186,7 @@ function loadSelection(){
   const v = i.variants[lvl3.value];
   metaEl.textContent = `${c.label} → ${lvl2.value} → ${lvl3.value}`;
   if(v.doc) loadDoc(v.doc); else docEl.textContent = v.inline || '(no reference)';
+  renderAscii(lvl3.value);
   if(v.pinout) loadPinout(); else clearPinout();
 }
 
