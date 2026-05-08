@@ -101,28 +101,28 @@ Male (pins):                    Female (sockets):
 Note: Rear/solder view is mirrored.`;
 
   const straight = `Straight-through Cable (1:1)
-A1-1 B
-A2-2 B
-A3-3 B
-A4-4 B
-A5-5 B
-A6-6 B
-A7-7 B
-A8-8 B
-A9-9 B`;
+
+A Side                 B Side
+A1  ────────────────   B1
+A2  ────────────────   B2
+A3  ────────────────   B3
+A4  ────────────────   B4
+A5  ────────────────   B5
+A6  ────────────────   B6
+A7  ────────────────   B7
+A8  ────────────────   B8
+A9  ────────────────   B9`;
 
   const nullmodem = `Null-modem (basic + handshake common)
-TX/RX crossover:
-A2 <-> B3
-A3 <-> B2
-Ground:
-A5 <-> B5
-Flow control crossover:
-A7 <-> B8
-A8 <-> B7
-DTR/DSR crossover:
-A4 <-> B6
-A6 <-> B4`;
+
+A Side                 B Side
+A2  ────────────────╮  B3
+A3  ╭───────────────┘  B2
+A5  ────────────────   B5
+A7  ────────────────╮  B8
+A8  ╭───────────────┘  B7
+A4  ────────────────╮  B6
+A6  ╭───────────────┘  B4`;
 
   if((variant||'').toLowerCase().includes('straight')){
     pinAsciiEl.textContent = maleFemale + "\n\n" + straight;
