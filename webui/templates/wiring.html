@@ -26,14 +26,14 @@ __NAV__
 </div>
 
 <div class='card'>
-  <h3 style='margin:.1rem 0 .5rem'>Reference</h3>
-  <pre id='doc'>loading…</pre>
-</div>
-
-<div class='card'>
   <h3 style='margin:.1rem 0 .5rem'>Pinout Table</h3>
   <div id='pinoutMeta' class='muted' style='margin-bottom:.4rem'></div>
   <div id='pinoutTableWrap' class='muted'>No pinout selected.</div>
+</div>
+
+<div class='card'>
+  <h3 style='margin:.1rem 0 .5rem'>Reference</h3>
+  <pre id='doc'>loading…</pre>
 </div>
 
 <script>
@@ -134,28 +134,40 @@ A6 <-> B4`;
 }
 
 function renderPinoutTable(data){
-  const rows=[];
-  (data.connectors||[]).forEach(c=>{
-    (c.pins||[]).forEach(p=>rows.push({connector:c.name,pin:p.pin,signal:p.signal,desc:p.desc||''}));
-  });
-  if(!rows.length){
-    pinWrapEl.textContent='No pinout rows available.';
+  const cons = data.connectors || [];
+  if(cons.length < 2){
+    pinWrapEl.textContent='No paired A/B pinout rows available.';
     pinMetaEl.textContent='';
     return;
   }
-  pinMetaEl.textContent = 'Showing connector pin maps for selected variant.';
+  const A = cons[0], B = cons[1];
+  const aMap = {}; (A.pins||[]).forEach(p=>aMap[String(p.pin)] = p);
+  const bMap = {}; (B.pins||[]).forEach(p=>bMap[String(p.pin)] = p);
+  const pins = Array.from(new Set([...(A.pins||[]).map(p=>String(p.pin)), ...(B.pins||[]).map(p=>String(p.pin))]))
+    .sort((x,y)=>Number(x)-Number(y));
+
+  pinMetaEl.textContent = `A-side: ${A.name}  |  B-side: ${B.name}`;
   let html = "<table style='width:100%;border-collapse:collapse'><thead><tr>"
-    +"<th style='text-align:left;border-bottom:1px solid #2a3948;padding:.35rem'>Connector</th>"
+    +"<th colspan='3' style='text-align:left;border-bottom:1px solid #2a3948;padding:.35rem'>A Side</th>"
+    +"<th colspan='3' style='text-align:left;border-bottom:1px solid #2a3948;padding:.35rem'>B Side</th>"
+    +"</tr><tr>"
+    +"<th style='text-align:left;border-bottom:1px solid #2a3948;padding:.35rem'>Pin</th>"
+    +"<th style='text-align:left;border-bottom:1px solid #2a3948;padding:.35rem'>Signal</th>"
+    +"<th style='text-align:left;border-bottom:1px solid #2a3948;padding:.35rem'>Description</th>"
     +"<th style='text-align:left;border-bottom:1px solid #2a3948;padding:.35rem'>Pin</th>"
     +"<th style='text-align:left;border-bottom:1px solid #2a3948;padding:.35rem'>Signal</th>"
     +"<th style='text-align:left;border-bottom:1px solid #2a3948;padding:.35rem'>Description</th>"
     +"</tr></thead><tbody>";
-  rows.forEach(r=>{
+
+  pins.forEach(pin=>{
+    const ap = aMap[pin] || {}; const bp = bMap[pin] || {};
     html += "<tr>"
-      +"<td style='border-bottom:1px solid #243243;padding:.35rem'>"+r.connector+"</td>"
-      +"<td style='border-bottom:1px solid #243243;padding:.35rem'>"+r.pin+"</td>"
-      +"<td style='border-bottom:1px solid #243243;padding:.35rem'>"+r.signal+"</td>"
-      +"<td style='border-bottom:1px solid #243243;padding:.35rem'>"+r.desc+"</td>"
+      +"<td style='border-bottom:1px solid #243243;padding:.35rem'>"+(ap.pin ?? '')+"</td>"
+      +"<td style='border-bottom:1px solid #243243;padding:.35rem'>"+(ap.signal || '')+"</td>"
+      +"<td style='border-bottom:1px solid #243243;padding:.35rem'>"+(ap.desc || '')+"</td>"
+      +"<td style='border-bottom:1px solid #243243;padding:.35rem'>"+(bp.pin ?? '')+"</td>"
+      +"<td style='border-bottom:1px solid #243243;padding:.35rem'>"+(bp.signal || '')+"</td>"
+      +"<td style='border-bottom:1px solid #243243;padding:.35rem'>"+(bp.desc || '')+"</td>"
       +"</tr>";
   });
   html += "</tbody></table>";
