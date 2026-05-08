@@ -488,6 +488,8 @@ TRENDS_HTML = Path('webui/templates/trends.html').read_text(encoding='utf-8', er
 
 RADIO_HTML = Path('webui/templates/radio.html').read_text(encoding='utf-8', errors='replace')
 
+SURVEYING_HTML = Path('webui/templates/surveying.html').read_text(encoding='utf-8', errors='replace')
+
 WIRING_HTML = Path('webui/templates/wiring.html').read_text(encoding='utf-8', errors='replace')
 
 FORENSICS_HTML = Path('webui/templates/forensics.html').read_text(encoding='utf-8', errors='replace')
@@ -2017,7 +2019,7 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         html_paths = {
             '/', '/dashboard', '/events', '/packets', '/overview', '/help', '/control', '/trends', '/data', '/path', '/stations', '/stations-map', '/map',
-            '/trip', '/file_drop', '/bitflipper', '/radio', '/wiring', '/forensics', '/about', '/admin'
+            '/trip', '/surveying', '/file_drop', '/bitflipper', '/radio', '/wiring', '/forensics', '/about', '/admin'
         }
         if parsed.path in html_paths:
             self.send_response(HTTPStatus.OK)
@@ -2255,6 +2257,15 @@ class Handler(BaseHTTPRequestHandler):
 
         if parsed.path == '/radio':
             payload = RADIO_HTML.replace('__NAV__', NAV_HTML).encode('utf-8')
+            self.send_response(HTTPStatus.OK)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Content-Length', str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
+
+        if parsed.path == '/surveying':
+            payload = SURVEYING_HTML.replace('__NAV__', NAV_HTML).encode('utf-8')
             self.send_response(HTTPStatus.OK)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
             self.send_header('Content-Length', str(len(payload)))
