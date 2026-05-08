@@ -6,6 +6,14 @@ label{font-size:.83rem;color:#9fb0c3}input,textarea,select{width:100%;background
 textarea{min-height:64px}table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid #243243;padding:.35rem}th{text-align:left}
 .num{width:100%;text-align:right}.back{background:#12263a}.inter{background:#17212b}.fore{background:#3a2a12}.toolbar{display:flex;gap:.45rem;flex-wrap:wrap}button{background:#1f6feb;color:white;border:0;padding:.42rem .7rem;border-radius:6px;cursor:pointer}
 button.secondary{background:#334155}
+@media print{
+  body{background:white;color:black}
+  .page{padding:.2in}
+  .toolbar, .muted, .fw-shell, .fw-mobilebar, .fw-sidebar{display:none !important}
+  .card{background:white;border:1px solid #bbb;break-inside:avoid}
+  input,textarea,select{border:1px solid #999;background:white;color:black}
+  table,th,td{color:black}
+}
 </style></head><body><div class='page'>
 <h2 style='margin-top:0'>Surveying/Leveling</h2>
 <div class='muted' style='margin:-.2rem 0 .55rem'>Pass A: Field sheet layout + entry UX scaffold.</div>
