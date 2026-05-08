@@ -52,6 +52,7 @@ __NAV__
     <button id='addRow'>Add Row</button>
     <button class='secondary' id='removeRow'>Remove Last Row</button>
   </div>
+  <div class='muted' id='calcStatus' style='margin-bottom:.5rem'>Misclose: n/a</div>
   <table id='tbl'>
     <thead><tr>
       <th style='width:11%'>Back</th>
@@ -98,10 +99,66 @@ function enforceNumeric(e){
     e.target.value = e.target.value.replace(/[^0-9.\-]/g,'');
   }
 }
-rowsEl.addEventListener('input', enforceNumeric);
 
-document.getElementById('addRow').onclick=addRow;
-document.getElementById('removeRow').onclick=removeRow;
+function f3(v){ return Number.isFinite(v) ? v.toFixed(3) : ''; }
+function num(v){ const n=parseFloat(v); return Number.isFinite(n)?n:null; }
+
+function calc(){
+  const rows=[...rowsEl.querySelectorAll('tr')];
+  const gaugeZero=num(document.getElementById('gaugeZero').value) ?? 0;
+  let startRL = null;
+  let prevReading = null;
+  let curRL = null;
+  let sumBS=0, sumFS=0;
+
+  rows.forEach((tr,idx)=>{
+    tr.style.outline='none';
+    const backEl=tr.querySelector("input[data-col='back']");
+    const interEl=tr.querySelector("input[data-col='inter']");
+    const foreEl=tr.querySelector("input[data-col='fore']");
+    const rfEl=tr.querySelector("input[data-col='risefall']");
+    const rlEl=tr.querySelector("input[data-col='rl']");
+    const rgdEl=tr.querySelector("input[data-col='rgd']");
+
+    const back=num(backEl.value), inter=num(interEl.value), fore=num(foreEl.value);
+    const reading = back ?? inter ?? fore;
+    const count = [back,inter,fore].filter(v=>v!==null).length;
+    if(count>1){ tr.style.outline='2px solid #ef4444'; }
+
+    if(back!==null) sumBS += back;
+    if(fore!==null) sumFS += fore;
+
+    if(startRL===null){
+      const rlProvided = num(rlEl.value);
+      if(rlProvided!==null){ startRL=rlProvided; curRL=rlProvided; rgdEl.value=f3(curRL-gaugeZero); }
+    }
+
+    if(reading!==null && prevReading!==null && curRL!==null){
+      const delta = prevReading - reading;
+      rfEl.value = f3(delta);
+      curRL = curRL + delta;
+      if(!rlEl.matches(':focus')) rlEl.value = f3(curRL);
+      rgdEl.value = f3(curRL-gaugeZero);
+    } else if(curRL!==null && reading!==null && prevReading===null){
+      if(!rlEl.matches(':focus')) rlEl.value = f3(curRL);
+      rgdEl.value = f3(curRL-gaugeZero);
+    }
+
+    if(reading!==null) prevReading = reading;
+  });
+
+  const status=document.getElementById('calcStatus');
+  const misclose = sumBS - sumFS;
+  const ok = Math.abs(misclose) <= 0.020;
+  status.textContent = `Misclose: ${f3(misclose)}  |  BS: ${f3(sumBS)}  FS: ${f3(sumFS)}  |  ${ok?'✅ Within tolerance':'⚠️ Outside tolerance'}`;
+}
+
+rowsEl.addEventListener('input', (e)=>{ enforceNumeric(e); calc(); });
+document.getElementById('gaugeZero').addEventListener('input', calc);
+
+document.getElementById('addRow').onclick=()=>{ addRow(); calc(); };
+document.getElementById('removeRow').onclick=()=>{ removeRow(); calc(); };
 for(let i=0;i<10;i++) addRow();
+calc();
 </script>
 </div></body></html>
