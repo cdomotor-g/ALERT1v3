@@ -109,9 +109,10 @@ function calc(){
   let startRL = null;
   let prevReading = null;
   let curRL = null;
-  let sumBS=0, sumFS=0;
+  let sumBS=0, sumFS=0, cpCount=0;
+  let inSetup=false;
 
-  rows.forEach((tr,idx)=>{
+  rows.forEach((tr)=>{
     tr.style.outline='none';
     const backEl=tr.querySelector("input[data-col='back']");
     const interEl=tr.querySelector("input[data-col='inter']");
@@ -125,8 +126,18 @@ function calc(){
     const count = [back,inter,fore].filter(v=>v!==null).length;
     if(count>1){ tr.style.outline='2px solid #ef4444'; }
 
-    if(back!==null) sumBS += back;
-    if(fore!==null) sumFS += fore;
+    // sequencing rules
+    if(back!==null){
+      if(inSetup){ tr.style.outline='2px solid #f59e0b'; }
+      inSetup = true;
+      sumBS += back;
+    }
+    if(inter!==null && !inSetup){ tr.style.outline='2px solid #f59e0b'; }
+    if(fore!==null){
+      if(!inSetup){ tr.style.outline='2px solid #f59e0b'; }
+      else { inSetup = false; cpCount += 1; }
+      sumFS += fore;
+    }
 
     if(startRL===null){
       const rlProvided = num(rlEl.value);
@@ -135,8 +146,9 @@ function calc(){
 
     if(reading!==null && prevReading!==null && curRL!==null){
       const delta = prevReading - reading;
-      rfEl.value = f3(delta);
-      curRL = curRL + delta;
+      if(!rfEl.matches(':focus') || rfEl.value==='') rfEl.value = f3(delta);
+      const rfManual=num(rfEl.value);
+      curRL = curRL + (rfManual ?? delta);
       if(!rlEl.matches(':focus')) rlEl.value = f3(curRL);
       rgdEl.value = f3(curRL-gaugeZero);
     } else if(curRL!==null && reading!==null && prevReading===null){
@@ -149,8 +161,9 @@ function calc(){
 
   const status=document.getElementById('calcStatus');
   const misclose = sumBS - sumFS;
-  const ok = Math.abs(misclose) <= 0.020;
-  status.textContent = `Misclose: ${f3(misclose)}  |  BS: ${f3(sumBS)}  FS: ${f3(sumFS)}  |  ${ok?'✅ Within tolerance':'⚠️ Outside tolerance'}`;
+  const tolerance = 0.001 * cpCount + 0.001;
+  const ok = Math.abs(misclose) <= tolerance;
+  status.textContent = `Misclose: ${f3(misclose)}  |  BS: ${f3(sumBS)}  FS: ${f3(sumFS)}  |  CP: ${cpCount}  Tol: ±${f3(tolerance)}m  |  ${ok?'✅ Within tolerance':'⚠️ Outside tolerance'}`;
 }
 
 rowsEl.addEventListener('input', (e)=>{ enforceNumeric(e); calc(); });
