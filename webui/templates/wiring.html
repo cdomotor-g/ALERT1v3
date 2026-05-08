@@ -1,31 +1,118 @@
 <!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1, viewport-fit=cover'><title>FW-LAB Wiring KB</title>
-<style>body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}.muted{color:#9fb0c3}pre{background:#0f141a;border:1px solid #2a3948;padding:.7rem;border-radius:8px;overflow:auto}</style></head><body><div class='page'>
+<style>
+body{font-family:Arial;margin:0;background:#10151c;color:#d7e0ea}
+.page{padding:1rem}.card{background:#17212b;padding:.8rem;border-radius:8px;margin-bottom:.8rem}
+.muted{color:#9fb0c3}pre{background:#0f141a;border:1px solid #2a3948;padding:.7rem;border-radius:8px;overflow:auto}
+.row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+select{background:#0f141a;color:#d7e0ea;border:1px solid #2a3948;border-radius:6px;padding:.35rem .45rem;min-width:240px}
+</style></head><body><div class='page'>
 <h2 style='margin-top:0'>Knowledge Base · Wiring</h2>
-<div class='muted' style='margin:-.2rem 0 .55rem'>DB9 pinouts and cable references (starter set). Expandable into full field wiring library.</div>
+<div class='muted' style='margin:-.2rem 0 .55rem'>Tiered wiring knowledge base (plugs/devices/systems), expandable as new references are added.</div>
 __NAV__
+
 <div class='card'>
-  <h3 style='margin:.1rem 0 .5rem'>DB9 Pinouts (JSON)</h3>
+  <h3 style='margin:.1rem 0 .5rem'>Navigator</h3>
+  <div class='row' style='margin-bottom:.5rem'>
+    <div><div class='muted'>1) Category</div><select id='lvl1'></select></div>
+    <div><div class='muted'>2) Item</div><select id='lvl2'></select></div>
+    <div><div class='muted'>3) Variant</div><select id='lvl3'></select></div>
+  </div>
+  <div class='muted' id='selMeta'></div>
+</div>
+
+<div class='card'>
+  <h3 style='margin:.1rem 0 .5rem'>Reference</h3>
+  <pre id='doc'>loading…</pre>
+</div>
+
+<div class='card'>
+  <h3 style='margin:.1rem 0 .5rem'>Structured Pinout Data</h3>
   <pre id='pinout'>loading…</pre>
 </div>
-<div class='card'>
-  <h3 style='margin:.1rem 0 .5rem'>Cable References</h3>
-  <div style='display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.5rem'>
-    <button id='btnNull'>Load DB9 Null Modem</button>
-    <button id='btnStraight'>Load DB9 Straight-Through</button>
-  </div>
-  <pre id='cableDoc'>select a reference…</pre>
-</div>
+
 <script>
+const KB = {
+  'plugs': {
+    label: 'Plugs',
+    items: {
+      'DB9': {
+        variants: {
+          'DB9 Male & Female Plugs and Straight-through cable': { doc: 'docs/wiring/cables/db9_straight_through_reference.md', pinout: true },
+          'DB9 Null-modem cable and plugs': { doc: 'docs/wiring/cables/db9_null_modem_reference.md', pinout: true }
+        }
+      },
+      'RJ45': {
+        variants: {
+          'Placeholder (add reference)': { inline: 'RJ45 references coming soon.' }
+        }
+      }
+    }
+  },
+  'devices': {
+    label: 'Devices',
+    items: {
+      'HS40': { variants: { 'Placeholder (add reference)': { inline: 'HS40 device wiring references coming soon.' } } },
+      'CR300': { variants: { 'Placeholder (add reference)': { inline: 'CR300 device wiring references coming soon.' } } }
+    }
+  },
+  'systems': {
+    label: 'Systems',
+    items: {
+      'BoM ALERT Raintree': { variants: { 'Placeholder (add reference)': { inline: 'BoM ALERT Raintree system diagrams coming soon.' } } },
+      'BoM ALERT River & Rain': { variants: { 'Placeholder (add reference)': { inline: 'BoM ALERT River & Rain system diagrams coming soon.' } } }
+    }
+  }
+};
+
+const lvl1 = document.getElementById('lvl1');
+const lvl2 = document.getElementById('lvl2');
+const lvl3 = document.getElementById('lvl3');
+const docEl = document.getElementById('doc');
+const pinEl = document.getElementById('pinout');
+const metaEl = document.getElementById('selMeta');
+
+let db9PinoutCache = null;
+function setOptions(sel, values){
+  sel.innerHTML='';
+  values.forEach(v=>{ const o=document.createElement('option'); o.value=v.value; o.textContent=v.label; sel.appendChild(o); });
+}
 function loadDoc(path){
   fetch('/api/kb/doc?path='+encodeURIComponent(path)).then(r=>r.json()).then(d=>{
-    document.getElementById('cableDoc').textContent = d && d.ok ? d.text : ('error: '+JSON.stringify(d));
-  }).catch(e=>{document.getElementById('cableDoc').textContent='error: '+e;});
+    docEl.textContent = (d && d.ok) ? d.text : ('error: '+JSON.stringify(d));
+  }).catch(e=>{ docEl.textContent='error: '+e; });
 }
-fetch('/api/kb/pinouts/db9').then(r=>r.json()).then(d=>{
-  document.getElementById('pinout').textContent=JSON.stringify(d,null,2);
-}).catch(e=>{document.getElementById('pinout').textContent='error: '+e;});
-document.getElementById('btnNull').onclick=function(){ loadDoc('docs/wiring/cables/db9_null_modem_reference.md'); };
-document.getElementById('btnStraight').onclick=function(){ loadDoc('docs/wiring/cables/db9_straight_through_reference.md'); };
-loadDoc('docs/wiring/cables/db9_null_modem_reference.md');
+function loadPinout(){
+  if(db9PinoutCache){ pinEl.textContent=JSON.stringify(db9PinoutCache,null,2); return; }
+  fetch('/api/kb/pinouts/db9').then(r=>r.json()).then(d=>{ db9PinoutCache=d; pinEl.textContent=JSON.stringify(d,null,2); }).catch(e=>{ pinEl.textContent='error: '+e; });
+}
+function clearPinout(){ pinEl.textContent='(no structured pinout data for this selection)'; }
+
+function refreshLevel2(){
+  const c = KB[lvl1.value];
+  const keys = Object.keys((c&&c.items)||{});
+  setOptions(lvl2, keys.map(k=>({value:k,label:k})));
+  refreshLevel3();
+}
+function refreshLevel3(){
+  const c = KB[lvl1.value];
+  const i = c.items[lvl2.value];
+  const keys = Object.keys((i&&i.variants)||{});
+  setOptions(lvl3, keys.map(k=>({value:k,label:k})));
+  loadSelection();
+}
+function loadSelection(){
+  const c = KB[lvl1.value];
+  const i = c.items[lvl2.value];
+  const v = i.variants[lvl3.value];
+  metaEl.textContent = `${c.label} → ${lvl2.value} → ${lvl3.value}`;
+  if(v.doc) loadDoc(v.doc); else docEl.textContent = v.inline || '(no reference)';
+  if(v.pinout) loadPinout(); else clearPinout();
+}
+
+setOptions(lvl1, Object.keys(KB).map(k=>({value:k,label:KB[k].label})));
+lvl1.onchange = refreshLevel2;
+lvl2.onchange = refreshLevel3;
+lvl3.onchange = loadSelection;
+refreshLevel2();
 </script>
 </div></body></html>
