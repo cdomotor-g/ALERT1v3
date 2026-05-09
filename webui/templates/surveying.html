@@ -10,6 +10,8 @@ button.secondary{background:#334155}
   body{background:white;color:black}
   .page{padding:.2in}
   .toolbar, .muted, .fw-shell, .fw-mobilebar, .fw-sidebar{display:none !important}
+  #printHead{display:block !important}
+  #printHead .muted{display:block !important;color:#222 !important}
   .card{background:white;border:1px solid #bbb;break-inside:avoid}
   input,textarea,select{border:1px solid #999;background:white;color:black}
   table,th,td{color:black}
@@ -18,6 +20,11 @@ button.secondary{background:#334155}
 <h2 style='margin-top:0'>Surveying/Leveling</h2>
 <div class='muted' style='margin:-.2rem 0 .55rem'>Pass A: Field sheet layout + entry UX scaffold.</div>
 __NAV__
+
+<div id='printHead' class='card' style='display:none'>
+  <h3 style='margin:.1rem 0 .4rem'>Surveying / Leveling Field Sheet</h3>
+  <div id='printHeadLine' class='muted'></div>
+</div>
 
 <div class='card'>
   <h3 style='margin:.1rem 0 .6rem'>Header · General / Instrument / Setup</h3>
@@ -83,6 +90,7 @@ __NAV__
 
 <script>
 const rowsEl = document.getElementById('rows');
+let currentRunName = '';
 function rowTemplate(idx){
   return `<tr data-row='${idx}'>
     <td class='back'><input inputmode='decimal' class='num cell' data-col='back'></td>
@@ -205,7 +213,8 @@ function getRuns(){ try{return JSON.parse(localStorage.getItem(runsKey())||'{}')
 function setRuns(obj){ localStorage.setItem(runsKey(), JSON.stringify(obj)); }
 
 function saveRun(){
-  const name=prompt('Run name?'); if(!name) return;
+  const name=prompt('Run name?', currentRunName || ''); if(!name) return;
+  currentRunName = name;
   const runs=getRuns(); runs[name]=collect(); setRuns(runs); alert('Saved run: '+name);
 }
 function loadRun(){
@@ -213,6 +222,7 @@ function loadRun(){
   if(!names.length){ alert('No saved runs'); return; }
   const name=prompt('Load which run?\n'+names.join('\n'), names[names.length-1]);
   if(!name || !runs[name]) return;
+  currentRunName = name;
   applyData(runs[name]);
 }
 function deleteRun(){
@@ -233,7 +243,16 @@ function exportCsv(){
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='survey_run.csv'; a.click(); URL.revokeObjectURL(a.href);
 }
 
-function printSheet(){ window.print(); }
+function printSheet(){
+  const d=document.getElementById('date').value || '';
+  const c=document.getElementById('crew').value || '';
+  const s=document.getElementById('stationNo').value || '';
+  const sec=document.getElementById('sectionNo').value || '';
+  const st=document.getElementById('stream').value || '';
+  const line = `Run: ${currentRunName||'(unsaved)'}  |  Date: ${d}  |  Crew: ${c}  |  Station: ${s}  |  Section: ${sec}  |  Stream: ${st}`;
+  document.getElementById('printHeadLine').textContent = line;
+  window.print();
+}
 
 document.getElementById('addRow').onclick=()=>{ addRow(); calc(); };
 document.getElementById('removeRow').onclick=()=>{ removeRow(); calc(); };
