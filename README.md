@@ -1,5 +1,7 @@
 # FW-LAB Receiver
 
+**Retired, and archived.** `floodwarning.net` moved to [Flood-Net](https://github.com/cdomotor-g/MegaNet) in September 2026 (cut over by 10 September; see Flood-Net's `docs/floodwarning-net.md`). This repository is kept read-only for its history.
+
 **Flood Warning ALERT Base Station Receiver** (short name: **FW-LAB Receiver**) is an RTL-SDR + GNU Radio receiver/decoder flowgraph for ALERT-style transmissions (default center frequency: 173.9 MHz).
 
 Current goals:
